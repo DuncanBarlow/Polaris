@@ -1,0 +1,108 @@
+&GENERAL
+    INLINE                      = .FALSE.,
+    CBET                        = .FALSE.,
+    NBEAMS                      = 192,
+    CARTESIAN_MESHER            = .FALSE.,
+    CYLINDRICAL_MESHER          = .FALSE.,
+    SPHERICAL_MESHER            = .TRUE.,
+    BBOX_INTERFACE_REFRACTION   = .FALSE.,
+    TARGET_OFFSET_UM            = 0.d0,0.d0,0.d0,
+    POSTPROC_FORWARD_GO         = .FALSE.,
+    FULL_OUTPUT_PHASE_SPACE     = .FALSE.
+    FULL_OUTPUT_BEAMS           = .TRUE.
+    T_FLOOR_NU_IB_EV = 25.d0    
+    LOG_LAMBDA_MODEL = "HYDRA"
+    PERMITTIVITY_MODEL = "SIMPLIFIED"
+    ABSORPTION_LANGDON = .FALSE.
+    FIELD_SOLVER                            = "IRT"
+    RTBIN_SOLVER_APPROX_NRAYS_PER_FACE      = 50
+    MODEL_STALK = .FALSE.
+    DIAGNOSE_INPUT_BEAMS_AND_EXIT           = .TRUE.
+    DIAGNOSE_INPUT_BEAMS_AND_EXIT_RADIUS_UM = 1100.d0    
+    DUMP_INTEGRATED_HEAT_SOURCE = .FALSE.
+/
+
+&OFFLINE_HYDRO
+    TE_KEV    = 1.d0,
+    TI_KEV    = 1.d0,
+    FRACS     = 3,7,
+    ATOMIC_SPECIES  = "C","D",
+    NBEAM_NC  = 1,
+    NE_NC_PROF_PRESCRIBED = .TRUE.,
+    NE_NC_PROF_MIN        = 0.005d0,
+    NE_NC_PROF_MAX        = 4.d0,
+    NE_NC_PROF_POS_MIN    = -230.d0,0.d0,0.d0,
+    NE_NC_PROF_POS_MAX    = 0.d0,0.d0,0.d0,
+    NE_NC_PROF_SG         = 2.d0,
+    NE_NC_PROF_GRIDDING   = 1,
+    V_CS_PROF_PRESCRIBED  = .TRUE.,
+    V_CS_PROF_MIN         = 0.01d0,
+    V_CS_PROF_MAX         = 2.5d0,
+    V_CS_PROF_POS_MIN     = 0.d0,0.d0,0.d0,
+    V_CS_PROF_POS_MAX     = -400.d0,0.d0,0.d0,
+    V_CS_PROF_SG          = 2.d0,
+    V_CS_PROF_GRIDDING    = 1
+/
+
+&IO_PRINT
+    VERBOSE_LEVEL = 1,
+    PRINT_CHANNEL_IFRIIT_VERBOSE = 6,
+    PRINT_CHANNEL_IFRIIT = 6,
+/
+
+&CBET_MODEL
+    CBET_IAW_FLUID_DMP=0.1d0,
+    CBET_DNN_KINETIC=.TRUE.,
+    CBET_LANGDON=.FALSE.,
+    CBET_POLARIZED=.TRUE.,
+    CBET_KSPREAD=.FALSE.,
+    CBET_LANGDON_ZPDATA = "/mnt/local/acolaitis/codes/aster/src/ifriit/zprime_nonmax.nc"    
+    CBET_DNDT = .FALSE.
+    CBET_DNN_CLAMP      = 0.02
+/
+
+&SPHERICAL_MESH
+    CGAL_MESHER             = .FALSE.,
+    PLATONIC_SOLID_MESHER   = .TRUE.,
+    PLATONIC_SOLID_MESHER_ALTERNATED_RADIAL_MESH = .TRUE.
+    USE_SIZING_FUNCTION     = .TRUE.,
+    DISABLE_RANDOM_ROTATION = .TRUE.
+    NR_INI                  = 50,
+    RMAX                    = 230.d0,
+/
+
+&SIZING_FUNCTION
+    !
+    ! ---- CUTOFF PERMITTIVITIES ----
+    ! 
+    EPS_CUTOFF_VACUUM           = .999d0,
+    EPS_CUTOFF_VACUUM_OBSERVATION = .999d0,
+    EPS_CUTOFF_SOLID            = 0.d0,
+    !
+    ! ---- RAYTRACING MESH ----
+    !
+    ! ** warmup mode, for solid ball mode or t > raytrace_mesh_n_circ_perim_main_switch_ps
+    !
+    RAYTRACE_MESH_N_CIRC_PERIM_MAIN_SWITCH_PS = 0.d0
+    RAYTRACE_MESH_N_CIRC_PERIM_INITIALIZATION = 360, 
+    RAYTRACE_MESH_N_LAMBDA_MIN_SCALE_INITIALIZATION = 20.d0
+    !
+    ! ** main mode
+    !
+    RAYTRACE_MESH_N_CIRC_PERIM_MAIN = 360, 
+    RAYTRACE_MESH_N_LAMBDA_MIN_SCALE = .05d0 
+    RAYTRACE_MESH_N_LAMBDA_MAX_SCALE = 500.d0 
+    RAYTRACE_MESH_NCELLS_SCALELENGTH = 50.d0
+    !
+    ! ---- OBSERVATION MESH ----
+    !
+    DECOUPLE_OBSERVATION_MESH = .TRUE.
+    OBSERVATION_MESH_NTHETA = 90
+    OBSERVATION_MESH_NPHI = 180
+    OBSERVATION_MESH_N_LAMBDA_MIN_SCALE = .05d0 
+    OBSERVATION_MESH_N_LAMBDA_MAX_SCALE = 500.d0   
+    OBSERVATION_MESH_NCELLS_SCALELENGTH = 10.d0
+    !  
+/
+
+!!!!!!!!!!!!!!!!!! beams !!!!!!!!!!!!!!!!!!
