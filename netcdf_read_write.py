@@ -3,6 +3,22 @@ import numpy as np
 import os.path
 from os import path
 import healpy as hp
+import glob
+
+
+
+def read_intensity(data_location):
+    files=glob.glob(data_location+'/p_in_*.nc')
+    intensity_map = 0.0
+    n_beams = len(files)
+    for file_name in files:
+        b='Reading from: ' + file_name + "  "
+        print("\r", b, end="")
+        cone_data = Dataset(file_name)
+        intensity_data = cone_data.variables["intensity"]
+        intensity_map = intensity_data[:] + intensity_map
+
+    return intensity_map, n_beams
 
 
 
