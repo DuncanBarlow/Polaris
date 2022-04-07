@@ -5,7 +5,7 @@ import healpy as hp
 small_num = 1.0e-10
 
 
-def pointing_rotations(the_data, quad_slice, pointing_nside, surface_cover_radians):
+def hp_pointing_rotations(the_data, quad_slice, pointing_nside, surface_cover_degrees):
     npixels = hp.nside2npix(pointing_nside)
     img = np.linspace(0, npixels, num=npixels)
     index = np.arange(npixels)
@@ -77,3 +77,27 @@ def rot_mat(theta, axis):
         print("Invalid parameter 'axis' try setting string 'x', 'y', or 'z'")
 
     return mat
+
+
+
+def theta_pointing_rotations(the_data, quad_slice, npoints, surface_cover_radians):
+
+    port_theta = np.mean(the_data['Theta'][quad_slice])
+    port_phi = np.mean(the_data['Phi'][quad_slice])
+    
+    offset_thetas = np.linspace(-surface_cover_radians, surface_cover_radians, npoints)
+    pointing_theta = port_theta + offset_thetas
+    cos_t = np.cos(pointing_theta)
+    sin_t = np.sin(pointing_theta)
+    cos_p = np.cos(port_phi)
+    sin_p = np.sin(port_phi)
+
+    x = the_data['target_radius'] * cos_p * sin_t
+    y = the_data['target_radius'] * sin_p * cos_t
+    z = the_data['target_radius'] * cos_t
+
+    x = np.where(abs(x) < small_num, 0.0, x)
+    y = np.where(abs(y) < small_num, 0.0, y)
+    z = np.where(abs(z) < small_num, 0.0, z)
+
+    return x, y, z, offset_thetas
