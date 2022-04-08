@@ -7,8 +7,14 @@ import glob
 from healpy_pointings import rot_mat
 
 
-def read_intensity(data_location):
-    files=glob.glob(data_location+'/p_in_*.nc')
+def read_intensity(data_location, run_type, beam_names):
+    if (run_type == "nif"):
+        start = [data_location + '/p_in_z1z2_beam_NIF-'] * 4
+        end = ['.nc']*4
+        files = [i + j for i, j in zip(start, beam_names)]
+        files = [i + j for i, j in zip(files, end)]
+    elif (run_type == "test"):
+        files = glob.glob(data_location + '/p_in_*.nc')
     intensity_map = 0.0
     n_beams = len(files)
     for file_name in files:

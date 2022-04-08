@@ -26,7 +26,7 @@ def generate_input_deck(the_data, run_location):
 
 
 
-def generate_input_pointing_and_pulses(dat, run_location, quad_slice):
+def generate_input_pointing_and_pulses(dat, run_location, quad_slice, run_type):
     if (dat['facility'] == "NIF"):
         j = 0
         with open(run_location+'/ifriit_inputs.txt','a') as f:
@@ -52,19 +52,21 @@ def generate_input_pointing_and_pulses(dat, run_location, quad_slice):
                     f.write('    T_0_NS              = '+str(dat['t0'])+'d0,\n')
                 else:
                     f.write('    P0_TW               = '+str(dat['p0'][j])+'d0,\n')
-                f.write('    PREDEF_FACILITY     = "NIF"\n')
-                f.write('    PREDEF_BEAM         = "'+beam+'",\n')
-                f.write('    PREDEF_CPP          = "NIF-'+cpp+'",\n')
-                f.write('    CPP_ROTATION_MODE   = 1,\n')
-                #f.write('    CPP_ROTATION_DEG    = 45.0d0,\n')
-                #f.write('    DEFOCUS_MM          = 10.0d0,\n')
-                #f.write('    THETA_DEG            = ' + str(np.degrees(np.mean(dat['Theta'][quad_slice]))) + 'd0,\n')
-                #f.write('    PHI_DEG              = ' + str(np.degrees(np.mean(dat['Phi'][quad_slice]))) + 'd0,\n')
-                #f.write('    FOCAL_M             = 10.0d0,\n')
-                #f.write('    SG                  = 6,\n')
-                #f.write('    LAW                  = 2,\n')
-                #f.write('    RAD_1_UM            = 80.0d0,\n')
-                #f.write('    RAD_2_UM            = 80.0d0,\n')
+                if (run_type == "nif"):
+                    f.write('    PREDEF_FACILITY     = "NIF"\n')
+                    f.write('    PREDEF_BEAM         = "'+beam+'",\n')
+                    f.write('    PREDEF_CPP          = "NIF-'+cpp+'",\n')
+                    f.write('    CPP_ROTATION_MODE   = 1,\n')
+                    #f.write('    CPP_ROTATION_DEG    = 45.0d0,\n')
+                    #f.write('    DEFOCUS_MM          = 10.0d0,\n')
+                elif (run_type == "test"):
+                    f.write('    THETA_DEG            = ' + str(np.degrees(np.mean(dat['Theta'][quad_slice]))) + 'd0,\n')
+                    f.write('    PHI_DEG              = ' + str(np.degrees(np.mean(dat['Phi'][quad_slice]))) + 'd0,\n')
+                    f.write('    FOCAL_M             = 10.0d0,\n')
+                    f.write('    SG                  = 6,\n')
+                    f.write('    LAW                  = 2,\n')
+                    f.write('    RAD_1_UM            = 80.0d0,\n')
+                    f.write('    RAD_2_UM            = 80.0d0,\n')
                 if 'fuse' in dat.keys() and not dat['fuse'][j]:
                     f.write('    FUSE_QUADS          = .FALSE.,\n')
                 else:
