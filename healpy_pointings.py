@@ -93,7 +93,7 @@ def theta_pointing_rotations(the_data, quad_slice, npoints, surface_cover_radian
     sin_p = np.sin(port_phi)
 
     x = the_data['target_radius'] * cos_p * sin_t
-    y = the_data['target_radius'] * sin_p * cos_t
+    y = the_data['target_radius'] * sin_p * sin_t
     z = the_data['target_radius'] * cos_t
 
     x = np.where(abs(x) < small_num, 0.0, x)
