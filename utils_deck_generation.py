@@ -56,10 +56,10 @@ def generate_input_pointing_and_pulses(dat, run_location, quad_slice):
                 f.write('    PREDEF_BEAM         = "'+beam+'",\n')
                 f.write('    PREDEF_CPP          = "NIF-'+cpp+'",\n')
                 f.write('    CPP_ROTATION_MODE   = 1,\n')
-                f.write('    CPP_ROTATION_DEG    = 45.0d0,\n')
+                #f.write('    CPP_ROTATION_DEG    = 45.0d0,\n')
                 #f.write('    DEFOCUS_MM          = 10.0d0,\n')
-                #f.write('    THETA_DEG            = ' + str(np.mean(dat['Theta'][quad_slice])) + 'd0,\n')
-                #f.write('    PHI_DEG              = ' + str(np.mean(dat['Phi'][quad_slice])) + 'd0,\n')
+                #f.write('    THETA_DEG            = ' + str(np.degrees(np.mean(dat['Theta'][quad_slice]))) + 'd0,\n')
+                #f.write('    PHI_DEG              = ' + str(np.degrees(np.mean(dat['Phi'][quad_slice]))) + 'd0,\n')
                 #f.write('    FOCAL_M             = 10.0d0,\n')
                 #f.write('    SG                  = 6,\n')
                 #f.write('    LAW                  = 2,\n')
@@ -87,4 +87,3 @@ def generate_input_pointing_and_pulses(dat, run_location, quad_slice):
                 for i in range(len(dat['times'])):
                     f.write(str(dat['times'][i]) + ' ' + str(dat['powers'][j,i]) + '\n')
             j = j + 1
-

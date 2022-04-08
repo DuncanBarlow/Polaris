@@ -5,7 +5,7 @@ import healpy as hp
 small_num = 1.0e-10
 
 
-def pointing_rotations(the_data, quad_slice, pointing_nside, surface_cover_degrees):
+def pointing_rotations(the_data, quad_slice, pointing_nside, surface_cover_radians):
     npixels = hp.nside2npix(pointing_nside)
     img = np.linspace(0, npixels, num=npixels)
     index = np.arange(npixels)
@@ -13,7 +13,7 @@ def pointing_rotations(the_data, quad_slice, pointing_nside, surface_cover_degre
 
     vec = hp.ang2vec(np.pi / 2, 0.0)
     pointing_ind = hp.query_disc(nside=pointing_nside, vec=vec,
-                                 radius=np.radians(surface_cover_degrees))
+                                 radius=surface_cover_radians)
 
     gamma = theta[pointing_ind] - np.pi /2
     beta = phi[pointing_ind]
@@ -22,8 +22,8 @@ def pointing_rotations(the_data, quad_slice, pointing_nside, surface_cover_degre
     cos_b = np.cos(beta)
     sin_b = np.sin(beta)
 
-    delta = np.mean(np.radians(the_data['Theta'][quad_slice])) - np.pi /2
-    phi = np.mean(np.radians(the_data['Phi'][quad_slice]))
+    delta = np.mean(the_data['Theta'][quad_slice]) - np.pi /2
+    phi = np.mean(the_data['Phi'][quad_slice])
     cos_d = np.cos(delta)
     sin_d = np.sin(delta)
     cos_p = np.cos(phi)

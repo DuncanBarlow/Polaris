@@ -63,16 +63,16 @@ def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta
         port_loc[1] = np.mean(the_data['Theta'][quad_slice])
         port_loc[2] = np.mean(the_data['Phi'][quad_slice])
 
+        ############## rotation by interpolation ##################
         rotate_theta = port_loc[1] - old_imap_theta
         rotate_phi = port_loc[2] - old_imap_phi
-
-        ############## rotation by interpolation ##################
-        theta = np.radians(old_imap_theta)
-        phi = np.radians(old_imap_phi)
+        
+        theta = old_imap_theta
+        phi = old_imap_phi
         # I do not know the reason for the different signs in front of "rotate_theta"
         # but i checked and this works
-        alpha = np.radians(old_imap_theta + rotate_theta)
-        beta = np.radians(old_imap_phi - rotate_phi)
+        alpha = old_imap_theta + rotate_theta
+        beta = old_imap_phi - rotate_phi
 
         # rotate so base port location aligns with z axis and then rotate to new port
         rotation_matrix = np.matmul(np.matmul(rot_mat(beta, "z"), rot_mat(alpha, "y")),
@@ -95,8 +95,8 @@ def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta
 
         quad_pointing = quad_grp.createVariable('quad_pointing', 'f4', ('pointing_dim',))
         quad_pointing[0] = the_data['target_radius']
-        quad_pointing[1] = pointing_theta + np.radians(rotate_theta)
-        quad_pointing[2] = pointing_phi + np.radians(rotate_phi)
+        quad_pointing[1] = pointing_theta + rotate_theta
+        quad_pointing[2] = pointing_phi + rotate_phi
 
         quad_grp.createDimension('intensity_dim', imap_npix)
         intensity_map = quad_grp.createVariable('intensity_map', 'f4', ('intensity_dim',))
