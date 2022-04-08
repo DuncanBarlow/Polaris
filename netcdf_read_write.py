@@ -4,8 +4,7 @@ from os import path
 import os
 import healpy as hp
 import glob
-
-small_num = 1.0e-10
+from healpy_pointings import rot_mat
 
 
 def read_intensity(data_location):
@@ -52,6 +51,7 @@ def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta
     print("\r", b, end="")
     rootgrp = Dataset(save_name, "w", format="NETCDF4")
 
+    coord_o = np.zeros([3, imap_npix])
     for i in range(len(quad_list_in_cone)):
         quad_start_ind = the_data["Quad"].index(quad_list_in_cone[i])
         quad_slice = slice(quad_start_ind,quad_start_ind+4)
@@ -63,39 +63,40 @@ def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta
         port_loc[1] = np.mean(the_data['Theta'][quad_slice])
         port_loc[2] = np.mean(the_data['Phi'][quad_slice])
 
-        rotate_theta = - old_imap_theta + np.mean(the_data['Theta'][quad_slice])
-        imap_theta_new = imap_theta - np.radians(rotate_theta)
-        rotate_phi = - old_imap_phi + np.mean(the_data['Phi'][quad_slice])
-        imap_phi_new = imap_phi - np.radians(rotate_phi)
+        rotate_theta = port_loc[1] - old_imap_theta
+        rotate_phi = port_loc[2] - old_imap_phi
 
-        ############## new ##################
+        ############## rotation by interpolation ##################
         theta = np.radians(old_imap_theta)
         phi = np.radians(old_imap_phi)
+        # I do not know the reason for the different signs in front of "rotate_theta"
+        # but i checked and this works
         alpha = np.radians(old_imap_theta + rotate_theta)
         beta = np.radians(old_imap_phi - rotate_phi)
 
+        # rotate so base port location aligns with z axis and then rotate to new port
         rotation_matrix = np.matmul(np.matmul(rot_mat(beta, "z"), rot_mat(alpha, "y")),
                                     np.matmul(rot_mat(-theta, "y"), rot_mat(-phi, "z")))
-        r = 1.0
-        x_o = r * np.cos(imap_phi) * np.sin(imap_theta)
-        y_o = r * np.sin(imap_phi) * np.sin(imap_theta)
-        z_o = r * np.cos(imap_theta)
 
-        x_n = rotation_matrix[0,0] * x_o + rotation_matrix[0,1] * y_o + rotation_matrix[0,2] * z_o
-        y_n = rotation_matrix[1,0] * x_o + rotation_matrix[1,1] * y_o + rotation_matrix[1,2] * z_o
-        z_n = rotation_matrix[2,0] * x_o + rotation_matrix[2,1] * y_o + rotation_matrix[2,2] * z_o
+        # Use cartesian to apply rotation
+        coord_o[0,:] = np.cos(imap_phi) * np.sin(imap_theta)
+        coord_o[1,:] = np.sin(imap_phi) * np.sin(imap_theta)
+        coord_o[2,:] = np.cos(imap_theta)
 
-        imap_theta_new = np.arccos(z_n)
-        imap_phi_new = np.arctan2(y_n, x_n)
-        ######################################
+        # rotate intensity map coordinates
+        coord_n = np.matmul(rotation_matrix, coord_o)
+
+        # convert back to spherical polar
+        imap_theta_new = np.arccos(coord_n[2])
+        imap_phi_new = np.arctan2(coord_n[1], coord_n[0])
+        ###########################################################
+
+        intensity_map_rotate = hp.get_interp_val(hpxmap, imap_theta_new, imap_phi_new)
 
         quad_pointing = quad_grp.createVariable('quad_pointing', 'f4', ('pointing_dim',))
         quad_pointing[0] = the_data['target_radius']
         quad_pointing[1] = pointing_theta + np.radians(rotate_theta)
         quad_pointing[2] = pointing_phi + np.radians(rotate_phi)
-
-        # Rotation in theta is not correct for large theta (roughly true for small theta)
-        intensity_map_rotate = hp.get_interp_val(hpxmap, imap_theta_new, imap_phi_new)
 
         quad_grp.createDimension('intensity_dim', imap_npix)
         intensity_map = quad_grp.createVariable('intensity_map', 'f4', ('intensity_dim',))
@@ -103,40 +104,3 @@ def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta
         intensity_map[:] = intensity_map_rotate[:]
 
     rootgrp.close()
-
-
-
-def rot_mat(theta, axis):
-    mat = np.zeros([3,3])
-    sin_t = np.sin(theta)
-    cos_t = np.cos(theta)
-
-    if (abs(sin_t) < small_num):
-        sin_t = 0.0
-        cos_t = 1.0
-    if (abs(cos_t) < small_num):
-        cos_t = 0.0
-        sin_t = 1.0
-
-    if (axis == "x"):
-        mat[0,0] = 1.0
-        mat[1,1] = cos_t
-        mat[2,2] = cos_t
-        mat[1,2] = -sin_t
-        mat[2,1] = sin_t
-    elif (axis == "y"):
-        mat[0,0] = cos_t
-        mat[1,1] = 1.0
-        mat[2,2] = cos_t
-        mat[0,2] = sin_t
-        mat[2,0] = -sin_t
-    elif (axis == "z"):
-        mat[0,0] = cos_t
-        mat[1,1] = cos_t
-        mat[2,2] = 1.0
-        mat[0,1] = -sin_t
-        mat[1,0] = sin_t
-    else:
-        print("Invalid parameter 'axis' try setting string 'x', 'y', or 'z'")
-
-    return mat
