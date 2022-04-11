@@ -34,7 +34,7 @@ def read_intensity(data_location, run_type, beam_names, nside):
 
 
 
-def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta, pointing_phi, pointing_ind, file_naming):
+def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta, pointing_phi, data_location):
     quad_start_ind = the_data["Quad"].index(quad_name)
     quad_slice = slice(quad_start_ind, quad_start_ind+4)
     old_imap_theta = np.mean(the_data['Theta'][quad_slice])
@@ -56,10 +56,10 @@ def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta
     index = np.arange(imap_npix)
     imap_theta, imap_phi = hp.pix2ang(imap_nside, index)
 
-    save_name = file_naming + str(pointing_ind) + "/theta_" + str(pointing_ind) + "_cone_" + cone_name + ".nc"
+    save_name = data_location + "/" + data_location + "_cone_" + cone_name + ".nc"
     if path.exists(save_name):
         os.remove(save_name)
-    b="Rotating cone: " + cone_name + " for on healpy grid point: " + str(pointing_ind) + "     "
+    b="Rotating cone: " + cone_name + " with " + data_location
     print("\r", b, end="")
     rootgrp = Dataset(save_name, "w", format="NETCDF4")
 

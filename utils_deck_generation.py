@@ -58,7 +58,7 @@ def generate_input_pointing_and_pulses(dat, run_location, quad_slice, run_type):
                     f.write('    PREDEF_CPP          = "NIF-'+cpp+'",\n')
                     f.write('    CPP_ROTATION_MODE   = 1,\n')
                     #f.write('    CPP_ROTATION_DEG    = 45.0d0,\n')
-                    #f.write('    DEFOCUS_MM          = 10.0d0,\n')
+                    f.write('    DEFOCUS_MM          = ' + str(dat['defocus'][j]) + 'd0,\n')
                 elif (run_type == "test"):
                     f.write('    THETA_DEG            = ' + str(np.degrees(np.mean(dat['Theta'][quad_slice]))) + 'd0,\n')
                     f.write('    PHI_DEG              = ' + str(np.degrees(np.mean(dat['Phi'][quad_slice]))) + 'd0,\n')
