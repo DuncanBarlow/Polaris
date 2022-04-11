@@ -17,6 +17,7 @@ def read_intensity(data_location, run_type, beam_names, nside):
         files = glob.glob(data_location + '/p_in_*.nc')
     intensity_map = 0.0
     n_beams = len(files)
+
     for file_name in files:
         b='Reading from: ' + file_name + "  "
         print("\r", b, end="")
@@ -33,7 +34,7 @@ def read_intensity(data_location, run_type, beam_names, nside):
 
 
 
-def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta, pointing_phi, pointing_ind):
+def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta, pointing_phi, pointing_ind, file_naming):
     quad_start_ind = the_data["Quad"].index(quad_name)
     quad_slice = slice(quad_start_ind, quad_start_ind+4)
     old_imap_theta = np.mean(the_data['Theta'][quad_slice])
@@ -55,7 +56,7 @@ def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta
     index = np.arange(imap_npix)
     imap_theta, imap_phi = hp.pix2ang(imap_nside, index)
 
-    save_name = "test_hpi_"+str(pointing_ind)+"/hpi_" + str(pointing_ind) + "_cone_"+cone_name+".nc"
+    save_name = file_naming + str(pointing_ind) + "/theta_" + str(pointing_ind) + "_cone_" + cone_name + ".nc"
     if path.exists(save_name):
         os.remove(save_name)
     b="Rotating cone: " + cone_name + " for on healpy grid point: " + str(pointing_ind) + "     "
