@@ -7,7 +7,7 @@ import glob
 from healpy_pointings import rot_mat
 
 
-def read_intensity(data_location, run_type, beam_names):
+def read_intensity(data_location, run_type, beam_names, nside):
     if (run_type == "nif"):
         start = [data_location + '/p_in_z1z2_beam_NIF-'] * 4
         end = ['.nc']*4
@@ -21,8 +21,13 @@ def read_intensity(data_location, run_type, beam_names):
         b='Reading from: ' + file_name + "  "
         print("\r", b, end="")
         cone_data = Dataset(file_name)
-        intensity_data = cone_data.variables["intensity"]
-        intensity_map = intensity_data[:] + intensity_map
+        intensity_data = cone_data.variables["intensity"][:]
+        intensity_map = intensity_data + intensity_map
+        theta = cone_data.variables["theta"][:]
+        phi = cone_data.variables["phi"][:]
+
+    indices = np.argsort(phi+theta*nside**2*12)
+    intensity_map = intensity_map[indices]
 
     return intensity_map, n_beams
 
