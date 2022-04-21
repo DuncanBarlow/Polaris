@@ -26,6 +26,7 @@ def read_intensity(data_location, run_type, beam_names, nside):
         intensity_map = intensity_data + intensity_map
         theta = cone_data.variables["theta"][:]
         phi = cone_data.variables["phi"][:]
+        cone_data.close()
 
     indices = np.argsort(phi+theta*nside**2*12)
     intensity_map = intensity_map[indices]
@@ -166,6 +167,7 @@ def assemble_full_sphere(Y_train, Y_norms, the_data, num_quads, quad_from_each_c
             quad_pointing_phi[iquad] = quad_pointing[2]
             power_mult = power_fractions[power_per_cone[icone]]
             intensity_map = intensity_map + intensity_data.variables["intensity_map"][:] * power_mult
+            cone_data.close()
 
             iquad = iquad + 1
         icone = icone + 1
