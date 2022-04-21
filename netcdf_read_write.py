@@ -7,6 +7,34 @@ import glob
 from healpy_pointings import rot_mat
 
 
+def read_nn_weights(filename_nn_weights):
+    parameters = {}
+
+    rootgrp = Dataset(filename_nn_weights + ".nc")
+    keys = list(rootgrp["parameters"].variables.keys())
+    for key in keys:
+        parameters[key] = rootgrp["parameters"][key][:,:]
+    rootgrp.close()
+
+    return parameters
+
+
+def save_nn_weights(parameters, filename_nn_weights):
+    if path.exists(filename_nn_weights + '.nc'):
+        os.remove(filename_nn_weights + '.nc')
+
+    rootgrp = Dataset(filename_nn_weights + '.nc', 'w')
+    parms = rootgrp.createGroup('parameters')
+    for key, item in parameters.items():
+        dims = np.shape(item)
+        parms.createDimension(key+'_'+'item_dim1', dims[0])
+        parms.createDimension(key+'_'+'item_dim2', dims[1])
+        variable = parms.createVariable(key, 'f4', (key+'_'+'item_dim1',key+'_'+'item_dim2'))
+        variable[:,:] = item
+    rootgrp.close()
+
+
+
 def read_intensity(data_location, run_type, beam_names, nside):
     if (run_type == "nif"):
         start = [data_location + '/p_in_z1z2_beam_NIF-'] * 4
