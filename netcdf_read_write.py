@@ -5,6 +5,7 @@ import os
 import healpy as hp
 import glob
 from healpy_pointings import rot_mat
+import utils_intensity_map as uim
 
 
 def read_nn_weights(filename_nn_weights):
@@ -148,11 +149,11 @@ def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta
 
 
 
-def assemble_full_sphere(Y_train, Y_norms, the_data, num_quads, quad_from_each_cone, filename_pointing, filename_defocus, power_range):
-    portloc_theta = np.zeros(num_quads)
-    portloc_phi = np.zeros(num_quads)
-    quad_pointing_theta = np.zeros(num_quads)
-    quad_pointing_phi = np.zeros(num_quads)
+def assemble_full_sphere(Y_train, Y_norms, the_data, filename_pointing, filename_defocus, power_range):
+    portloc_theta = np.zeros(the_data['num_quads'])
+    portloc_phi = np.zeros(the_data['num_quads'])
+    quad_pointing_theta = np.zeros(the_data['num_quads'])
+    quad_pointing_phi = np.zeros(the_data['num_quads'])
     intensity_map = 0.0
 
     pointing_nside = Y_norms[0]
@@ -167,7 +168,7 @@ def assemble_full_sphere(Y_train, Y_norms, the_data, num_quads, quad_from_each_c
     iquad = 0
     icone = 0
 
-    for quad_name in quad_from_each_cone:
+    for quad_name in the_data['quad_from_each_cone']:
         quad_slice = slice(the_data["Quad"].index(quad_name),the_data["Quad"].index(quad_name)+4)
 
         cone_name = the_data['Cone'][quad_slice]
@@ -206,3 +207,49 @@ def assemble_full_sphere(Y_train, Y_norms, the_data, num_quads, quad_from_each_c
     quad_pointing = np.vstack((quad_pointing_theta, quad_pointing_phi))
 
     return intensity_map, port_loc, quad_pointing
+
+
+
+def save_training_data(the_data, num_cones, pointing_nside, num_defocus, num_powers, num_coeff, num_output, num_examples, power_range, LMAX, savename_trainingdata, filename_pointing, filename_defocus):
+
+    pointing_per_cone = [0,0,0,0]
+    defocus_per_cone = [0,0,0,0]
+    power_per_cone = [0,0,0,0]
+    X_train = np.zeros((num_coeff * 2, num_examples))
+    Y_train = np.zeros((num_output, num_examples))
+
+    i = 0
+    for pind in range(pointing_nside):
+        print("Currently assembling data for pointing: " + str(pind+1) + " of " + str(pointing_nside))
+        for dind in range(num_defocus):
+            for pwind in range(num_powers):
+                for cind in range(num_cones):
+                    pointing_per_cone[cind] = pind
+                    defocus_per_cone[cind] = dind
+                    power_per_cone[cind] = pwind
+
+                    Y_train1, Y_norms = uim.create_ytrain(pointing_per_cone, pointing_nside, defocus_per_cone, num_defocus, power_per_cone, num_powers)
+
+                    intensity_map, _, _ = assemble_full_sphere(Y_train1, Y_norms, the_data, filename_pointing, filename_defocus, power_range)
+
+                    X_train1 = uim.create_xtrain(intensity_map, LMAX)
+
+                    Y_train[:,i] = Y_train1
+                    X_train[:,i] = X_train1
+                    i = i + 1
+
+
+    if path.exists(savename_trainingdata):
+        os.remove(savename_trainingdata)
+    rootgrp = Dataset(savename_trainingdata, "w", format="NETCDF4")
+    rootgrp.createDimension('num_examples', num_examples)
+    rootgrp.createDimension('num_coeff_ir', num_coeff*2)
+    rootgrp.createDimension('num_output', num_output)
+
+    X_train_save = rootgrp.createVariable('X_train', 'f4', ('num_coeff_ir','num_examples'))
+    X_train_save[:,:] = X_train
+
+    Y_train_save = rootgrp.createVariable('Y_train', 'f4', ('num_output','num_examples'))
+    Y_train_save[:,:] = Y_train
+
+    rootgrp.close()

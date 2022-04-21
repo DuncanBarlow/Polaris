@@ -47,3 +47,24 @@ def power_spectrum(intensity_map, LMAX):
     print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(the_modes**2)), "%")
 
     return power_spectrum_unweighted, power_spectrum_weighted
+
+
+
+def create_ytrain(pointing_per_cone, pointing_nside, defocus_per_cone, num_defocus, power_per_cone, num_powers):
+    Y_train = np.hstack((np.array(pointing_per_cone)/(pointing_nside-1), np.array(defocus_per_cone)/(num_defocus-1)))
+    Y_train = np.hstack((Y_train, np.array(power_per_cone)/(num_powers-1)))
+    Y_norms = [pointing_nside, num_defocus, num_powers]
+
+    return Y_train, Y_norms
+
+
+
+def create_xtrain(intensity_map, LMAX):
+
+    avg_power = np.mean(intensity_map)
+    intensity_map_normalized = (intensity_map / avg_power - 1.0)
+
+    X_train_complex = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
+    X_train = np.hstack((X_train_complex.real, X_train_complex.imag))
+
+    return X_train
