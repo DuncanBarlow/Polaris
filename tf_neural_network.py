@@ -6,14 +6,31 @@ from tensorflow.python.ops.resource_variable_ops import ResourceVariable
 
 
 def model_wrapper(x_train, y_train, x_test, y_test, input_size, output_size, learning_rate = 0.0001,
-          num_epochs = 1500, minibatch_size = 32, print_cost = True):
+          num_epochs = 1500, minibatch_size = 32, print_cost = True, restart = False, nn_weights = {}):
+
+    if restart==False:
+        # Initialize your parameters
+        parameters = initialize_parameters(input_size, output_size)
+    else:
+        W1 = tf.Variable(nn_weights['W1'])
+        b1 = tf.Variable(nn_weights['b1'])
+        W2 = tf.Variable(nn_weights['W2'])
+        b2 = tf.Variable(nn_weights['b2'])
+        W3 = tf.Variable(nn_weights['W3'])
+        b3 = tf.Variable(nn_weights['b3'])
+        parameters = {"W1": W1,
+              "b1": b1,
+              "W2": W2,
+              "b2": b2,
+              "W3": W3,
+              "b3": b3}
 
     X_train = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(x_train, dtype=tf.float32))
     Y_train = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(y_train, dtype=tf.float32))
     X_test = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(x_test, dtype=tf.float32))
     Y_test = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(y_test, dtype=tf.float32))
 
-    parameters, costs, train_acc, test_acc = model(X_train, Y_train, X_test, Y_test, input_size, output_size, learning_rate = learning_rate, num_epochs = num_epochs, minibatch_size = minibatch_size, print_cost = print_cost)
+    parameters, costs, train_acc, test_acc = model(X_train, Y_train, X_test, Y_test, input_size, output_size, parameters, learning_rate = learning_rate, num_epochs = num_epochs, minibatch_size = minibatch_size, print_cost = print_cost)
 
     # Retrieve the parameters from the dictionary "parameters"
     W1 = parameters['W1'].numpy()
@@ -34,10 +51,9 @@ def model_wrapper(x_train, y_train, x_test, y_test, input_size, output_size, lea
 
 
 
-
 # Taken from Coursera by deeplearning.AI Andrew Ng:
 # https://www.coursera.org/specializations/deep-learning?skipBrowseRedirect=true
-def model(X_train, Y_train, X_test, Y_test, input_size, output_size, learning_rate = 0.0001,
+def model(X_train, Y_train, X_test, Y_test, input_size, output_size, parameters, learning_rate = 0.0001,
           num_epochs = 1500, minibatch_size = 32, print_cost = True):
     """
     Implements a three-layer tensorflow neural network: LINEAR->RELU->LINEAR->RELU->LINEAR->SOFTMAX.
@@ -78,9 +94,6 @@ def model(X_train, Y_train, X_test, Y_test, input_size, output_size, learning_ra
     train_acc = []
     test_acc = []
 
-    # Initialize your parameters
-    parameters = initialize_parameters(input_size, output_size)
-
     W1 = parameters['W1']
     b1 = parameters['b1']
     W2 = parameters['W2']
@@ -117,8 +130,8 @@ def model(X_train, Y_train, X_test, Y_test, input_size, output_size, learning_ra
         epoch_cost /= m
 
         # Print the cost every 10 epochs
-        if print_cost == True and epoch % 10 == 0:
-            print ("Cost after epoch %i: %f" % (epoch, epoch_cost))
+        if print_cost == True and (epoch+1) % 10 == 0:
+            print ("Cost after epoch %i: %f" % (epoch+1, epoch_cost))
             tf.print("Train accuracy:", train_accuracy.result())
 
             # We evaluate the test set every 10 epochs to avoid computational overhead
