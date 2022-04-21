@@ -12,40 +12,22 @@ def model_wrapper(x_train, y_train, x_test, y_test, input_size, output_size, lea
         # Initialize your parameters
         parameters = initialize_parameters(input_size, output_size)
     else:
-        W1 = tf.Variable(nn_weights['W1'])
-        b1 = tf.Variable(nn_weights['b1'])
-        W2 = tf.Variable(nn_weights['W2'])
-        b2 = tf.Variable(nn_weights['b2'])
-        W3 = tf.Variable(nn_weights['W3'])
-        b3 = tf.Variable(nn_weights['b3'])
-        parameters = {"W1": W1,
-              "b1": b1,
-              "W2": W2,
-              "b2": b2,
-              "W3": W3,
-              "b3": b3}
+        parameters = {}
+        keys = nn_weights.keys()
+        for key in keys:
+            parameters[key] = tf.Variable(nn_weights[key])
 
     X_train = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(x_train, dtype=tf.float32))
     Y_train = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(y_train, dtype=tf.float32))
     X_test = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(x_test, dtype=tf.float32))
     Y_test = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(y_test, dtype=tf.float32))
 
-    parameters, costs, train_acc, test_acc = model(X_train, Y_train, X_test, Y_test, input_size, output_size, parameters, learning_rate = learning_rate, num_epochs = num_epochs, minibatch_size = minibatch_size, print_cost = print_cost)
+    parameters, costs, train_acc, test_acc = model(X_train, Y_train, X_test, Y_test, input_size, output_size, parameters, learning_rate, num_epochs, minibatch_size, print_cost)
 
-    # Retrieve the parameters from the dictionary "parameters"
-    W1 = parameters['W1'].numpy()
-    b1 = parameters['b1'].numpy()
-    W2 = parameters['W2'].numpy()
-    b2 = parameters['b2'].numpy()
-    W3 = parameters['W3'].numpy()
-    b3 = parameters['b3'].numpy()
-
-    numpy_parameters = {"W1": W1,
-              "b1": b1,
-              "W2": W2,
-              "b2": b2,
-              "W3": W3,
-              "b3": b3}
+    numpy_parameters = {}
+    keys = parameters.keys()
+    for key in keys:
+        numpy_parameters[key] = parameters[key].numpy()
 
     return numpy_parameters, np.squeeze(costs), np.squeeze(train_acc), np.squeeze(test_acc)
 
@@ -53,8 +35,8 @@ def model_wrapper(x_train, y_train, x_test, y_test, input_size, output_size, lea
 
 # Taken from Coursera by deeplearning.AI Andrew Ng:
 # https://www.coursera.org/specializations/deep-learning?skipBrowseRedirect=true
-def model(X_train, Y_train, X_test, Y_test, input_size, output_size, parameters, learning_rate = 0.0001,
-          num_epochs = 1500, minibatch_size = 32, print_cost = True):
+def model(X_train, Y_train, X_test, Y_test, input_size, output_size, parameters, learning_rate,
+          num_epochs, minibatch_size, print_cost):
     """
     Implements a three-layer tensorflow neural network: LINEAR->RELU->LINEAR->RELU->LINEAR->SOFTMAX.
 
