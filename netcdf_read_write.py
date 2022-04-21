@@ -116,3 +116,63 @@ def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta
         intensity_map[:] = intensity_map_rotate[:]
 
     rootgrp.close()
+
+
+
+def assemble_full_sphere(Y_train, Y_norms, the_data, num_quads, quad_from_each_cone, filename_pointing, filename_defocus, power_range):
+    portloc_theta = np.zeros(num_quads)
+    portloc_phi = np.zeros(num_quads)
+    quad_pointing_theta = np.zeros(num_quads)
+    quad_pointing_phi = np.zeros(num_quads)
+    intensity_map = 0.0
+
+    pointing_nside = Y_norms[0]
+    num_defocus = Y_norms[1]
+    num_powers = Y_norms[2]
+    pointing_per_cone = (Y_train[0:4] * (pointing_nside-1)).astype(int)
+    defocus_per_cone = (Y_train[4:8] * (num_defocus-1)).astype(int)
+    power_per_cone = (Y_train[8:] * (num_powers-1)).astype(int)
+
+    power_fractions = np.linspace(power_range, 1, num_powers)
+
+    iquad = 0
+    icone = 0
+
+    for quad_name in quad_from_each_cone:
+        quad_slice = slice(the_data["Quad"].index(quad_name),the_data["Quad"].index(quad_name)+4)
+
+        cone_name = the_data['Cone'][quad_slice]
+        cone_name = cone_name[0]
+        quad_name = the_data['Quad'][quad_slice]
+        quad_name = quad_name[0]
+
+        beam_count = int(the_data["Cone"].count(cone_name)/2)
+        cone_slice = slice(the_data["Cone"].index(cone_name),the_data["Quad"].index(quad_name)+beam_count,4)
+        quad_list_in_cone = the_data["Quad"][cone_slice]
+
+        cone_name = str(cone_name)
+        cone_name = cone_name.replace(".", "_")
+        run_location = filename_pointing + str(pointing_per_cone[icone]) + "_" + filename_defocus + str(defocus_per_cone[icone])
+        save_name = run_location + "/" + run_location + "_cone_" + cone_name + ".nc"
+
+        for i in range(int(beam_count/4)):
+            cone_data = Dataset(save_name)
+            intensity_data = cone_data[quad_list_in_cone[i]]
+            port_loc = intensity_data.variables["port_loc"][:]
+            portloc_theta[iquad] = port_loc[1]
+            portloc_phi[iquad] = port_loc[2]
+            quad_pointing = intensity_data.variables["quad_pointing"][:]
+            quad_pointing_theta[iquad] = quad_pointing[1]
+            quad_pointing_phi[iquad] = quad_pointing[2]
+            power_mult = power_fractions[power_per_cone[icone]]
+            intensity_map = intensity_map + intensity_data.variables["intensity_map"][:] * power_mult
+
+            iquad = iquad + 1
+        icone = icone + 1
+
+    intensity_map = intensity_map + np.flip(intensity_map)
+
+    port_loc = np.vstack((portloc_theta, portloc_phi))
+    quad_pointing = np.vstack((quad_pointing_theta, quad_pointing_phi))
+
+    return intensity_map, port_loc, quad_pointing
