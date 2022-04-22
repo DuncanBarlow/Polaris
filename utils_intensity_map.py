@@ -9,9 +9,10 @@ def readout_intensity(the_data, intensity_map):
     surface_area = 4.0 * np.pi * r**2
 
     #rms
-    avg_power = np.mean(intensity_map)
-    intensity_map_rms = 100.0 * np.sqrt(np.mean((intensity_map / avg_power - 1.0)**2))
-    intensity_map_rms_spatial = 100.0 * np.sqrt((intensity_map / avg_power - 1.0)**2)
+    intensity_map_normalised, avg_power = imap_norm(intensity_map)
+    imap_pn = np.sign(intensity_map_normalised)
+    intensity_map_rms = 100.0 * np.sqrt(np.mean(intensity_map_normalised))
+    intensity_map_rms_spatial = imap_pn * 100.0 * np.sqrt(intensity_map_normalised**2)
 
     print('')
     print('The total power deposited is ', total_TW * surface_area, 'TW')
@@ -26,8 +27,7 @@ def readout_intensity(the_data, intensity_map):
 
 
 def power_spectrum(intensity_map, LMAX):
-    avg_power = np.mean(intensity_map)
-    intensity_map_normalized = (intensity_map / avg_power - 1.0)
+    intensity_map_normalized, avg_power = imap_norm(intensity_map)
 
     # Compute the corresponding normalized mode spectrum
     rmsalms = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
@@ -44,13 +44,14 @@ def power_spectrum(intensity_map, LMAX):
 
     power_spectrum_unweighted = np.sqrt(the_modes)
     power_spectrum_weighted = np.sqrt(power_spectrum)
-    print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(the_modes**2)), "%")
+    print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(the_modes))*100.0, "%")
 
     return power_spectrum_unweighted, power_spectrum_weighted
 
 
 
 def create_ytrain(pointing_per_cone, pointing_nside, defocus_per_cone, num_defocus, power_per_cone, num_powers):
+
     Y_train = np.hstack((np.array(pointing_per_cone)/(pointing_nside-1), np.array(defocus_per_cone)/(num_defocus-1)))
     Y_train = np.hstack((Y_train, np.array(power_per_cone)/(num_powers-1)))
     Y_norms = [pointing_nside, num_defocus, num_powers]
@@ -61,10 +62,37 @@ def create_ytrain(pointing_per_cone, pointing_nside, defocus_per_cone, num_defoc
 
 def create_xtrain(intensity_map, LMAX):
 
-    avg_power = np.mean(intensity_map)
-    intensity_map_normalized = (intensity_map / avg_power - 1.0)
+    intensity_map_normalized, avg_power = imap_norm(intensity_map)
+    X_train = imap2xtrain(intensity_map_normalized, LMAX)
+
+    return X_train
+
+
+
+def imap2xtrain(intensity_map_normalized, LMAX):
 
     X_train_complex = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
     X_train = np.hstack((X_train_complex.real, X_train_complex.imag))
 
     return X_train
+
+
+
+def xtrain2imap(X_train, LMAX, imap_nside):
+
+    num_coeff = int(((LMAX + 2) * (LMAX + 1))/2.0)
+    np_complex = np.vectorize(complex)
+    X_train = np.squeeze(X_train)
+    X_train_complex = np_complex(X_train[:num_coeff], X_train[num_coeff:])
+    intensity_map_normalized = hp.alm2map(X_train_complex, imap_nside)
+
+    return intensity_map_normalized
+
+
+
+def imap_norm(intensity_map):
+
+    avg_power = np.mean(intensity_map)
+    intensity_map_normalized = (intensity_map / avg_power - 1.0)
+
+    return intensity_map_normalized, avg_power
