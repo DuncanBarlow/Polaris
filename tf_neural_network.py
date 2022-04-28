@@ -6,11 +6,11 @@ from tensorflow.python.ops.resource_variable_ops import ResourceVariable
 
 
 def model_wrapper(x_train, y_train, x_test, y_test, input_size, output_size, learning_rate = 0.0001,
-          num_epochs = 1500, minibatch_size = 32, print_cost = True, restart = False, nn_weights = {}):
+          num_epochs = 1500, minibatch_size = 32, print_cost = True, restart = False, nn_weights = {}, hidden_units1=25, hidden_units2=20):
 
     if restart==False:
         # Initialize your parameters
-        parameters = initialize_parameters(input_size, output_size)
+        parameters = initialize_parameters(input_size, output_size, hidden_units1, hidden_units2)
     else:
         parameters = {}
         keys = nn_weights.keys()
@@ -191,7 +191,7 @@ def forward_propagation(X, parameters):
 # Taken from Coursera by deeplearning.AI Andrew Ng:
 # https://www.coursera.org/specializations/deep-learning?skipBrowseRedirect=true
 # GRADED FUNCTION: initialize_parameters
-def initialize_parameters(input_size, output_size):
+def initialize_parameters(input_size, output_size, hidden_units1, hidden_units2):
     """
     Initializes parameters to build a neural network with TensorFlow. The shapes are:
                         W1 : [25, 12288]
@@ -207,11 +207,11 @@ def initialize_parameters(input_size, output_size):
                          
     initializer = tf.keras.initializers.GlorotNormal(seed=1)
 
-    W1 = tf.Variable(initializer(shape=([25, input_size])))
-    b1 = tf.Variable(initializer(shape=([25, 1])))
-    W2 = tf.Variable(initializer(shape=([20, 25])))
-    b2 = tf.Variable(initializer(shape=([20, 1])))
-    W3 = tf.Variable(initializer(shape=([output_size, 20])))
+    W1 = tf.Variable(initializer(shape=([hidden_units1, input_size])))
+    b1 = tf.Variable(initializer(shape=([hidden_units1, 1])))
+    W2 = tf.Variable(initializer(shape=([hidden_units2, hidden_units1])))
+    b2 = tf.Variable(initializer(shape=([hidden_units2, 1])))
+    W3 = tf.Variable(initializer(shape=([output_size, hidden_units2])))
     b3 = tf.Variable(initializer(shape=([output_size, 1])))
 
     parameters = {"W1": W1,
