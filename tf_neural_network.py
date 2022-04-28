@@ -83,6 +83,12 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
     W3 = parameters['W3']
     b3 = parameters['b3']
 
+    for (minibatch_X, minibatch_Y) in test_minibatches:
+        Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
+        test_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
+    tf.print("Mean abs error for initialialized weights:", test_accuracy.result())
+    test_accuracy.reset_states()
+
     # Do the training loop
     for epoch in range(num_epochs):
 
