@@ -5,12 +5,12 @@ from tensorflow.python.framework.ops import EagerTensor
 from tensorflow.python.ops.resource_variable_ops import ResourceVariable
 
 
-def model_wrapper(x_train, y_train, x_test, y_test, input_size, output_size, learning_rate = 0.0001,
+def model_wrapper(x_train, y_train, x_test, y_test, learning_rate = 0.0001,
           num_epochs = 1500, minibatch_size = 32, print_cost = True, restart = False, nn_weights = {}, hidden_units1=25, hidden_units2=20):
 
     if restart==False:
         # Initialize your parameters
-        parameters = initialize_parameters(input_size, output_size, hidden_units1, hidden_units2)
+        parameters = initialize_parameters(x_train.shape[1], y_train.shape[1], hidden_units1, hidden_units2)
     else:
         parameters = {}
         keys = nn_weights.keys()
@@ -22,7 +22,7 @@ def model_wrapper(x_train, y_train, x_test, y_test, input_size, output_size, lea
     X_test = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(x_test, dtype=tf.float32))
     Y_test = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(y_test, dtype=tf.float32))
 
-    parameters, costs, train_acc, test_acc = model(X_train, Y_train, X_test, Y_test, input_size, output_size, parameters, learning_rate, num_epochs, minibatch_size, print_cost)
+    parameters, costs, train_acc, test_acc = model(X_train, Y_train, X_test, Y_test, parameters, learning_rate, num_epochs, minibatch_size, print_cost)
 
     numpy_parameters = {}
     keys = parameters.keys()
@@ -35,7 +35,7 @@ def model_wrapper(x_train, y_train, x_test, y_test, input_size, output_size, lea
 
 # Taken from Coursera by deeplearning.AI Andrew Ng:
 # https://www.coursera.org/specializations/deep-learning?skipBrowseRedirect=true
-def model(X_train, Y_train, X_test, Y_test, input_size, output_size, parameters, learning_rate,
+def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
           num_epochs, minibatch_size, print_cost):
     """
     Implements a three-layer tensorflow neural network: LINEAR->RELU->LINEAR->RELU->LINEAR->SOFTMAX.
