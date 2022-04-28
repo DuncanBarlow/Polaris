@@ -57,8 +57,8 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
     optimizer = tf.keras.optimizers.Adam(learning_rate)
 
     # The CategoricalAccuracy will track the accuracy for this multiclass problem
-    test_accuracy = tf.keras.metrics.MeanSquaredError()
-    train_accuracy = tf.keras.metrics.MeanSquaredError()
+    test_accuracy = tf.keras.metrics.MeanAbsoluteError()
+    train_accuracy = tf.keras.metrics.MeanAbsoluteError()
 
     dataset = tf.data.Dataset.zip((X_train, Y_train))
     test_dataset = tf.data.Dataset.zip((X_test, Y_test))
@@ -98,7 +98,8 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
                 Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
 
                 # 2. loss
-                minibatch_cost = tf.reduce_mean(tf.keras.metrics.mean_squared_error(minibatch_Y, tf.transpose(Z3)))
+                #minibatch_cost = tf.reduce_mean(tf.keras.metrics.mean_squared_error(minibatch_Y, tf.transpose(Z3)))
+                minibatch_cost = tf.reduce_mean(tf.keras.metrics.binary_crossentropy(minibatch_Y, tf.transpose(Z3)))
 
             # We accumulate the accuracy of all the batches
             train_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
