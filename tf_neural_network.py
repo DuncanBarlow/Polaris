@@ -38,13 +38,13 @@ def model_wrapper(x_train, y_train, x_test, y_test, learning_rate = 0.0001,
 def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
           num_epochs, minibatch_size, print_cost):
     """
-    Implements a three-layer tensorflow neural network: LINEAR->RELU->LINEAR->RELU->LINEAR->SOFTMAX.
+    Implements a three-layer tensorflow neural network: LINEAR->RELU->LINEAR->RELU->LINEAR->SIGMOID.
 
     Arguments:
-    X_train -- training set, of shape (input size = 12288, number of training examples = 1080)
-    Y_train -- test set, of shape (output size = 6, number of training examples = 1080)
-    X_test -- training set, of shape (input size = 12288, number of training examples = 120)
-    Y_test -- test set, of shape (output size = 6, number of test examples = 120)
+    X_train -- training set, of shape (input size, number of training examples)
+    Y_train -- test set, of shape (output size = 12, number of training examples)
+    X_test -- training set, of shape (input size, number of training examples)
+    Y_test -- test set, of shape (output size = 12, number of test examples)
     learning_rate -- learning rate of the optimization
     num_epochs -- number of epochs of the optimization loop
     minibatch_size -- size of a minibatch
@@ -114,42 +114,20 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
         # Print the cost every 10 epochs
         if print_cost == True and (epoch+1) % 10 == 0:
             print ("Cost after epoch %i: %f" % (epoch+1, epoch_cost))
-            tf.print("Train accuracy:", train_accuracy.result())
+            tf.print("Mean abs error on train:", train_accuracy.result())
 
             # We evaluate the test set every 10 epochs to avoid computational overhead
             for (minibatch_X, minibatch_Y) in test_minibatches:
                 Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
                 test_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
-            tf.print("Test_accuracy:", test_accuracy.result())
+            tf.print("Mean abs error on test:", test_accuracy.result())
 
             costs.append(epoch_cost)
             train_acc.append(train_accuracy.result())
             test_acc.append(test_accuracy.result())
             test_accuracy.reset_states()
 
-
     return parameters, costs, train_acc, test_acc
-
-
-
-# Taken from Coursera by deeplearning.AI Andrew Ng:
-# https://www.coursera.org/specializations/deep-learning?skipBrowseRedirect=true
-# GRADED FUNCTION: compute_cost
-def compute_cost(logits, labels):
-    """
-    Computes the cost
-
-    Arguments:
-    logits -- output of forward propagation (output of the last LINEAR unit), of shape (6, num_examples)
-    labels -- "true" labels vector, same shape as Z3
-
-    Returns:
-    cost - Tensor of the cost function
-    """
-
-    cost = tf.reduce_mean(tf.keras.metrics.categorical_crossentropy(tf.transpose(labels), tf.transpose(logits), from_logits=True))
-
-    return cost
 
 
 
@@ -193,14 +171,7 @@ def forward_propagation(X, parameters):
 # GRADED FUNCTION: initialize_parameters
 def initialize_parameters(input_size, output_size, hidden_units1, hidden_units2):
     """
-    Initializes parameters to build a neural network with TensorFlow. The shapes are:
-                        W1 : [25, 12288]
-                        b1 : [25, 1]
-                        W2 : [12, 25]
-                        b2 : [12, 1]
-                        W3 : [6, 12]
-                        b3 : [6, 1]
-
+    Initializes parameters to build a neural network with TensorFlow.
     Returns:
     parameters -- a dictionary of tensors containing W1, b1, W2, b2, W3, b3
     """
