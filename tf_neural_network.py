@@ -6,9 +6,9 @@ from tensorflow.python.ops.resource_variable_ops import ResourceVariable
 
 
 def model_wrapper(x_train, y_train, x_test, y_test, learning_rate = 0.0001,
-          num_epochs = 1500, minibatch_size = 32, print_cost = True, restart = False, nn_weights = {}, hidden_units1=25, hidden_units2=20):
+          num_epochs = 1500, minibatch_size = 32, print_cost = True, start_epoch = 0, nn_weights = {}, hidden_units1=25, hidden_units2=20):
 
-    if restart==False:
+    if start_epoch == 0:
         # Initialize your parameters
         parameters = initialize_parameters(x_train.shape[1], y_train.shape[1], hidden_units1, hidden_units2)
     else:
@@ -22,21 +22,21 @@ def model_wrapper(x_train, y_train, x_test, y_test, learning_rate = 0.0001,
     X_test = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(x_test, dtype=tf.float32))
     Y_test = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(y_test, dtype=tf.float32))
 
-    parameters, costs, train_acc, test_acc = model(X_train, Y_train, X_test, Y_test, parameters, learning_rate, num_epochs, minibatch_size, print_cost)
+    parameters, costs, train_acc, test_acc, epochs = model(X_train, Y_train, X_test, Y_test, parameters, learning_rate, num_epochs, minibatch_size, print_cost, start_epoch)
 
     numpy_parameters = {}
     keys = parameters.keys()
     for key in keys:
         numpy_parameters[key] = parameters[key].numpy()
 
-    return numpy_parameters, np.squeeze(costs), np.squeeze(train_acc), np.squeeze(test_acc)
+    return numpy_parameters, np.squeeze(costs), np.squeeze(train_acc), np.squeeze(test_acc), epochs
 
 
 
 # Taken from Coursera by deeplearning.AI Andrew Ng:
 # https://www.coursera.org/specializations/deep-learning?skipBrowseRedirect=true
 def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
-          num_epochs, minibatch_size, print_cost):
+          num_epochs, minibatch_size, print_cost, start_epoch):
     """
     Implements a three-layer tensorflow neural network: LINEAR->RELU->LINEAR->RELU->LINEAR->SIGMOID.
 
@@ -83,16 +83,31 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
     W3 = parameters['W3']
     b3 = parameters['b3']
 
+    # Save pre-training cost and accuracy
     for (minibatch_X, minibatch_Y) in test_minibatches:
         Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
         test_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
-    tf.print("Mean abs error for initialialized weights:", test_accuracy.result())
+    tf.print("Mean abs error for initialialized weights (test):", test_accuracy.result())
+    test_acc = [test_accuracy.result()]
     test_accuracy.reset_states()
 
-    # Do the training loop
-    for epoch in range(num_epochs):
+    epoch_cost = 0.0
+    for (minibatch_X, minibatch_Y) in minibatches:
+        Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
+        train_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
+        minibatch_cost = calculate_cost(minibatch_Y, tf.transpose(Z3))
+        epoch_cost += minibatch_cost
+    epoch_cost /= m
+    tf.print("Mean abs error for initialialized weights (train):", train_accuracy.result())
+    costs = [epoch_cost]
+    epochs = [start_epoch]
+    train_acc = [train_accuracy.result()]
+    train_accuracy.reset_states()
 
-        epoch_cost = 0.
+    # Do the training loop
+    for epoch in range(start_epoch+1, num_epochs+1):
+
+        epoch_cost = 0.0
 
         #We need to reset object to start measuring from 0 the accuracy each epoch
         train_accuracy.reset_states()
@@ -104,8 +119,7 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
                 Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
 
                 # 2. loss
-                #minibatch_cost = tf.reduce_mean(tf.keras.metrics.mean_squared_error(minibatch_Y, tf.transpose(Z3)))
-                minibatch_cost = tf.reduce_mean(tf.keras.metrics.binary_crossentropy(minibatch_Y, tf.transpose(Z3)))
+                minibatch_cost = calculate_cost(minibatch_Y, tf.transpose(Z3))
 
             # We accumulate the accuracy of all the batches
             train_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
@@ -119,8 +133,8 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
         epoch_cost /= m
 
         # Print the cost every 10 epochs
-        if print_cost == True and (epoch+1) % 10 == 0:
-            print ("Cost after epoch %i: %f" % (epoch+1, epoch_cost))
+        if print_cost == True and (epoch) % 10 == 0:
+            print ("Cost after epoch %i: %f" % (epoch, epoch_cost))
             tf.print("Mean abs error on train:", train_accuracy.result())
 
             # We evaluate the test set every 10 epochs to avoid computational overhead
@@ -132,9 +146,22 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
             costs.append(epoch_cost)
             train_acc.append(train_accuracy.result())
             test_acc.append(test_accuracy.result())
+            epochs.append(epoch)
             test_accuracy.reset_states()
 
-    return parameters, costs, train_acc, test_acc
+    return parameters, costs, train_acc, test_acc, epochs
+
+
+
+def calculate_cost(y_true, y_pred):
+    """
+    Calculate cost function
+    """
+
+    #cost = tf.reduce_mean(tf.keras.metrics.mean_squared_error(y_true, y_pred))
+    cost = tf.reduce_mean(tf.keras.metrics.binary_crossentropy(y_true, y_pred))
+
+    return cost
 
 
 

@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 global figure_location
 figure_location = "plots"
 
-def plotting(epochs, costs, train_acc, test_acc, epoch_count, lr):
-    # Plot the cost
+def plotting(epochs, costs, train_acc, test_acc, lr):
+    epoch_count = epochs[-1]
+
     fig = plt.figure()
     ax1 = plt.axes()
 
