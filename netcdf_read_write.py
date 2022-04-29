@@ -218,6 +218,7 @@ def save_training_data(the_data, num_cones, pointing_nside, num_defocus, num_pow
     power_per_cone = [0,0,0,0]
     X_train = np.zeros((num_coeff * 2, num_examples))
     Y_train = np.zeros((num_output, num_examples))
+    avg_powers = np.zeros(num_examples)
 
     i = 0
     for pind in range(pointing_nside):
@@ -233,10 +234,11 @@ def save_training_data(the_data, num_cones, pointing_nside, num_defocus, num_pow
 
                     intensity_map, _, _ = assemble_full_sphere(Y_train1, Y_norms, the_data, filename_pointing, filename_defocus, power_range)
 
-                    X_train1 = uim.create_xtrain(intensity_map, LMAX)
+                    X_train1, avg_power = uim.create_xtrain(intensity_map, LMAX)
 
                     Y_train[:,i] = Y_train1
                     X_train[:,i] = X_train1
+                    avg_powers[i] = avg_power
                     i = i + 1
 
 
@@ -252,5 +254,8 @@ def save_training_data(the_data, num_cones, pointing_nside, num_defocus, num_pow
 
     Y_train_save = rootgrp.createVariable('Y_train', 'f4', ('num_output','num_examples'))
     Y_train_save[:,:] = Y_train
+
+    avg_powers_save = rootgrp.createVariable('avg_powers', 'f4', ('num_examples'))
+    avg_powers_save[:] = avg_powers
 
     rootgrp.close()

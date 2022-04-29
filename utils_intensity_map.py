@@ -11,7 +11,7 @@ def readout_intensity(the_data, intensity_map):
     #rms
     intensity_map_normalised, avg_power = imap_norm(intensity_map)
     imap_pn = np.sign(intensity_map_normalised)
-    intensity_map_rms = 100.0 * np.sqrt(np.mean(intensity_map_normalised))
+    intensity_map_rms = 100.0 * np.sqrt(np.mean(intensity_map_normalised**2))
     intensity_map_rms_spatial = imap_pn * 100.0 * np.sqrt(intensity_map_normalised**2)
 
     print('')
@@ -63,26 +63,27 @@ def create_ytrain(pointing_per_cone, pointing_nside, defocus_per_cone, num_defoc
 def create_xtrain(intensity_map, LMAX):
 
     intensity_map_normalized, avg_power = imap_norm(intensity_map)
-    X_train = imap2xtrain(intensity_map_normalized, LMAX)
+    X_train = imap2xtrain(intensity_map_normalized, LMAX, avg_power)
 
-    return X_train
+    return X_train, avg_power
 
 
 
-def imap2xtrain(intensity_map_normalized, LMAX):
+def imap2xtrain(intensity_map_normalized, LMAX, avg_power):
 
     X_train_complex = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
     X_train = np.hstack((X_train_complex.real, X_train_complex.imag))
+    X_train = X_train * avg_power
 
     return X_train
 
 
 
-def xtrain2imap(X_train, LMAX, imap_nside):
+def xtrain2imap(X_train, LMAX, imap_nside, avg_power):
 
     num_coeff = int(((LMAX + 2) * (LMAX + 1))/2.0)
     np_complex = np.vectorize(complex)
-    X_train = np.squeeze(X_train)
+    X_train = np.squeeze(X_train / avg_power)
     X_train_complex = np_complex(X_train[:num_coeff], X_train[num_coeff:])
     intensity_map_normalized = hp.alm2map(X_train_complex, imap_nside)
 
@@ -93,6 +94,6 @@ def xtrain2imap(X_train, LMAX, imap_nside):
 def imap_norm(intensity_map):
 
     avg_power = np.mean(intensity_map)
-    intensity_map_normalized = (intensity_map / avg_power - 1.0)
+    intensity_map_normalized = intensity_map / avg_power - 1.0
 
     return intensity_map_normalized, avg_power
