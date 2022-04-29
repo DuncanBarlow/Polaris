@@ -33,6 +33,26 @@ def model_wrapper(x_train, y_train, x_test, y_test, learning_rate = 0.0001,
 
 
 
+def apply_network(x_test, nn_weights):
+    num_examples = x_test.shape[0]
+    input_size = x_test.shape[1]
+
+    parameters = {}
+    keys = nn_weights.keys()
+    for key in keys:
+        parameters[key] = tf.Variable(nn_weights[key])
+
+    X_test = tf.convert_to_tensor(x_test, dtype=tf.float32)
+    X_test = tf.reshape(X_test, [num_examples, input_size])
+
+    Y_pred = forward_propagation(tf.transpose(X_test), parameters)
+
+    y_pred = Y_pred.numpy()
+
+    return y_pred
+
+
+
 # Taken from Coursera by deeplearning.AI Andrew Ng:
 # https://www.coursera.org/specializations/deep-learning?skipBrowseRedirect=true
 def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
