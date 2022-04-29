@@ -20,6 +20,7 @@ def read_nn_weights(filename_nn_weights):
     return parameters
 
 
+
 def save_nn_weights(parameters, filename_nn_weights):
     if path.exists(filename_nn_weights + '.nc'):
         os.remove(filename_nn_weights + '.nc')
@@ -108,7 +109,7 @@ def rotate_cone_and_save(the_data, quad_name, hpxmap, imap_nside, pointing_theta
         ############## rotation by interpolation ##################
         rotate_theta = port_loc[1] - old_imap_theta
         rotate_phi = port_loc[2] - old_imap_phi
-        
+
         theta = old_imap_theta
         phi = old_imap_phi
         # I do not know the reason for the different signs in front of "rotate_theta"

@@ -76,7 +76,7 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
 
     optimizer = tf.keras.optimizers.Adam(learning_rate)
 
-    # The CategoricalAccuracy will track the accuracy for this multiclass problem
+    # This will track the accuracy for this regression problem
     test_accuracy = tf.keras.metrics.MeanAbsoluteError()
     train_accuracy = tf.keras.metrics.MeanAbsoluteError()
 

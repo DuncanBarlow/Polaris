@@ -16,7 +16,7 @@ def plotting(epochs, costs, train_acc, test_acc, lr):
     ax1.set_xticks(range(0, epoch_count+int(epoch_count/10), int(epoch_count/10)))
     ax1.set_ylabel('cost')
     ax1.set_xlabel('epochs')
-    ax1.set_title("Learning rate =" + str(lr))
+    ax1.set_title("Learning rate = " + str(lr))
 
     ax2.plot(epochs, train_acc, "r", linestyle="-")
     ax2.plot(epochs, test_acc, "r", linestyle=":")
