@@ -84,13 +84,6 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
     b3 = parameters['b3']
 
     # Save pre-training cost and accuracy
-    for (minibatch_X, minibatch_Y) in test_minibatches:
-        Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
-        test_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
-    tf.print("Mean abs error for initialialized weights (test):", test_accuracy.result())
-    test_acc = [test_accuracy.result()]
-    test_accuracy.reset_states()
-
     epoch_cost = 0.0
     for (minibatch_X, minibatch_Y) in minibatches:
         Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
@@ -103,6 +96,13 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
     epochs = [start_epoch]
     train_acc = [train_accuracy.result()]
     train_accuracy.reset_states()
+
+    for (minibatch_X, minibatch_Y) in test_minibatches:
+        Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
+        test_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
+    tf.print("Mean abs error for initialialized weights (test):", test_accuracy.result())
+    test_acc = [test_accuracy.result()]
+    test_accuracy.reset_states()
 
     # Do the training loop
     for epoch in range(start_epoch+1, num_epochs+1):
