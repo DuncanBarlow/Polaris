@@ -11,7 +11,7 @@ def generate_input_deck(the_data, run_location):
         os.makedirs(run_location)
         b='Created directory: '+run_location+"  "
         print("\r", b, end="")
-        shutil.copyfile("main", run_location+"/main")
+    shutil.copyfile("main", run_location+"/main")
     
     longStr = ("ifriit_inputs_base.txt")
     with open(longStr) as old_file:
@@ -26,11 +26,11 @@ def generate_input_deck(the_data, run_location):
 
 
 
-def generate_input_pointing_and_pulses(dat, run_location, quad_slice, run_type):
+def generate_input_pointing_and_pulses(dat, run_location, run_type):
     if (dat['facility'] == "NIF"):
         j = 0
         with open(run_location+'/ifriit_inputs.txt','a') as f:
-            for beam in dat['Beam'][quad_slice]:
+            for beam in dat['Beam']:
                 cone_name = dat["Cone"][dat["Beam"].index(beam)]
                 if (cone_name == 23.5):
                     cpp="inner-23"
@@ -60,8 +60,8 @@ def generate_input_pointing_and_pulses(dat, run_location, quad_slice, run_type):
                     #f.write('    CPP_ROTATION_DEG    = 45.0d0,\n')
                     f.write('    DEFOCUS_MM          = ' + str(dat['defocus'][j]) + 'd0,\n')
                 elif (run_type == "test"):
-                    f.write('    THETA_DEG            = ' + str(np.degrees(np.mean(dat['Theta'][quad_slice]))) + 'd0,\n')
-                    f.write('    PHI_DEG              = ' + str(np.degrees(np.mean(dat['Phi'][quad_slice]))) + 'd0,\n')
+                    f.write('    THETA_DEG            = ' + str(np.degrees(dat['Port_centre_theta'][j])) + 'd0,\n')
+                    f.write('    PHI_DEG              = ' + str(np.degrees(dat['Port_centre_phi'][j])) + 'd0,\n')
                     f.write('    FOCAL_M             = 10.0d0,\n')
                     f.write('    SG                  = 6,\n')
                     f.write('    LAW                  = 2,\n')
@@ -83,7 +83,7 @@ def generate_input_pointing_and_pulses(dat, run_location, quad_slice, run_type):
         print('Unknown facility',dat['facility'])
 
     j=0
-    for beam in dat['Beam'][quad_slice]:
+    for beam in dat['Beam']:
         if 't0' in dat.keys():
             with open('pulse_'+beam+'.txt','w') as f:
                 for i in range(len(dat['times'])):

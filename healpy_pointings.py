@@ -101,3 +101,33 @@ def theta_pointing_rotations(the_data, quad_slice, npoints, surface_cover_radian
     z = np.where(abs(z) < small_num, 0.0, z)
 
     return x, y, z, offset_thetas
+
+
+
+def square2disk(a, b):
+    """
+    Shirley, P., Chiu, K. 1997. “A Low Distortion Map Between Disk and Square”
+    Journal of Graphics Tools, volume 2 number 3.
+    """
+
+    if (a > -b):
+        if (a > b):
+            r = a
+            phi = (np.pi / 4.0) * (b / a)
+        else:
+            r = b
+            phi = (np.pi / 4.0) * (2.0 - (a / b))
+    else:
+        if (a < b):
+            r = -a
+            phi = (np.pi / 4.0) * (4.0 - (a / b))
+        else:
+            r = -b
+            if (b != 0):
+                phi = (np.pi / 4.0) * (6.0 - (a / b))
+            else:
+                phi = 0.0
+    #u = r * np.cos(phi)
+    #v = r * np.sin(phi)
+
+    return r, phi

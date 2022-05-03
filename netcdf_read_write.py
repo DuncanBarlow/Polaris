@@ -7,7 +7,6 @@ import glob
 from healpy_pointings import rot_mat
 import utils_intensity_map as uim
 
-
 def read_nn_weights(filename_nn_weights):
     parameters = {}
 
@@ -39,14 +38,13 @@ def save_nn_weights(parameters, filename_nn_weights):
 
 def read_intensity(data_location, run_type, beam_names, nside):
     if (run_type == "nif"):
-        start = [data_location + '/p_in_z1z2_beam_NIF-'] * 4
-        end = ['.nc']*4
+        start = [data_location + '/p_in_z1z2_beam_NIF-'] * len(beam_names)
+        end = ['.nc'] * len(beam_names)
         files = [i + j for i, j in zip(start, beam_names)]
         files = [i + j for i, j in zip(files, end)]
     elif (run_type == "test"):
         files = glob.glob(data_location + '/p_in_*.nc')
     intensity_map = 0.0
-    n_beams = len(files)
 
     for file_name in files:
         b='Reading from: ' + file_name + "  "
@@ -58,10 +56,10 @@ def read_intensity(data_location, run_type, beam_names, nside):
         phi = cone_data.variables["phi"][:]
         cone_data.close()
 
-    indices = np.argsort(phi+theta*nside**2*12)
+    indices = np.argsort(phi + theta * nside**2*12)
     intensity_map = intensity_map[indices]
 
-    return intensity_map, n_beams
+    return intensity_map
 
 
 
@@ -211,7 +209,7 @@ def assemble_full_sphere(Y_train, Y_norms, the_data, filename_pointing, filename
 
 
 
-def save_training_data(the_data, num_cones, pointing_nside, num_defocus, num_powers, num_coeff, num_output, num_examples, power_range, LMAX, savename_trainingdata, filename_pointing, filename_defocus):
+def create_training_data(the_data, num_cones, pointing_nside, num_defocus, num_powers, num_coeff, num_output, num_examples, power_range, LMAX, savename_trainingdata, filename_pointing, filename_defocus):
 
     pointing_per_cone = [0,0,0,0]
     defocus_per_cone = [0,0,0,0]
@@ -241,10 +239,18 @@ def save_training_data(the_data, num_cones, pointing_nside, num_defocus, num_pow
                     avg_powers[i] = avg_power
                     i = i + 1
 
+    save_training_data(X_train, Y_train, avg_powers, savename_trainingdata)
 
-    if path.exists(savename_trainingdata):
-        os.remove(savename_trainingdata)
-    rootgrp = Dataset(savename_trainingdata, "w", format="NETCDF4")
+
+
+def save_training_data(X_train, Y_train, avg_powers, filename_trainingdata):
+    num_examples = np.shape(X_train)[1]
+    num_coeff = int(np.shape(X_train)[0] / 2.0)
+    num_output = np.shape(Y_train)[0]
+
+    if path.exists(filename_trainingdata):
+        os.remove(filename_trainingdata)
+    rootgrp = Dataset(filename_trainingdata, "w", format="NETCDF4")
     rootgrp.createDimension('num_examples', num_examples)
     rootgrp.createDimension('num_coeff_ir', num_coeff*2)
     rootgrp.createDimension('num_output', num_output)
