@@ -1,0 +1,29 @@
+#!/bin/bash
+
+run_location=$1
+min=$2
+max=$3
+
+echo "Running example "$min" to "$max
+export OMP_NUM_THREADS=4
+
+for i in $(seq $min $max)
+do
+	cd $run_location$i
+        chmod +x main
+	mpirun -np 1 ./main > a.out &
+	cd ../..
+done
+
+wait
+echo "Finished up to "$max
+#cd $run_location0
+#chmod +x main
+#mpirun -np 1 ./main > a.out &
+#cd ..
+#cd $run_location1
+#chmod +x main
+#mpirun -np 1 ./main > a.out &
+#cd ..
+#wait
+#echo "All done"

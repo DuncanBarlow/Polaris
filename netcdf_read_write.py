@@ -20,6 +20,19 @@ def read_nn_weights(filename_nn_weights):
 
 
 
+def retrieve_xtrain_and_delete(run_location, beam_list, iex, imap_nside, LMAX, run_compression, run_clean):
+    run_location = run_location + str(iex)
+    if run_compression:
+        intensity_map = read_intensity(run_location, imap_nside)
+        X_train1, avg_power1 = uim.create_xtrain(intensity_map, LMAX)
+
+    if run_clean:
+        os.remove(run_location + '/main')
+        os.remove(run_location + '/p_in_z1z2_beam_all.nc')
+    return X_train1, avg_power1
+
+
+
 def save_nn_weights(parameters, filename_nn_weights):
     if path.exists(filename_nn_weights + '.nc'):
         os.remove(filename_nn_weights + '.nc')
@@ -36,28 +49,20 @@ def save_nn_weights(parameters, filename_nn_weights):
 
 
 
-def read_intensity(data_location, run_type, beam_names, nside):
-    if (run_type == "nif"):
-        start = [data_location + '/p_in_z1z2_beam_NIF-'] * len(beam_names)
-        end = ['.nc'] * len(beam_names)
-        files = [i + j for i, j in zip(start, beam_names)]
-        files = [i + j for i, j in zip(files, end)]
-    elif (run_type == "test"):
-        files = glob.glob(data_location + '/p_in_*.nc')
-    intensity_map = 0.0
+def read_intensity(data_location, nside):
+    file_name = data_location + '/p_in_z1z2_beam_all.nc'
 
-    for file_name in files:
-        b='Reading from: ' + file_name + "  "
-        print("\r", b, end="")
-        cone_data = Dataset(file_name)
-        intensity_data = cone_data.variables["intensity"][:]
-        intensity_map = intensity_data + intensity_map
-        theta = cone_data.variables["theta"][:]
-        phi = cone_data.variables["phi"][:]
-        cone_data.close()
+    b='Reading from: ' + file_name + "  "
+    print("\r", b, end="")
+    cone_data = Dataset(file_name)
+    intensity_data = cone_data.variables["intensity"][:]
+    theta = cone_data.variables["theta"][:]
+    phi = cone_data.variables["phi"][:]
+    cone_data.close()
 
     indices = np.argsort(phi + theta * nside**2*12)
-    intensity_map = intensity_map[indices]
+    #indices = hp.ang2pix(nside, theta, phi)
+    intensity_map = intensity_data[indices]
 
     return intensity_map
 
