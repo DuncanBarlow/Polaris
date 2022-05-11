@@ -1,10 +1,11 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 global figure_location
 figure_location = "plots"
 
 def plotting(epochs, costs, train_acc, test_acc, lr):
-    epoch_count = epochs[-1]
+    epoch_count = int(np.mean(epochs[-1]))
 
     fig = plt.figure()
     ax1 = plt.axes()

@@ -6,11 +6,11 @@ from tensorflow.python.ops.resource_variable_ops import ResourceVariable
 
 
 def model_wrapper(x_train, y_train, x_test, y_test, learning_rate = 0.0001,
-          num_epochs = 1500, minibatch_size = 32, print_cost = True, start_epoch = 0, nn_weights = {}, hidden_units1=25, hidden_units2=20):
+          num_epochs = 1500, minibatch_size = 32, print_cost = True, start_epoch = 0, nn_weights = {}, hidden_units1=25, hidden_units2=20, initialize_seed=1):
 
     if start_epoch == 0:
         # Initialize your parameters
-        parameters = initialize_parameters(x_train.shape[1], y_train.shape[1], hidden_units1, hidden_units2)
+        parameters = initialize_parameters(x_train.shape[1], y_train.shape[1], hidden_units1, hidden_units2, initialize_seed)
     else:
         parameters = {}
         keys = nn_weights.keys()
@@ -227,14 +227,14 @@ def forward_propagation(X, parameters):
 # Taken from Coursera by deeplearning.AI Andrew Ng:
 # https://www.coursera.org/specializations/deep-learning?skipBrowseRedirect=true
 # GRADED FUNCTION: initialize_parameters
-def initialize_parameters(input_size, output_size, hidden_units1, hidden_units2):
+def initialize_parameters(input_size, output_size, hidden_units1, hidden_units2, seed):
     """
     Initializes parameters to build a neural network with TensorFlow.
     Returns:
     parameters -- a dictionary of tensors containing W1, b1, W2, b2, W3, b3
     """
                          
-    initializer = tf.keras.initializers.GlorotNormal(seed=1)
+    initializer = tf.keras.initializers.GlorotNormal(seed=seed)
 
     W1 = tf.Variable(initializer(shape=([hidden_units1, input_size])))
     b1 = tf.Variable(initializer(shape=([hidden_units1, 1])))
