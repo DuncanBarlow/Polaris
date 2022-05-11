@@ -111,17 +111,19 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
         minibatch_cost = calculate_cost(minibatch_Y, tf.transpose(Z3))
         epoch_cost += minibatch_cost
     epoch_cost /= m
-    tf.print("Mean abs error for initialialized weights (train):", train_accuracy.result())
     costs = [epoch_cost]
     epochs = [start_epoch]
     train_acc = [train_accuracy.result()]
-    train_accuracy.reset_states()
 
     for (minibatch_X, minibatch_Y) in test_minibatches:
         Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
         test_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
-    tf.print("Mean abs error for initialialized weights (test):", test_accuracy.result())
     test_acc = [test_accuracy.result()]
+
+    if print_cost == True:
+        tf.print("Mean abs error for initialialized weights (train):", train_accuracy.result())
+        tf.print("Mean abs error for initialialized weights (test):", test_accuracy.result())
+    train_accuracy.reset_states()
     test_accuracy.reset_states()
 
     # Do the training loop
@@ -153,15 +155,17 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
         epoch_cost /= m
 
         # Print the cost every 10 epochs
-        if print_cost == True and (epoch) % 10 == 0:
-            print ("Cost after epoch %i: %f" % (epoch, epoch_cost))
-            tf.print("Mean abs error on train:", train_accuracy.result())
+        if (epoch % 10 == 0):
 
             # We evaluate the test set every 10 epochs to avoid computational overhead
             for (minibatch_X, minibatch_Y) in test_minibatches:
                 Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
                 test_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
-            tf.print("Mean abs error on test:", test_accuracy.result())
+
+            if (print_cost == True):
+                print ("Cost after epoch %i: %f" % (epoch, epoch_cost))
+                tf.print("Mean abs error on train:", train_accuracy.result())
+                tf.print("Mean abs error on test:", test_accuracy.result())
 
             costs.append(epoch_cost)
             train_acc.append(train_accuracy.result())
