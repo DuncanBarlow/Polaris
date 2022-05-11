@@ -45,23 +45,23 @@ def generate_input_pointing_and_pulses(dat, run_location, run_type):
                 # if (cpp=="inner-23" or cpp=="inner-30"):
                 #     f.write('    LAMBDA_NM           = '+str((1052.85+0.45)/3.)+',\n')   
                 # else:
-                f.write('    LAMBDA_NM           = '+str(1052.85/3.)+'d0,\n')
-                f.write('    FOC_UM              = '+str(dat['pointings'][j][0])+'d0,'+str(dat['pointings'][j][1])+'d0,'+str(dat['pointings'][j][2])+'d0,\n')
+                f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(1052.85/3.))
+                f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(dat['pointings'][j][0],dat['pointings'][j][1],dat['pointings'][j][2]))
                 if 't0' in dat.keys():
                     f.write('    POWER_PROFILE_FILE_TW_NS = "pulse_'+beam+'.txt"\n')
-                    f.write('    T_0_NS              = '+str(dat['t0'])+'d0,\n')
+                    f.write('    T_0_NS              = {:.10f}d0,\n'.format(dat['t0']))
                 else:
-                    f.write('    P0_TW               = '+str(dat['p0'][j])+'d0,\n')
+                    f.write('    P0_TW               = {:.10f}d0,\n'.format(dat['p0'][j]))
                 if (run_type == "nif"):
                     f.write('    PREDEF_FACILITY     = "NIF"\n')
                     f.write('    PREDEF_BEAM         = "'+beam+'",\n')
                     f.write('    PREDEF_CPP          = "NIF-'+cpp+'",\n')
                     f.write('    CPP_ROTATION_MODE   = 1,\n')
                     #f.write('    CPP_ROTATION_DEG    = 45.0d0,\n')
-                    f.write('    DEFOCUS_MM          = ' + str(dat['defocus'][j]) + 'd0,\n')
+                    f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(dat['defocus'][j]))
                 elif (run_type == "test"):
-                    f.write('    THETA_DEG            = ' + str(np.degrees(dat['Port_centre_theta'][j])) + 'd0,\n')
-                    f.write('    PHI_DEG              = ' + str(np.degrees(dat['Port_centre_phi'][j])) + 'd0,\n')
+                    f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(dat['Port_centre_theta'][j])))
+                    f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(dat['Port_centre_phi'][j])))
                     f.write('    FOCAL_M             = 10.0d0,\n')
                     f.write('    SG                  = 6,\n')
                     f.write('    LAW                  = 2,\n')
@@ -73,7 +73,7 @@ def generate_input_pointing_and_pulses(dat, run_location, run_type):
                     f.write('    FUSE_QUADS          = .TRUE.,\n')
                     f.write('    FUSE_BY_POINTINGS   = .TRUE.,\n')
                 if 'xy-mispoint' in dat.keys():
-                    f.write('    XY_MISPOINT_UM      = '+str(dat['xy-mispoint'][j][0])+'d0,'+str(dat['xy-mispoint'][j][1])+'d0,\n')
+                    f.write('    XY_MISPOINT_UM      = {:.10f}d0,{:.10f}d0,\n'.format(dat['xy-mispoint'][j][0],dat['xy-mispoint'][j][1]))
                 f.write('/\n')
                 f.write('\n')
                 j = j + 1
