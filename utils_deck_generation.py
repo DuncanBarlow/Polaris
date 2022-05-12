@@ -3,15 +3,20 @@ import shutil
 import numpy as np
 
 
+def copy_ifriit_exc(run_location, iex):
+    run_location = run_location + str(iex)
+    shutil.copyfile("main", run_location+"/main")
+
+
+
 def generate_input_deck(the_data, run_location):
-    
+
     isExist = os.path.exists(run_location)
 
     if not isExist:
         os.makedirs(run_location)
         b='Created directory: '+run_location+"  "
         print("\r", b, end="")
-    shutil.copyfile("main", run_location+"/main")
     
     longStr = ("ifriit_inputs_base.txt")
     with open(longStr) as old_file:
