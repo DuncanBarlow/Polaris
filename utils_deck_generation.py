@@ -3,9 +3,15 @@ import shutil
 import numpy as np
 import csv
 import healpy_pointings as hpoint
+from scipy.stats import qmc
 
 
-def create_run_files(Y_train, dataset_params, sys_params, run_data):
+def create_run_files(dataset_params, sys_params, run_data):
+    rng = np.random.default_rng(dataset_params["random_seed"])
+    sampler = qmc.LatinHypercube(d=dataset_params["num_output"], seed=rng)
+    sample = sampler.random(n=dataset_params["num_examples"])
+    Y_train = sample.T
+
     num_output = dataset_params["num_output"]
     num_examples = dataset_params["num_examples"]
 
@@ -82,13 +88,14 @@ def create_run_files(Y_train, dataset_params, sys_params, run_data):
                 run_data["defocus"][quad_slice] = cone_defocus
                 run_data["p0"][quad_slice] = run_data['default_power'] * cone_power
 
-        run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
         if sys_params["run_gen_deck"]:
+            run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
             generate_input_deck(run_data, run_location)
             generate_input_pointing_and_pulses(run_data, run_location, dataset_params["run_type"])
     dataset_params["sim_params"] = sim_params
     dataset_params["theta_pointings"] = theta_pointings
     dataset_params["phi_pointings"] = phi_pointings
+    dataset_params["Y_train"] = Y_train
     return dataset_params
 
 

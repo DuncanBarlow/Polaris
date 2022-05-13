@@ -21,8 +21,8 @@ def read_nn_weights(filename_nn_weights):
 
 
 
-def retrieve_xtrain_and_delete(run_location, beam_list, iex, dataset_params, sys_params):
-    run_location = run_location + str(iex)
+def retrieve_xtrain_and_delete(iex, dataset_params, sys_params):
+    run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
     if sys_params["run_compression"]:
         intensity_map = read_intensity(run_location, dataset_params["imap_nside"])
         X_train1, avg_power1 = uim.create_xtrain(intensity_map, dataset_params["LMAX"])
