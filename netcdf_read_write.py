@@ -8,13 +8,17 @@ from healpy_pointings import rot_mat
 import utils_intensity_map as uim
 
 
+
 def read_nn_weights(filename_nn_weights):
     parameters = {}
 
     rootgrp = Dataset(filename_nn_weights + ".nc")
     keys = list(rootgrp["parameters"].variables.keys())
     for key in keys:
-        parameters[key] = rootgrp["parameters"][key][:,:]
+        if np.shape(np.shape(rootgrp["parameters"][key]))[0] == 2:
+            parameters[key] = rootgrp["parameters"][key][:,:]
+        if np.shape(np.shape(rootgrp["parameters"][key]))[0] == 1:
+            parameters[key] = rootgrp["parameters"][key][:]
     rootgrp.close()
 
     return parameters
@@ -42,10 +46,16 @@ def save_nn_weights(parameters, filename_nn_weights):
     parms = rootgrp.createGroup('parameters')
     for key, item in parameters.items():
         dims = np.shape(item)
-        parms.createDimension(key+'_'+'item_dim1', dims[0])
-        parms.createDimension(key+'_'+'item_dim2', dims[1])
-        variable = parms.createVariable(key, 'f4', (key+'_'+'item_dim1',key+'_'+'item_dim2'))
-        variable[:,:] = item
+        if np.shape(dims)[0] == 2:
+            parms.createDimension(key+'_'+'item_dim1', dims[0])
+            parms.createDimension(key+'_'+'item_dim2', dims[1])
+            variable = parms.createVariable(key, 'f4', (key+'_'+'item_dim1',key+'_'+'item_dim2'))
+            variable[:,:] = item
+        if np.shape(dims)[0] == 1:
+            parms.createDimension(key+'_'+'item_dim1', dims[0])
+            variable = parms.createVariable(key, 'f4', (key+'_'+'item_dim1'))
+            variable[:] = item
+
     rootgrp.close()
 
 

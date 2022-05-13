@@ -5,8 +5,12 @@ from tensorflow.python.framework.ops import EagerTensor
 from tensorflow.python.ops.resource_variable_ops import ResourceVariable
 
 
-def model_wrapper(x_train, y_train, x_test, y_test, learning_rate = 0.0001,
-          num_epochs = 1500, minibatch_size = 32, print_cost = True, start_epoch = 0, nn_weights = {}, hidden_units1=25, hidden_units2=20, initialize_seed=1):
+def model_wrapper(nn_params, nn_dataset, num_epochs, learning_rate, hidden_units1, hidden_units2, minibatch_size = 32, print_cost = True, start_epoch = 0, nn_weights = {}, initialize_seed=0):
+
+    x_train = nn_dataset["X_train"]
+    y_train = nn_dataset["Y_train"]
+    x_test = nn_dataset["X_test"]
+    y_test = nn_dataset["Y_test"]
 
     if start_epoch == 0:
         # Initialize your parameters

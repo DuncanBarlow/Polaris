@@ -8,13 +8,28 @@ import subprocess
 import sys
 
 
-def define_dataset_params(num_examples):
-    dataset_params = {}
+def define_system_params(root_dir):
     sys_params = {}
-    # Number of samples, size of NN training set
-    dataset_params["num_examples"] = num_examples
     sys_params["num_processes"] = 10
     sys_params["num_ex_checkpoint"] = 1000
+    sys_params["run_gen_deck"] = True
+    sys_params["run_sims"] = True
+    sys_params["run_compression"] = True
+    sys_params["run_clean"] = True
+
+    sys_params["root_dir"] = root_dir
+    sys_params["sim_dir"] = "run_"
+    sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
+    sys_params["figure_location"] = "plots"
+
+    return sys_params
+
+
+
+def define_dataset_params(num_examples):
+    dataset_params = {}
+    # Number of samples, size of NN training set
+    dataset_params["num_examples"] = num_examples
 
     dataset_params["random_seed"] = 12345
 
@@ -31,18 +46,9 @@ def define_dataset_params(num_examples):
     dataset_params["num_sim_params"] = num_sim_params
 
     dataset_params["imap_nside"] = 256
-    sys_params["run_gen_deck"] = True
-    sys_params["run_sims"] = True
-    sys_params["run_compression"] = True
-    sys_params["run_clean"] = False
 
     dataset_params["run_type"] = "nif" #"test" #"nif"
     facility_spec = idg.import_nif_config()
-
-    sys_params["root_dir"] = "Data"
-    sys_params["sim_dir"] = "run_"
-    sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
-    sys_params["figure_location"] = "plots"
 
     dataset_params["LMAX"] = 30
     dataset_params["num_coeff"] = int(((dataset_params["LMAX"] + 2) * (dataset_params["LMAX"] + 1))/2.0)
@@ -53,7 +59,7 @@ def define_dataset_params(num_examples):
     print("Number of inputs: ", dataset_params["num_coeff"]*2)
     print("Number of outputs: ", dataset_params["num_output"])
 
-    return dataset_params, sys_params, facility_spec
+    return dataset_params, facility_spec
 
 
 
@@ -110,10 +116,12 @@ def run_and_delete(min_parallel, max_parallel, dataset_params, sys_params):
 
 
 def main(argv):
-    dataset_params, sys_params, facility_spec = define_dataset_params(int(argv))
+    sys_params = define_system_params(argv[1])
+    dataset_params, facility_spec = define_dataset_params(int(argv[2]))
     generate_training_data(dataset_params, sys_params, facility_spec)
 
+    return dataset_params, sys_params, facility_spec
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    _, _, _ = main(sys.argv)
