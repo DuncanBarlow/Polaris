@@ -7,6 +7,7 @@ import glob
 from healpy_pointings import rot_mat
 import utils_intensity_map as uim
 
+
 def read_nn_weights(filename_nn_weights):
     parameters = {}
 
@@ -20,13 +21,13 @@ def read_nn_weights(filename_nn_weights):
 
 
 
-def retrieve_xtrain_and_delete(run_location, beam_list, iex, imap_nside, LMAX, run_compression, run_clean):
+def retrieve_xtrain_and_delete(run_location, beam_list, iex, dataset_params, sys_params):
     run_location = run_location + str(iex)
-    if run_compression:
-        intensity_map = read_intensity(run_location, imap_nside)
-        X_train1, avg_power1 = uim.create_xtrain(intensity_map, LMAX)
+    if sys_params["run_compression"]:
+        intensity_map = read_intensity(run_location, dataset_params["imap_nside"])
+        X_train1, avg_power1 = uim.create_xtrain(intensity_map, dataset_params["LMAX"])
 
-    if run_clean:
+    if sys_params["run_clean"]:
         os.remove(run_location + '/main')
         os.remove(run_location + '/p_in_z1z2_beam_all.nc')
     return X_train1, avg_power1
