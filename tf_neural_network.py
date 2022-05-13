@@ -182,8 +182,8 @@ def calculate_cost(y_true, y_pred):
     Calculate cost function
     """
 
-    #cost = tf.reduce_mean(tf.keras.metrics.mean_squared_error(y_true, y_pred))
-    cost = tf.reduce_mean(tf.keras.metrics.binary_crossentropy(y_true, y_pred))
+    cost = tf.reduce_mean(tf.keras.metrics.mean_squared_error(y_true, y_pred))
+    #cost = tf.reduce_mean(tf.keras.metrics.binary_crossentropy(y_true, y_pred))
 
     return cost
 
