@@ -3,14 +3,9 @@ import shutil
 import numpy as np
 import csv
 import healpy_pointings as hpoint
-from scipy.stats import qmc
 
 
 def create_run_files(dataset_params, sys_params, run_data):
-    rng = np.random.default_rng(dataset_params["random_seed"])
-    sampler = qmc.LatinHypercube(d=dataset_params["num_output"], seed=rng)
-    sample = sampler.random(n=dataset_params["num_examples"])
-    Y_train = sample.T
 
     num_output = dataset_params["num_output"]
     num_examples = dataset_params["num_examples"]
@@ -31,7 +26,7 @@ def create_run_files(dataset_params, sys_params, run_data):
     phi_pointings = np.zeros((run_data["nbeams"], num_examples))
 
     for iex in range(num_examples):
-        ex_params =  Y_train[:,iex]
+        ex_params =  dataset_params["Y_train"][:,iex]
         for icone in range(run_data['num_cones']):
             il = (icone*4) % num_output
             iu = ((icone+1)*4-1) % num_output + 1
@@ -95,7 +90,6 @@ def create_run_files(dataset_params, sys_params, run_data):
     dataset_params["sim_params"] = sim_params
     dataset_params["theta_pointings"] = theta_pointings
     dataset_params["phi_pointings"] = phi_pointings
-    dataset_params["Y_train"] = Y_train
     return dataset_params
 
 

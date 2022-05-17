@@ -150,11 +150,11 @@ def main(argv):
     nn_params = define_nn_params(int(argv[3]))
     X_all, Y_all, avg_powers_all, nn_params = import_training_data(nn_params, sys_params)
     nn_dataset = seperate_test_set(X_all, Y_all, avg_powers_all, nn_params)
+    nn_dataset = normalise(nn_dataset)
 
     nn_hyperparams = {}
     if (nn_params["num_nn"] > 0):
         nn_hyperparams = define_nn_hyperparams(int(argv[2]), int(argv[3]))
-        nn_dataset = normalise(nn_dataset)
         nn_hyperparams = multiple_nn(nn_params, nn_dataset, sys_params, nn_hyperparams)
     return nn_params, nn_dataset, sys_params, nn_hyperparams
 
