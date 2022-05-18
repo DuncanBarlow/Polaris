@@ -227,11 +227,3 @@ def generate_input_pointing_and_pulses(dat, run_location, run_type):
             f.write('! Last line must not be empty')
     else:
         print('Unknown facility',dat['facility'])
-
-    j=0
-    for beam in dat['Beam']:
-        if 't0' in dat.keys():
-            with open('pulse_'+beam+'.txt','w') as f:
-                for i in range(len(dat['times'])):
-                    f.write(str(dat['times'][i]) + ' ' + str(dat['powers'][j,i]) + '\n')
-            j = j + 1
