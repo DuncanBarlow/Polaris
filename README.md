@@ -23,7 +23,7 @@ conda config --add channels conda-forge
 conda install healpy
 conda install netcdf4
 
-## To run the neural network you will need:
+### To run the neural network you will need:
 You will need the python module: tensorflow.
 These can be installed via conda using:
 
