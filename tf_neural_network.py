@@ -5,7 +5,7 @@ from tensorflow.python.framework.ops import EagerTensor
 from tensorflow.python.ops.resource_variable_ops import ResourceVariable
 
 
-def model_wrapper(nn_params, nn_dataset, num_epochs, learning_rate, hidden_units1, hidden_units2, minibatch_size = 32, print_cost = True, start_epoch = 0, nn_weights = {}, initialize_seed=0):
+def model_wrapper(nn_params, nn_dataset, num_epochs, learning_rate, hidden_units1, hidden_units2, hidden_units3, minibatch_size = 32, print_cost = True, start_epoch = 0, nn_weights = {}, initialize_seed=0):
 
     x_train = nn_dataset["X_train"]
     y_train = nn_dataset["Y_train"]
@@ -14,7 +14,7 @@ def model_wrapper(nn_params, nn_dataset, num_epochs, learning_rate, hidden_units
 
     if start_epoch == 0:
         # Initialize your parameters
-        parameters = initialize_parameters(x_train.shape[1], y_train.shape[1], hidden_units1, hidden_units2, initialize_seed)
+        parameters = initialize_parameters(x_train.shape[1], y_train.shape[1], hidden_units1, hidden_units2, hidden_units3, initialize_seed)
     else:
         parameters = {}
         keys = nn_weights.keys()
@@ -106,13 +106,15 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
     b2 = parameters['b2']
     W3 = parameters['W3']
     b3 = parameters['b3']
+    W4 = parameters['W4']
+    b4 = parameters['b4']
 
     # Save pre-training cost and accuracy
     epoch_cost = 0.0
     for (minibatch_X, minibatch_Y) in minibatches:
-        Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
-        train_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
-        minibatch_cost = calculate_cost(minibatch_Y, tf.transpose(Z3))
+        Z4 = forward_propagation(tf.transpose(minibatch_X), parameters)
+        train_accuracy.update_state(minibatch_Y, tf.transpose(Z4))
+        minibatch_cost = calculate_cost(minibatch_Y, tf.transpose(Z4))
         epoch_cost += minibatch_cost
     epoch_cost /= m
     costs = [epoch_cost]
@@ -120,8 +122,8 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
     train_acc = [train_accuracy.result()]
 
     for (minibatch_X, minibatch_Y) in test_minibatches:
-        Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
-        test_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
+        Z4 = forward_propagation(tf.transpose(minibatch_X), parameters)
+        test_accuracy.update_state(minibatch_Y, tf.transpose(Z4))
     test_acc = [test_accuracy.result()]
 
     if print_cost == True:
@@ -142,15 +144,15 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
 
             with tf.GradientTape() as tape:
                 # 1. predict
-                Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
+                Z4 = forward_propagation(tf.transpose(minibatch_X), parameters)
 
                 # 2. loss
-                minibatch_cost = calculate_cost(minibatch_Y, tf.transpose(Z3))
+                minibatch_cost = calculate_cost(minibatch_Y, tf.transpose(Z4))
 
             # We accumulate the accuracy of all the batches
-            train_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
+            train_accuracy.update_state(minibatch_Y, tf.transpose(Z4))
 
-            trainable_variables = [W1, b1, W2, b2, W3, b3]
+            trainable_variables = [W1, b1, W2, b2, W3, b3, W4, b4]
             grads = tape.gradient(minibatch_cost, trainable_variables)
             optimizer.apply_gradients(zip(grads, trainable_variables))
             epoch_cost += minibatch_cost
@@ -163,8 +165,8 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
 
             # We evaluate the test set every 10 epochs to avoid computational overhead
             for (minibatch_X, minibatch_Y) in test_minibatches:
-                Z3 = forward_propagation(tf.transpose(minibatch_X), parameters)
-                test_accuracy.update_state(minibatch_Y, tf.transpose(Z3))
+                Z4 = forward_propagation(tf.transpose(minibatch_X), parameters)
+                test_accuracy.update_state(minibatch_Y, tf.transpose(Z4))
 
             if (print_cost == True):
                 print ("Cost after epoch %i: %f" % (epoch, epoch_cost))
@@ -186,7 +188,12 @@ def calculate_cost(y_true, y_pred):
     Calculate cost function
     """
 
-    cost = tf.reduce_mean(tf.keras.metrics.mean_squared_error(y_true, y_pred))
+    mse = tf.keras.losses.MeanSquaredError()
+    cost = mse(y_true, y_pred)
+    #bce = tf.keras.losses.BinaryCrossentropy()
+    #cost = bce(y_true, y_pred)
+    #cost = tf.keras.metrics.MeanRelativeError(y_true, y_pred)
+    #cost = tf.reduce_mean(tf.keras.metrics.mean_squared_error(y_true, y_pred))
     #cost = tf.reduce_mean(tf.keras.metrics.binary_crossentropy(y_true, y_pred))
 
     return cost
@@ -216,22 +223,26 @@ def forward_propagation(X, parameters):
     b2 = parameters['b2']
     W3 = parameters['W3']
     b3 = parameters['b3']
+    W4 = parameters['W4']
+    b4 = parameters['b4']
 
     Z1 = tf.linalg.matmul(W1, X) + b1
     A1 = tf.keras.activations.relu(Z1)
     Z2 = tf.linalg.matmul(W2, A1) + b2
     A2 = tf.keras.activations.relu(Z2)
     Z3 = tf.linalg.matmul(W3, A2) + b3
-    A3 = tf.keras.activations.sigmoid(Z3)
+    A3 = tf.keras.activations.relu(Z3)
+    Z4 = tf.linalg.matmul(W4, A3) + b4
+    A4 = tf.keras.activations.sigmoid(Z4)
 
-    return A3
+    return A4
 
 
 
 # Taken from Coursera by deeplearning.AI Andrew Ng:
 # https://www.coursera.org/specializations/deep-learning?skipBrowseRedirect=true
 # GRADED FUNCTION: initialize_parameters
-def initialize_parameters(input_size, output_size, hidden_units1, hidden_units2, seed):
+def initialize_parameters(input_size, output_size, hidden_units1, hidden_units2, hidden_units3, seed):
     """
     Initializes parameters to build a neural network with TensorFlow.
     Returns:
@@ -244,14 +255,18 @@ def initialize_parameters(input_size, output_size, hidden_units1, hidden_units2,
     b1 = tf.Variable(initializer(shape=([hidden_units1, 1])))
     W2 = tf.Variable(initializer(shape=([hidden_units2, hidden_units1])))
     b2 = tf.Variable(initializer(shape=([hidden_units2, 1])))
-    W3 = tf.Variable(initializer(shape=([output_size, hidden_units2])))
-    b3 = tf.Variable(initializer(shape=([output_size, 1])))
+    W3 = tf.Variable(initializer(shape=([hidden_units3, hidden_units2])))
+    b3 = tf.Variable(initializer(shape=([hidden_units3, 1])))
+    W4 = tf.Variable(initializer(shape=([output_size, hidden_units3])))
+    b4 = tf.Variable(initializer(shape=([output_size, 1])))
 
     parameters = {"W1": W1,
                   "b1": b1,
                   "W2": W2,
                   "b2": b2,
                   "W3": W3,
-                  "b3": b3}
+                  "b3": b3,
+                  "W4": W4,
+                  "b4": b4}
 
     return parameters

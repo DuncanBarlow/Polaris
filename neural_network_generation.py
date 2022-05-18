@@ -28,8 +28,9 @@ def define_nn_hyperparams(num_epochs, num_nn):
 
     nn_hyperparams["num_epochs"] = [num_epochs] * num_nn
     nn_hyperparams["learning_rate"] = [0.001] * num_nn
-    nn_hyperparams["hidden_units1"] = [100] * num_nn
-    nn_hyperparams["hidden_units2"] = [30] * num_nn
+    nn_hyperparams["hidden_units1"] = [600] * num_nn
+    nn_hyperparams["hidden_units2"] = [600] * num_nn
+    nn_hyperparams["hidden_units3"] = [600] * num_nn
     nn_hyperparams["cost"] = np.zeros(num_nn)
     nn_hyperparams["train_acc"] = np.zeros(num_nn)
     nn_hyperparams["test_acc"] = np.zeros(num_nn)
@@ -127,7 +128,7 @@ def multiple_nn(nn_params, nn_dataset, sys_params, nn_hyperparams):
         print_cost = True
     
     for inn in range(nn_params["num_nn"]):
-        parameters, costs, train_acc, test_acc, epochs = tfnn.model_wrapper(nn_params, nn_dataset, nn_hyperparams["num_epochs"][inn], nn_hyperparams["learning_rate"][inn], nn_hyperparams["hidden_units1"][inn], nn_hyperparams["hidden_units2"][inn], initialize_seed = nn_hyperparams["initialize_seed"][inn], print_cost = print_cost)
+        parameters, costs, train_acc, test_acc, epochs = tfnn.model_wrapper(nn_params, nn_dataset, nn_hyperparams["num_epochs"][inn], nn_hyperparams["learning_rate"][inn], nn_hyperparams["hidden_units1"][inn], nn_hyperparams["hidden_units2"][inn], nn_hyperparams["hidden_units3"][inn], initialize_seed = nn_hyperparams["initialize_seed"][inn], print_cost = print_cost)
         filename_nn_weights = nn_params["dir_nn_weights"] + "/NN" + str(inn)
         nrw.save_nn_weights(parameters, filename_nn_weights)
         nn_hyperparams["cost"][inn] = costs[-1]
