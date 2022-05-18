@@ -1,4 +1,3 @@
-#import h5py
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework.ops import EagerTensor
@@ -66,9 +65,9 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
 
     Arguments:
     X_train -- training set, of shape (input size, number of training examples)
-    Y_train -- test set, of shape (output size = 12, number of training examples)
+    Y_train -- test set, of shape (output size, number of training examples)
     X_test -- training set, of shape (input size, number of training examples)
-    Y_test -- test set, of shape (output size = 12, number of test examples)
+    Y_test -- test set, of shape (output size, number of test examples)
     learning_rate -- learning rate of the optimization
     num_epochs -- number of epochs of the optimization loop
     minibatch_size -- size of a minibatch

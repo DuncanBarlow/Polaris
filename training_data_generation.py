@@ -6,6 +6,7 @@ import utils_intensity_map as uim
 import os
 import subprocess
 import sys
+from scipy.stats import qmc
 
 
 def define_system_params(root_dir):
@@ -58,6 +59,12 @@ def define_dataset_params(num_examples):
     print("Number of examples: ", dataset_params["num_examples"])
     print("Number of inputs: ", dataset_params["num_coeff"]*2)
     print("Number of outputs: ", dataset_params["num_output"])
+
+    rng = np.random.default_rng(dataset_params["random_seed"])
+    sampler = qmc.LatinHypercube(d=dataset_params["num_output"], seed=rng)
+    sample = sampler.random(n=dataset_params["num_examples"])
+    Y_train = sample.T
+    dataset_params["Y_train"] = Y_train
 
     return dataset_params, facility_spec
 

@@ -12,7 +12,6 @@ import sys
 def define_nn_params(num_nn):
     nn_params = {}
     
-    nn_params["run_shuffle"] = True
     nn_params["random_seed"] = 12345
     nn_params["test_fraction"] = 1.0 / 100.0
     nn_params["dir_nn_weights"] = "neural_network_weights"
@@ -64,36 +63,7 @@ def import_training_data(nn_params, sys_params):
 def seperate_test_set(X_all, Y_all, avg_powers_all, nn_params):
     nn_dataset = {}
     test_size = nn_params["test_size"]
-    if nn_params["run_shuffle"]:
-        index_shuf = list(range(nn_params["num_examples"]))
-        rng = np.random.default_rng(nn_params["random_seed"])
-        rng.shuffle(index_shuf)
-        index_shuf = np.array(index_shuf)
-        X_train = []
-        Y_train = []
-        train_avg_powers = []
-        X_test = []
-        Y_test = []
-        test_avg_powers = []
-        j=0
-        for i in index_shuf:
-            if (j < test_size):
-                X_test.append(X_all[:,i])
-                Y_test.append(Y_all[:,i])
-                test_avg_powers.append(avg_powers_all[i])
-            else:
-                X_train.append(X_all[:,i])
-                Y_train.append(Y_all[:,i])
-                train_avg_powers.append(avg_powers_all[i])
-            j = j + 1
-        nn_dataset["index_shuf"] = index_shuf
-        nn_dataset["X_test"] = np.array(X_test)
-        nn_dataset["Y_test"] = np.array(Y_test)
-        nn_dataset["X_train"] = np.array(X_train)
-        nn_dataset["Y_train"] = np.array(Y_train)
-        nn_dataset["test_avg_powers"] = test_avg_powers
-        nn_dataset["train_avg_powers"] = train_avg_powers
-    else:
+    if test_size > 0:
         nn_dataset["X_test"] = X_all.T[:test_size,:]
         nn_dataset["Y_test"] = Y_all.T[:test_size,:]
         nn_dataset["test_avg_powers"] = avg_powers_all[:test_size]
@@ -101,12 +71,20 @@ def seperate_test_set(X_all, Y_all, avg_powers_all, nn_params):
         nn_dataset["X_train"] = X_all.T[test_size:,:]
         nn_dataset["Y_train"] = Y_all.T[test_size:,:]
         nn_dataset["train_avg_powers"] = avg_powers_all[test_size:]
+    else:
+        nn_dataset["X_test"] = [0.0]
+        nn_dataset["Y_test"] = [0.0]
+        nn_dataset["test_avg_powers"] = [0.0]
+
+        nn_dataset["X_train"] = X_all.T
+        nn_dataset["Y_train"] = Y_all.T
+        nn_dataset["train_avg_powers"] = avg_powers_all
 
     print("Train shape for input ", np.shape(nn_dataset["X_train"]),
           "Train shape for output ", np.shape(nn_dataset["Y_train"]))
     print("Test shape for input ", np.shape(nn_dataset["X_test"]),
           "Test shape for output ", np.shape(nn_dataset["Y_test"]))
-    
+
     return nn_dataset
 
 
@@ -150,11 +128,11 @@ def main(argv):
     nn_params = define_nn_params(int(argv[3]))
     X_all, Y_all, avg_powers_all, nn_params = import_training_data(nn_params, sys_params)
     nn_dataset = seperate_test_set(X_all, Y_all, avg_powers_all, nn_params)
+    nn_dataset = normalise(nn_dataset)
 
     nn_hyperparams = {}
     if (nn_params["num_nn"] > 0):
         nn_hyperparams = define_nn_hyperparams(int(argv[2]), int(argv[3]))
-        nn_dataset = normalise(nn_dataset)
         nn_hyperparams = multiple_nn(nn_params, nn_dataset, sys_params, nn_hyperparams)
     return nn_params, nn_dataset, sys_params, nn_hyperparams
 
