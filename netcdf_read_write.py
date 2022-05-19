@@ -113,14 +113,14 @@ def create_training_data(the_data, num_cones, pointing_nside, num_defocus, num_p
 
 def save_training_data(X_train, Y_train, avg_powers, filename_trainingdata):
     num_examples = np.shape(X_train)[1]
-    num_coeff = int(np.shape(X_train)[0] / 2.0)
+    num_inputs = np.shape(X_train)[0]
     num_output = np.shape(Y_train)[0]
 
     if path.exists(filename_trainingdata):
         os.remove(filename_trainingdata)
     rootgrp = Dataset(filename_trainingdata, "w", format="NETCDF4")
     rootgrp.createDimension('num_examples', num_examples)
-    rootgrp.createDimension('num_coeff_ir', num_coeff*2)
+    rootgrp.createDimension('num_coeff_ir', num_inputs)
     rootgrp.createDimension('num_output', num_output)
 
     X_train_save = rootgrp.createVariable('X_train', 'f4', ('num_coeff_ir','num_examples'))

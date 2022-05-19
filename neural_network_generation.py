@@ -5,6 +5,7 @@ import tf_neural_network as tfnn
 import matplotlib.pyplot as plt
 import nn_plots as nnp
 import netcdf_read_write as nrw
+import utils_intensity_map as uim
 import sys
 
 
@@ -47,6 +48,34 @@ def import_training_data(nn_params, sys_params):
 
     print(np.shape(X_all), np.shape(Y_all))
     nn_params["num_examples"] = np.shape(X_all)[1]
+    nn_params["input_size"] = np.shape(X_all)[0]
+    nn_params["output_size"] = np.shape(Y_all)[0]
+
+    test_size = int(nn_params["num_examples"] * nn_params["test_fraction"])
+    if test_size == 0:
+        test_size = 1
+    nn_params["test_size"] = test_size
+
+    return X_all, Y_all, avg_powers_all, nn_params
+
+
+
+def import_training_data_reversed(nn_params, sys_params, LMAX, imap_nside):
+    training_data = Dataset(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
+    X_all = training_data.variables["Y_train"][:]
+    Y_complex = training_data.variables["X_train"][:]
+    avg_powers_all = training_data.variables["avg_powers"][:]
+    training_data.close()
+    print(np.shape(X_all), np.shape(Y_complex))
+
+    nn_params["num_examples"] = np.shape(X_all)[1]
+    Y_all = np.zeros((LMAX, nn_params["num_examples"]))
+    for ie in range(nn_params["num_examples"]):
+        intensity_map_normalized = uim.xtrain2imap(Y_complex[:,ie], LMAX, imap_nside, avg_powers_all[ie])
+        intensity_map = (intensity_map_normalized + 1.0) * avg_powers_all[ie]
+        power_spectrum_unweighted, _ = uim.power_spectrum(intensity_map, LMAX, verbose=False)
+        Y_all[:,ie] = power_spectrum_unweighted
+
     nn_params["input_size"] = np.shape(X_all)[0]
     nn_params["output_size"] = np.shape(Y_all)[0]
 
