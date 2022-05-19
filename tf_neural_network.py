@@ -1,7 +1,5 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.framework.ops import EagerTensor
-from tensorflow.python.ops.resource_variable_ops import ResourceVariable
 
 
 def model_wrapper(nn_params, nn_dataset, num_epochs, learning_rate, hidden_units1, hidden_units2, hidden_units3, minibatch_size = 32, print_cost = True, start_epoch = 0, nn_weights = {}, initialize_seed=0):
