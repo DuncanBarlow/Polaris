@@ -80,6 +80,7 @@ def generate_training_data(dataset_params, sys_params, facility_spec):
     run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"]
     X_train = np.zeros((dataset_params["num_coeff"] * 2, dataset_params["num_examples"]))
     avg_powers = np.zeros(dataset_params["num_examples"])
+    filename_trainingdata = sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"]
     if sys_params["run_sims"]:
         num_parallel_runs = int(dataset_params["num_examples"] / sys_params["num_processes"])
         if num_parallel_runs > 0:
@@ -100,7 +101,6 @@ def generate_training_data(dataset_params, sys_params, facility_spec):
             X_train[:,min_parallel:max_parallel+1], avg_powers[min_parallel:max_parallel+1] = run_and_delete(min_parallel, max_parallel, dataset_params, sys_params)
 
     if sys_params["run_compression"]:
-        filename_trainingdata = sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"]
         nrw.save_training_data(X_train, Y_train, avg_powers, filename_trainingdata)
     print("\n")
 
