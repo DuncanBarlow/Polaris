@@ -1,5 +1,4 @@
 from netCDF4 import Dataset
-import healpy as hp
 import numpy as np
 import training_data_generation as tdg
 import tf_neural_network as tfnn
