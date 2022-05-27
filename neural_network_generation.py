@@ -7,6 +7,7 @@ import nn_plots as nnp
 import netcdf_read_write as nrw
 import utils_intensity_map as uim
 import sys
+import healpy as hp
 
 
 def define_nn_params(num_nn):
@@ -63,17 +64,27 @@ def import_training_data(nn_params, sys_params):
 def import_training_data_reversed(nn_params, sys_params, LMAX, imap_nside):
     training_data = Dataset(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
     X_all = training_data.variables["Y_train"][:]
-    Y_complex = training_data.variables["X_train"][:]
+    Y_real = training_data.variables["X_train"][:]
     avg_powers_all = training_data.variables["avg_powers"][:]
     training_data.close()
-    print(np.shape(X_all), np.shape(Y_complex))
+    print(np.shape(X_all), np.shape(Y_real))
 
     nn_params["num_examples"] = np.shape(X_all)[1]
     Y_all = np.zeros((LMAX, nn_params["num_examples"]))
+    num_coeff = int(((LMAX + 2) * (LMAX + 1))/2.0)
+    np_complex = np.vectorize(complex)
     for ie in range(nn_params["num_examples"]):
-        intensity_map_normalized = uim.xtrain2imap(Y_complex[:,ie], LMAX, imap_nside, avg_powers_all[ie])
-        intensity_map = (intensity_map_normalized + 1.0) * avg_powers_all[ie]
-        power_spectrum_unweighted, _ = uim.power_spectrum(intensity_map, LMAX, verbose=False)
+        Y_train_real = np.squeeze(Y_real[:,ie] / avg_powers_all[ie])
+        Y_train_complex = np_complex(Y_train_real[:num_coeff], Y_train_real[num_coeff:])
+        var = abs(Y_train_complex)**2
+        the_modes = np.zeros(LMAX)
+        for l in range(LMAX):
+            for m in range(l):
+                if (m>0):
+                    the_modes[l] = the_modes[l] + 2.*var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
+                else:
+                    the_modes[l] = the_modes[l] + var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
+        power_spectrum_unweighted = np.sqrt(the_modes)
         Y_all[:,ie] = power_spectrum_unweighted
 
     nn_params["input_size"] = np.shape(X_all)[0]
