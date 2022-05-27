@@ -26,7 +26,10 @@ def create_run_files(dataset_params, sys_params, run_data):
     phi_pointings = np.zeros((run_data["nbeams"], num_examples))
 
     for iex in range(num_examples):
-        ex_params =  dataset_params["Y_train"][:,iex]
+        if num_examples>1:
+            ex_params =  dataset_params["Y_train"][:,iex]
+        else:
+            ex_params =  dataset_params["Y_train"]
         for icone in range(run_data['num_cones']):
             il = (icone*4) % num_output
             iu = ((icone+1)*4-1) % num_output + 1
