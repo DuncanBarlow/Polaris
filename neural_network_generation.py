@@ -163,15 +163,19 @@ def multiple_nn(nn_params, nn_dataset, sys_params, nn_hyperparams):
 
 
 def main(argv):
-    sys_params = tdg.define_system_params(argv[1])
-    nn_params = define_nn_params(int(argv[3]))
+    root_dir = argv[1]
+    num_epochs = int(argv[2])
+    num_nn = int(argv[3])
+
+    sys_params = tdg.define_system_params(root_dir)
+    nn_params = define_nn_params(num_nn)
     X_all, Y_all, avg_powers_all, nn_params = import_training_data(nn_params, sys_params)
     nn_dataset = seperate_test_set(X_all, Y_all, avg_powers_all, nn_params)
     nn_dataset = normalise(nn_dataset)
 
     nn_hyperparams = {}
     if (nn_params["num_nn"] > 0):
-        nn_hyperparams = define_nn_hyperparams(int(argv[2]), int(argv[3]))
+        nn_hyperparams = define_nn_hyperparams(num_epochs, num_nn)
         nn_hyperparams = multiple_nn(nn_params, nn_dataset, sys_params, nn_hyperparams)
     return nn_params, nn_dataset, sys_params, nn_hyperparams
 
