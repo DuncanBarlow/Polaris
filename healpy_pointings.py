@@ -58,12 +58,15 @@ def square2disk(a, b):
     else:
         if (a < b):
             r = -a
-            phi = (np.pi / 4.0) * (4.0 - (a / b))
+            phi = (np.pi / 4.0) * (4.0 + (b / a))
         else:
             r = -b
             if (b != 0):
                 phi = (np.pi / 4.0) * (6.0 - (a / b))
             else:
                 phi = 0.0
+
+    if phi > np.pi:
+        phi = - (2.0 * np.pi - phi)
 
     return r, phi
