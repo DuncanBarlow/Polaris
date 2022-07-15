@@ -27,6 +27,36 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction):
 
 
 
+def extract_run_parameters(dataset_params, facility_spec, sys_params):
+    theta_slice   = slice(0,29,4)
+    phi_slice     = slice(1,30,4)
+    defocus_slice = slice(2,31,4)
+    power_slice   = slice(3,32,4)
+
+    cone_theta_offset = np.squeeze(dataset_params["sim_params"][theta_slice])
+    cone_phi_offset = np.squeeze(dataset_params["sim_params"][phi_slice])
+    cone_defocus = np.squeeze(dataset_params["sim_params"][defocus_slice])
+    cone_powers = np.squeeze(dataset_params["sim_params"][power_slice])
+
+    beams_prev = 0
+    beams_tot = 0
+    total_power = 0
+    for icone in range(facility_spec['num_cones']):
+        beams_per_cone = facility_spec['beams_per_cone'][icone]
+        beams_tot += beams_per_cone
+        total_power += cone_powers[icone] * beams_per_cone
+        beams_prev += beams_per_cone
+        if icone < 4:
+            print("For cone " + str(icone+1) +
+                  ": {:.2f}\N{DEGREE SIGN}".format(np.degrees(cone_theta_offset[icone])),
+                  "{:.2f}\N{DEGREE SIGN}".format(np.degrees(cone_phi_offset[icone])),
+                  "{:.2f}mm".format(cone_defocus[icone]),
+                  "{:.2f}% power".format(cone_powers[icone] * 100))
+    mean_power_fraction = total_power / facility_spec['nbeams']
+    return mean_power_fraction
+
+
+
 def power_spectrum(intensity_map, LMAX, verbose=True):
     intensity_map_normalized, avg_power = imap_norm(intensity_map)
 
