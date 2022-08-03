@@ -12,18 +12,21 @@ import healpy as hp
 
 def define_nn_params(num_nn):
     nn_params = {}
-    
+
     nn_params["random_seed"] = 12345
     nn_params["test_fraction"] = 1.0 / 100.0
     nn_params["dir_nn_weights"] = "neural_network_weights"
     nn_params["num_nn"] = num_nn
     nn_params["filename_hyperparams"] = "NN_hyper_parameters"
-    
+
     return nn_params
 
 
 
-def define_nn_hyperparams(num_epochs, num_nn):
+def define_nn_hyperparams(num_epochs, num_nn, **kwargs):
+    mean = kwargs.get("mean", 0.0)
+    std_dev = kwargs.get("std_dev", 1.0)
+
     nn_hyperparams = {}
 
     nn_hyperparams["num_epochs"] = [num_epochs] * num_nn
@@ -31,6 +34,9 @@ def define_nn_hyperparams(num_epochs, num_nn):
     nn_hyperparams["hidden_units1"] = [600] * num_nn
     nn_hyperparams["hidden_units2"] = [600] * num_nn
     nn_hyperparams["hidden_units3"] = [600] * num_nn
+    nn_hyperparams["mu"] = [mean] * num_nn
+    nn_hyperparams["sigma"] = [std_dev] * num_nn
+
     nn_hyperparams["cost"] = np.zeros(num_nn)
     nn_hyperparams["train_acc"] = np.zeros(num_nn)
     nn_hyperparams["test_acc"] = np.zeros(num_nn)
@@ -128,9 +134,9 @@ def seperate_test_set(X_all, Y_all, avg_powers_all, nn_params):
 
 
 
-def normalise(nn_dataset):
-    nn_dataset["mu"] = np.mean(nn_dataset["X_train"])
-    nn_dataset["sigma"] = np.std(nn_dataset["X_train"])
+def normalise(nn_dataset, **kwargs):
+    nn_dataset["mu"] = kwargs.get("mean", np.mean(nn_dataset["X_train"]))
+    nn_dataset["sigma"] = kwargs.get("std_dev", np.std(nn_dataset["X_train"]))
 
     nn_dataset["X_train"] = (nn_dataset["X_train"] - nn_dataset["mu"]) / nn_dataset["sigma"]
     nn_dataset["X_test"] = (nn_dataset["X_test"] - nn_dataset["mu"]) / nn_dataset["sigma"]
@@ -173,9 +179,8 @@ def main(argv):
     nn_dataset = seperate_test_set(X_all, Y_all, avg_powers_all, nn_params)
     nn_dataset = normalise(nn_dataset)
 
-    nn_hyperparams = {}
     if (nn_params["num_nn"] > 0):
-        nn_hyperparams = define_nn_hyperparams(num_epochs, num_nn)
+        nn_hyperparams = define_nn_hyperparams(num_epochs, num_nn, mean=nn_dataset["mu"], std_dev=nn_dataset["sigma"])
         nn_hyperparams = multiple_nn(nn_params, nn_dataset, sys_params, nn_hyperparams)
     return nn_params, nn_dataset, sys_params, nn_hyperparams
 
