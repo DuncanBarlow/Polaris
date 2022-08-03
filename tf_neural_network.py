@@ -230,7 +230,8 @@ def forward_propagation(X, parameters):
     Z3 = tf.linalg.matmul(W3, A2) + b3
     A3 = tf.keras.activations.relu(Z3)
     Z4 = tf.linalg.matmul(W4, A3) + b4
-    A4 = tf.keras.activations.sigmoid(Z4)
+    A4 = tf.keras.activations.relu(Z4)
+    #A4 = tf.keras.activations.sigmoid(Z4)
 
     return A4
 

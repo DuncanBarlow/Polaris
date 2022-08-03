@@ -5,8 +5,8 @@ import healpy as hp
 def readout_intensity(the_data, intensity_map, mean_power_fraction):
     n_beams = the_data['nbeams']
     r = the_data['target_radius'] / 1.0e4 # microns to cm
-    total_TW = np.mean(intensity_map)*10**(-12)
     surface_area = 4.0 * np.pi * r**2
+    total_TW = np.mean(intensity_map)*10**(-12) * surface_area
 
     #rms
     intensity_map_normalised, avg_power = imap_norm(intensity_map)
@@ -15,9 +15,9 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction):
     intensity_map_rms_spatial = imap_pn * 100.0 * np.abs(intensity_map_normalised)
 
     print('')
-    print('The total power deposited is ', total_TW * surface_area, 'TW')
-    print('The power per beam deposited is ', total_TW * surface_area / n_beams, 'TW')
-    print('This is a drive efficiency of ', total_TW * surface_area / (n_beams * the_data['default_power'] * mean_power_fraction) * 100.0, '%')
+    print('The total power deposited is ', total_TW , 'TW')
+    print('The power per beam deposited is ', total_TW / n_beams, 'TW')
+    print('This is a drive efficiency of ', total_TW / (n_beams * the_data['default_power'] * mean_power_fraction) * 100.0, '%')
     print('RMS is ', intensity_map_rms, '%')
     print('Number of beams ', n_beams)
     print('Mean power percentage ', mean_power_fraction * 100.0, '%')
@@ -27,7 +27,7 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction):
 
 
 
-def power_spectrum(intensity_map, LMAX):
+def power_spectrum(intensity_map, LMAX, verbose=True):
     intensity_map_normalized, avg_power = imap_norm(intensity_map)
 
     # Compute the corresponding normalized mode spectrum
@@ -45,7 +45,8 @@ def power_spectrum(intensity_map, LMAX):
 
     power_spectrum_unweighted = np.sqrt(the_modes)
     power_spectrum_weighted = np.sqrt(power_spectrum)
-    print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(the_modes))*100.0, "%")
+    if verbose:
+        print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(the_modes))*100.0, "%")
 
     return power_spectrum_unweighted, power_spectrum_weighted
 
