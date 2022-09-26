@@ -24,10 +24,10 @@ def read_nn_weights(filename_nn_weights):
 
 
 
-def retrieve_xtrain_and_delete(iex, dataset_params, sys_params):
+def retrieve_xtrain_and_delete(iex, dataset_params, sys_params, target_radius_microns):
     run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
     if sys_params["run_compression"]:
-        intensity_map = read_intensity(run_location, dataset_params["imap_nside"])
+        intensity_map = read_intensity(run_location, dataset_params["imap_nside"], target_radius_microns)
         X_train1, avg_power1 = uim.create_xtrain(intensity_map, dataset_params["LMAX"])
 
     if sys_params["run_clean"]:
@@ -59,7 +59,7 @@ def save_nn_weights(parameters, filename_nn_weights):
 
 
 
-def read_intensity(data_location, nside):
+def read_intensity(data_location, nside, target_radius_microns):
     file_name = data_location + '/p_in_z1z2_beam_all.nc'
 
     b='Reading from: ' + file_name + "  "
@@ -72,6 +72,9 @@ def read_intensity(data_location, nside):
 
     indices = np.argsort(phi + theta * nside**2*12)
     intensity_map = intensity_data[indices]
+
+    # convert from W/cm^2 to W/sr
+    intensity_map = intensity_map * (target_radius_microns / 10000.0)**2
 
     return intensity_map
 
