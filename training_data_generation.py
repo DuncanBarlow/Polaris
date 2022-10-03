@@ -87,7 +87,7 @@ def generate_training_data(dataset_params, sys_params, facility_spec):
             for ir in range(num_parallel_runs):
                 min_parallel = ir * sys_params["num_processes"]
                 max_parallel = (ir + 1) * sys_params["num_processes"] - 1
-                X_train[:,min_parallel:max_parallel+1], avg_powers[min_parallel:max_parallel+1] = run_and_delete(min_parallel, max_parallel, dataset_params, sys_params)
+                X_train[:,min_parallel:max_parallel+1], avg_powers[min_parallel:max_parallel+1] = run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, facility_spec['target_radius'])
 
                 if sys_params["run_compression"]:
                     if ((max_parallel + 1) >= (chkp_marker * sys_params["num_ex_checkpoint"])):
@@ -98,7 +98,7 @@ def generate_training_data(dataset_params, sys_params, facility_spec):
         if max_parallel != (dataset_params["num_examples"] - 1):
             min_parallel = max_parallel + 1
             max_parallel = dataset_params["num_examples"] - 1
-            X_train[:,min_parallel:max_parallel+1], avg_powers[min_parallel:max_parallel+1] = run_and_delete(min_parallel, max_parallel, dataset_params, sys_params)
+            X_train[:,min_parallel:max_parallel+1], avg_powers[min_parallel:max_parallel+1] = run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, facility_spec['target_radius'])
 
     if sys_params["run_compression"]:
         nrw.save_training_data(X_train, Y_train, avg_powers, filename_trainingdata)
@@ -106,7 +106,7 @@ def generate_training_data(dataset_params, sys_params, facility_spec):
 
 
 
-def run_and_delete(min_parallel, max_parallel, dataset_params, sys_params):
+def run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, target_radius_microns):
     run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"]
     range_ind = max_parallel + 1 - min_parallel
     X_train = np.zeros((dataset_params["num_coeff"] * 2, range_ind))
@@ -116,7 +116,7 @@ def run_and_delete(min_parallel, max_parallel, dataset_params, sys_params):
     subprocess.check_call(["./bash_parallel_ifriit", run_location, str(min_parallel), str(max_parallel)])
     i = 0
     for iex in range(min_parallel, max_parallel+1):
-        X_train[:,i], avg_powers[i] = nrw.retrieve_xtrain_and_delete(iex, dataset_params, sys_params)
+        X_train[:,i], avg_powers[i] = nrw.retrieve_xtrain_and_delete(iex, dataset_params, sys_params, target_radius_microns)
         i += 1
     return X_train, avg_powers
 
