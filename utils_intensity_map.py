@@ -71,12 +71,16 @@ def power_spectrum(intensity_map, LMAX, verbose=True):
                 the_modes[l] = the_modes[l] + 2.*var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
             else:          
                 the_modes[l] = the_modes[l] + var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
-        power_spectrum[l] = (2.0 * l + 1.0) * the_modes[l] / (4.0 * np.pi)
+        # Correct calulation of power spectrum is:
+        #power_spectrum[l] = the_modes[l] / (2.0 * l + 1.0)
+        # this calculation is weighted by l:
+        power_spectrum[l] = l * the_modes[l] / (4.0 * np.pi)
 
     power_spectrum_unweighted = np.sqrt(the_modes)
     power_spectrum_weighted = np.sqrt(power_spectrum)
     if verbose:
         print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(the_modes))*100.0, "%")
+        print("The weighted modal rms: ", np.sqrt(np.sum(power_spectrum))*100.0, "%")
 
     return power_spectrum_unweighted, power_spectrum_weighted
 
