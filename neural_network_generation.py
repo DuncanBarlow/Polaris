@@ -98,7 +98,7 @@ def import_training_data_reversed(nn_params, sys_params, LMAX):
     training_data.close()
     print(np.shape(X_all), np.shape(Y_all))
 
-    Y_mag = nng.change_number_modes(Y_all, avg_powers_all, LMAX)
+    Y_mag = change_number_modes(Y_all, avg_powers_all, LMAX)
 
     nn_params["num_examples"] = np.shape(X_all)[1]
     nn_params["input_size"] = np.shape(X_all)[0]
