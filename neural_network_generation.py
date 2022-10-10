@@ -26,9 +26,11 @@ def define_nn_params(num_nn):
 def define_nn_hyperparams(num_epochs, num_nn, **kwargs):
     mean = kwargs.get("mean", 0.0)
     std_dev = kwargs.get("std_dev", 1.0)
+    use_final_sigmoid = kwargs.get("use_final_sigmoid", 1)
 
     nn_hyperparams = {}
 
+    nn_hyperparams["use_final_sigmoid"] = [use_final_sigmoid] * num_nn
     nn_hyperparams["num_epochs"] = [num_epochs] * num_nn
     nn_hyperparams["learning_rate"] = [0.001] * num_nn
     nn_hyperparams["hidden_units1"] = [600] * num_nn
@@ -159,7 +161,7 @@ def multiple_nn(nn_params, nn_dataset, sys_params, nn_hyperparams):
         print_cost = True
 
     for inn in range(nn_params["num_nn"]):
-        parameters, costs, train_acc, test_acc, epochs = tfnn.model_wrapper(nn_params, nn_dataset, nn_hyperparams["num_epochs"][inn], nn_hyperparams["learning_rate"][inn], nn_hyperparams["hidden_units1"][inn], nn_hyperparams["hidden_units2"][inn], nn_hyperparams["hidden_units3"][inn], initialize_seed = nn_hyperparams["initialize_seed"][inn], print_cost = print_cost)
+        parameters, costs, train_acc, test_acc, epochs = tfnn.model_wrapper(nn_params, nn_dataset, nn_hyperparams["num_epochs"][inn], nn_hyperparams["learning_rate"][inn], nn_hyperparams["hidden_units1"][inn], nn_hyperparams["hidden_units2"][inn], nn_hyperparams["hidden_units3"][inn], initialize_seed = nn_hyperparams["initialize_seed"][inn], print_cost = print_cost, use_final_sigmoid = nn_hyperparams["use_final_sigmoid"][inn])
         filename_nn_weights = nn_params["dir_nn_weights"] + "/NN" + str(inn)
         nrw.save_nn_weights(parameters, filename_nn_weights)
         nn_hyperparams["cost"][inn] = costs[-1]
@@ -180,6 +182,7 @@ def main(argv):
     root_dir = argv[1]
     num_epochs = int(argv[2])
     num_nn = int(argv[3])
+    use_final_sigmoid = argv[4]
 
     sys_params = tdg.define_system_params(root_dir)
     nn_params = define_nn_params(num_nn)
@@ -188,7 +191,7 @@ def main(argv):
     nn_dataset = normalise(nn_dataset)
 
     if (nn_params["num_nn"] > 0):
-        nn_hyperparams = define_nn_hyperparams(num_epochs, num_nn, mean=nn_dataset["mu"], std_dev=nn_dataset["sigma"])
+        nn_hyperparams = define_nn_hyperparams(num_epochs, num_nn, mean=nn_dataset["mu"], std_dev=nn_dataset["sigma"], use_final_sigmoid=use_final_sigmoid)
         nn_hyperparams = multiple_nn(nn_params, nn_dataset, sys_params, nn_hyperparams)
     return nn_params, nn_dataset, sys_params, nn_hyperparams
 
