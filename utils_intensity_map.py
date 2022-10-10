@@ -2,7 +2,7 @@ import numpy as np
 import healpy as hp
 
 
-def readout_intensity(the_data, intensity_map, mean_power_fraction):
+def readout_intensity(the_data, intensity_map, mean_power_fraction=1.0):
     n_beams = the_data['nbeams']
     total_TW = np.mean(intensity_map)*10**(-12) * 4.0 * np.pi
 
