@@ -4,9 +4,7 @@ import healpy as hp
 
 def readout_intensity(the_data, intensity_map, mean_power_fraction):
     n_beams = the_data['nbeams']
-    r = the_data['target_radius'] / 1.0e4 # microns to cm
-    surface_area = 4.0 * np.pi * r**2
-    total_TW = np.mean(intensity_map)*10**(-12) * surface_area
+    total_TW = np.mean(intensity_map)*10**(-12) * 4.0 * np.pi
 
     #rms
     intensity_map_normalised, avg_power = imap_norm(intensity_map)
@@ -72,9 +70,7 @@ def power_spectrum(intensity_map, LMAX, verbose=True):
             else:          
                 the_modes[l] = the_modes[l] + var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
         # Correct calulation of power spectrum is:
-        #power_spectrum[l] = the_modes[l] / (2.0 * l + 1.0)
-        # this calculation is weighted by l:
-        power_spectrum[l] = l * the_modes[l] / (4.0 * np.pi)
+        power_spectrum[l] = the_modes[l] / (2.0 * l + 1.0) #/ (4.0 * np.pi)
 
     power_spectrum_unweighted = np.sqrt(the_modes)
     power_spectrum_weighted = np.sqrt(power_spectrum)
