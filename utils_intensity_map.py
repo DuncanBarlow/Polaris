@@ -2,7 +2,7 @@ import numpy as np
 import healpy as hp
 
 
-def readout_intensity(the_data, intensity_map, mean_power_fraction=1.0):
+def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0):
     n_beams = the_data['nbeams']
     total_TW = np.mean(intensity_map)*10**(-12) * 4.0 * np.pi
 
@@ -13,12 +13,13 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction=1.0):
     intensity_map_rms_spatial = imap_pn * 100.0 * np.abs(intensity_map_normalised)
 
     print('')
-    print('The total power deposited is ', total_TW , 'TW')
-    print('The power per beam deposited is ', total_TW / n_beams, 'TW')
-    print('This is a drive efficiency of ', total_TW / (n_beams * the_data['default_power'] * mean_power_fraction) * 100.0, '%')
     print('RMS is ', intensity_map_rms, '%')
     print('Number of beams ', n_beams)
-    print('Mean power percentage ', mean_power_fraction * 100.0, '%')
+    print('The total power deposited is ', total_TW , 'TW')
+    print('The power per beam deposited is ', total_TW / n_beams, 'TW')
+    if mean_power_fraction > 0.0:
+        print('This is a drive efficiency of ', total_TW / (n_beams * the_data['default_power'] * mean_power_fraction) * 100.0, '%')
+        print('Mean power percentage ', mean_power_fraction * 100.0, '%')
     print('')
 
     return intensity_map_rms_spatial
