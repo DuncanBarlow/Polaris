@@ -31,7 +31,7 @@ def create_run_files(dataset_params, sys_params, run_data):
         else:
             ex_params =  dataset_params["Y_train"]
         for icone in range(run_data['num_cones']):
-            il = (icone*4) % num_output
+            il = (icone*4) % num_output #4 = dataset_params["num_sim_params"]?
             iu = ((icone+1)*4-1) % num_output + 1
             cone_params = ex_params[il:iu]
 
@@ -47,24 +47,21 @@ def create_run_files(dataset_params, sys_params, run_data):
 
             quad_name = run_data['quad_from_each_cone'][icone]
             quad_start_ind = run_data["Quad"].index(quad_name)
-            quad_slice = slice(quad_start_ind, quad_start_ind+4)
+            quad_slice = slice(quad_start_ind, quad_start_ind+run_data['beams_per_quad'])
 
             cone_name = run_data['Cone'][quad_slice]
             cone_name = cone_name[0]
 
-            sim_params[icone*4:(icone+1)*4,iex] = (offset_theta, offset_phi, cone_defocus, cone_power)
+            run_data['beams_per_cone'][icone] = int(run_data["Cone"].count(cone_name)/2)
+            sim_params[icone*4:(icone+1)*4,iex] = (offset_theta, offset_phi, cone_defocus, cone_power) #4 = dataset_params["num_sim_params"]?
 
-            # divide by 2 so only uppers or lowers
-            beams_in_cone_count = int(run_data["Cone"].count(cone_name)/2)
             ind = run_data["Quad"].index(quad_name)
-            # 4 beams per quad so set skip = 4
-            cone_slice = slice(ind,ind+beams_in_cone_count,4)
+            cone_slice = slice(ind,ind+run_data['beams_per_cone'][icone],run_data['beams_per_quad'])
             quad_list_in_cone = run_data["Quad"][cone_slice]
-            run_data['beams_per_cone'][icone] = beams_in_cone_count
 
             for quad_name in quad_list_in_cone:
                 ind = run_data["Quad"].index(quad_name)
-                quad_slice = slice(ind,ind+4)
+                quad_slice = slice(ind,ind+run_data['beams_per_quad'])
                 beam_names = run_data['Beam'][quad_slice]
 
                 run_data["Port_centre_theta"][quad_slice] = np.mean(run_data["Theta"][quad_slice])
@@ -82,7 +79,7 @@ def create_run_files(dataset_params, sys_params, run_data):
                 theta_pointings[quad_slice,iex] = np.arccos(coord_n[2] / run_data['target_radius'])
                 phi_pointings[quad_slice,iex] = np.arctan2(coord_n[1], coord_n[0])
 
-                run_data['pointings'][ind:ind+4,:] = np.array(coord_n)
+                run_data['pointings'][ind:ind+run_data['beams_per_quad'],:] = np.array(coord_n)
                 run_data["defocus"][quad_slice] = cone_defocus
                 run_data["p0"][quad_slice] = run_data['default_power'] * cone_power
 
@@ -105,6 +102,7 @@ def import_nif_config():
     run_data['facility'] = "NIF"
     run_data['num_quads'] = 48
     run_data['num_cones'] = 8
+    run_data['beams_per_quad'] = int(run_data['nbeams'] / run_data['num_quads'])
     run_data['default_power'] = 0.25 #TW per beam
     filename = "NIF_UpperBeams.txt"
 
@@ -143,6 +141,7 @@ def import_nif_config():
 
     run_data["Theta"] = np.radians(run_data["Theta"])
     run_data["Phi"] = np.radians(run_data["Phi"])
+
     return run_data
 
 
