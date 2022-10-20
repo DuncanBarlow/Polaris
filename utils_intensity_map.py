@@ -2,6 +2,31 @@ import numpy as np
 import healpy as hp
 
 
+def angle2moll(theta, phi):
+    
+    latitude = np.pi / 2.0 - theta
+    if phi < np.pi:
+        longitude = phi
+    else:
+        longitude = phi - 2.0 * np.pi
+    
+    rad = 1.0 / np.sqrt(2.0)
+    longitude0 = 0.0
+    i=0
+    angle1 = latitude
+    dangle = 0.1
+    while (i < 100) and (abs(dangle) > 0.01):
+        angle2 = angle1 - (2.0 * angle1 + np.sin(2.0 * angle1) - np.pi * np.sin(latitude)) / (4.0 * np.cos(angle1)**2)
+        dangle = abs(angle2 - angle1)
+        angle1 = angle2
+        i+=1
+    x = rad * 2.0 * np.sqrt(2.0) / np.pi * (longitude - longitude0) * np.cos(angle2)
+    y = rad * np.sqrt(2.0) * np.sin(angle2)
+    
+    return x, y
+
+
+
 def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0):
     n_beams = the_data['nbeams']
     total_TW = np.mean(intensity_map)*10**(-12) * 4.0 * np.pi
