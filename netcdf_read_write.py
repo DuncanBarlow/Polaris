@@ -24,6 +24,22 @@ def read_nn_weights(filename_nn_weights):
 
 
 
+def read_general_netcdf(filename_nn_weights):
+    parameters = {}
+
+    rootgrp = Dataset(filename_nn_weights + ".nc")
+    keys = list(rootgrp.variables.keys())
+    for key in keys:
+        if np.shape(np.shape(rootgrp[key]))[0] == 2:
+            parameters[key] = rootgrp[key][:,:]
+        if np.shape(np.shape(rootgrp[key]))[0] == 1:
+            parameters[key] = rootgrp[key][:]
+    rootgrp.close()
+
+    return parameters
+
+
+
 def retrieve_xtrain_and_delete(iex, dataset_params, sys_params, target_radius_microns):
     run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
     if sys_params["run_compression"]:

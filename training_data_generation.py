@@ -22,6 +22,7 @@ def define_system_params(root_dir):
     sys_params["sim_dir"] = "run_"
     sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
     sys_params["figure_location"] = "plots"
+    sys_params["plot_file_type"] = ".pdf"
 
     return sys_params
 

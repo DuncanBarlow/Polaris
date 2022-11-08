@@ -26,9 +26,11 @@ def define_nn_params(num_nn):
 def define_nn_hyperparams(num_epochs, num_nn, **kwargs):
     mean = kwargs.get("mean", 0.0)
     std_dev = kwargs.get("std_dev", 1.0)
+    use_final_sigmoid = kwargs.get("use_final_sigmoid", 1)
 
     nn_hyperparams = {}
 
+    nn_hyperparams["use_final_sigmoid"] = [use_final_sigmoid] * num_nn
     nn_hyperparams["num_epochs"] = [num_epochs] * num_nn
     nn_hyperparams["learning_rate"] = [0.001] * num_nn
     nn_hyperparams["hidden_units1"] = [600] * num_nn
@@ -67,20 +69,14 @@ def import_training_data(nn_params, sys_params):
 
 
 
-def import_training_data_reversed(nn_params, sys_params, LMAX, imap_nside):
-    training_data = Dataset(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
-    X_all = training_data.variables["Y_train"][:]
-    Y_real = training_data.variables["X_train"][:]
-    avg_powers_all = training_data.variables["avg_powers"][:]
-    training_data.close()
-    print(np.shape(X_all), np.shape(Y_real))
+def change_number_modes(Y_train, avg_powers_all, LMAX):
 
-    nn_params["num_examples"] = np.shape(X_all)[1]
-    Y_all = np.zeros((LMAX, nn_params["num_examples"]))
+    num_examples = np.shape(Y_train)[1]
+    Y_train2 = np.zeros((LMAX, num_examples))
     num_coeff = int(((LMAX + 2) * (LMAX + 1))/2.0)
     np_complex = np.vectorize(complex)
-    for ie in range(nn_params["num_examples"]):
-        Y_train_real = np.squeeze(Y_real[:,ie] / avg_powers_all[ie])
+    for ie in range(num_examples):
+        Y_train_real = np.squeeze(Y_train[:,ie] / avg_powers_all[ie])
         Y_train_complex = np_complex(Y_train_real[:num_coeff], Y_train_real[num_coeff:])
         var = abs(Y_train_complex)**2
         the_modes = np.zeros(LMAX)
@@ -91,17 +87,31 @@ def import_training_data_reversed(nn_params, sys_params, LMAX, imap_nside):
                 else:
                     the_modes[l] = the_modes[l] + var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
         power_spectrum_unweighted = np.sqrt(the_modes)
-        Y_all[:,ie] = power_spectrum_unweighted
+        Y_train2[:,ie] = power_spectrum_unweighted
 
+    return Y_train2
+
+
+def import_training_data_reversed(nn_params, sys_params, LMAX):
+    training_data = Dataset(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
+    X_all = training_data.variables["Y_train"][:]
+    Y_all = training_data.variables["X_train"][:]
+    avg_powers_all = training_data.variables["avg_powers"][:]
+    training_data.close()
+    print(np.shape(X_all), np.shape(Y_all))
+
+    Y_mag = change_number_modes(Y_all, avg_powers_all, LMAX)
+
+    nn_params["num_examples"] = np.shape(X_all)[1]
     nn_params["input_size"] = np.shape(X_all)[0]
-    nn_params["output_size"] = np.shape(Y_all)[0]
+    nn_params["output_size"] = np.shape(Y_mag)[0]
 
     test_size = int(nn_params["num_examples"] * nn_params["test_fraction"])
     if test_size == 0:
         test_size = 1
     nn_params["test_size"] = test_size
 
-    return X_all, Y_all, avg_powers_all, nn_params
+    return X_all, Y_mag, avg_powers_all, nn_params
 
 
 
@@ -149,9 +159,9 @@ def multiple_nn(nn_params, nn_dataset, sys_params, nn_hyperparams):
     print_cost = False
     if nn_params["num_nn"] == 1:
         print_cost = True
-    
+
     for inn in range(nn_params["num_nn"]):
-        parameters, costs, train_acc, test_acc, epochs = tfnn.model_wrapper(nn_params, nn_dataset, nn_hyperparams["num_epochs"][inn], nn_hyperparams["learning_rate"][inn], nn_hyperparams["hidden_units1"][inn], nn_hyperparams["hidden_units2"][inn], nn_hyperparams["hidden_units3"][inn], initialize_seed = nn_hyperparams["initialize_seed"][inn], print_cost = print_cost)
+        parameters, costs, train_acc, test_acc, epochs = tfnn.model_wrapper(nn_params, nn_dataset, nn_hyperparams["num_epochs"][inn], nn_hyperparams["learning_rate"][inn], nn_hyperparams["hidden_units1"][inn], nn_hyperparams["hidden_units2"][inn], nn_hyperparams["hidden_units3"][inn], initialize_seed = nn_hyperparams["initialize_seed"][inn], print_cost = print_cost, use_final_sigmoid = nn_hyperparams["use_final_sigmoid"][inn])
         filename_nn_weights = nn_params["dir_nn_weights"] + "/NN" + str(inn)
         nrw.save_nn_weights(parameters, filename_nn_weights)
         nn_hyperparams["cost"][inn] = costs[-1]
@@ -172,6 +182,7 @@ def main(argv):
     root_dir = argv[1]
     num_epochs = int(argv[2])
     num_nn = int(argv[3])
+    use_final_sigmoid = argv[4]
 
     sys_params = tdg.define_system_params(root_dir)
     nn_params = define_nn_params(num_nn)
@@ -180,7 +191,7 @@ def main(argv):
     nn_dataset = normalise(nn_dataset)
 
     if (nn_params["num_nn"] > 0):
-        nn_hyperparams = define_nn_hyperparams(num_epochs, num_nn, mean=nn_dataset["mu"], std_dev=nn_dataset["sigma"])
+        nn_hyperparams = define_nn_hyperparams(num_epochs, num_nn, mean=nn_dataset["mu"], std_dev=nn_dataset["sigma"], use_final_sigmoid=use_final_sigmoid)
         nn_hyperparams = multiple_nn(nn_params, nn_dataset, sys_params, nn_hyperparams)
     return nn_params, nn_dataset, sys_params, nn_hyperparams
 

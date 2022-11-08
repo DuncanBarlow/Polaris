@@ -2,11 +2,34 @@ import numpy as np
 import healpy as hp
 
 
-def readout_intensity(the_data, intensity_map, mean_power_fraction):
+def angle2moll(theta, phi):
+    
+    latitude = np.pi / 2.0 - theta
+    if phi < np.pi:
+        longitude = phi
+    else:
+        longitude = phi - 2.0 * np.pi
+    
+    rad = 1.0 / np.sqrt(2.0)
+    longitude0 = 0.0
+    i=0
+    angle1 = latitude
+    dangle = 0.1
+    while (i < 100) and (abs(dangle) > 0.01):
+        angle2 = angle1 - (2.0 * angle1 + np.sin(2.0 * angle1) - np.pi * np.sin(latitude)) / (4.0 * np.cos(angle1)**2)
+        dangle = abs(angle2 - angle1)
+        angle1 = angle2
+        i+=1
+    x = rad * 2.0 * np.sqrt(2.0) / np.pi * (longitude - longitude0) * np.cos(angle2)
+    y = rad * np.sqrt(2.0) * np.sin(angle2)
+    
+    return x, y
+
+
+
+def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0):
     n_beams = the_data['nbeams']
-    r = the_data['target_radius'] / 1.0e4 # microns to cm
-    surface_area = 4.0 * np.pi * r**2
-    total_TW = np.mean(intensity_map)*10**(-12) * surface_area
+    total_TW = np.mean(intensity_map)*10**(-12) * 4.0 * np.pi
 
     #rms
     intensity_map_normalised, avg_power = imap_norm(intensity_map)
@@ -15,12 +38,13 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction):
     intensity_map_rms_spatial = imap_pn * 100.0 * np.abs(intensity_map_normalised)
 
     print('')
-    print('The total power deposited is ', total_TW , 'TW')
-    print('The power per beam deposited is ', total_TW / n_beams, 'TW')
-    print('This is a drive efficiency of ', total_TW / (n_beams * the_data['default_power'] * mean_power_fraction) * 100.0, '%')
     print('RMS is ', intensity_map_rms, '%')
     print('Number of beams ', n_beams)
-    print('Mean power percentage ', mean_power_fraction * 100.0, '%')
+    print('The total power deposited is ', total_TW , 'TW')
+    print('The power per beam deposited is ', total_TW / n_beams, 'TW')
+    if mean_power_fraction > 0.0:
+        print('This is a drive efficiency of ', total_TW / (n_beams * the_data['default_power'] * mean_power_fraction) * 100.0, '%')
+        print('Mean power percentage ', mean_power_fraction * 100.0, '%')
     print('')
 
     return intensity_map_rms_spatial
@@ -71,12 +95,14 @@ def power_spectrum(intensity_map, LMAX, verbose=True):
                 the_modes[l] = the_modes[l] + 2.*var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
             else:          
                 the_modes[l] = the_modes[l] + var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
-        power_spectrum[l] = (2.0 * l + 1.0) * the_modes[l] / (4.0 * np.pi)
+        # Correct calulation of power spectrum is:
+        power_spectrum[l] = the_modes[l] / (2.0 * l + 1.0) #/ (4.0 * np.pi)
 
     power_spectrum_unweighted = np.sqrt(the_modes)
     power_spectrum_weighted = np.sqrt(power_spectrum)
     if verbose:
         print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(the_modes))*100.0, "%")
+        print("The weighted modal rms: ", np.sqrt(np.sum(power_spectrum))*100.0, "%")
 
     return power_spectrum_unweighted, power_spectrum_weighted
 

@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 
-def model_wrapper(nn_params, nn_dataset, num_epochs, learning_rate, hidden_units1, hidden_units2, hidden_units3, minibatch_size = 32, print_cost = True, start_epoch = 0, nn_weights = {}, initialize_seed=0):
+def model_wrapper(nn_params, nn_dataset, num_epochs, learning_rate, hidden_units1, hidden_units2, hidden_units3, minibatch_size = 32, print_cost = True, start_epoch = 0, nn_weights = {}, initialize_seed=0, use_final_sigmoid=1):
 
     x_train = nn_dataset["X_train"]
     y_train = nn_dataset["Y_train"]
@@ -23,7 +23,7 @@ def model_wrapper(nn_params, nn_dataset, num_epochs, learning_rate, hidden_units
     X_test = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(x_test, dtype=tf.float32))
     Y_test = tf.data.Dataset.from_tensor_slices(tf.convert_to_tensor(y_test, dtype=tf.float32))
 
-    parameters, costs, train_acc, test_acc, epochs = model(X_train, Y_train, X_test, Y_test, parameters, learning_rate, num_epochs, minibatch_size, print_cost, start_epoch)
+    parameters, costs, train_acc, test_acc, epochs = model(X_train, Y_train, X_test, Y_test, parameters, learning_rate, num_epochs, minibatch_size, print_cost, start_epoch, use_final_sigmoid)
 
     numpy_parameters = {}
     keys = parameters.keys()
@@ -34,7 +34,7 @@ def model_wrapper(nn_params, nn_dataset, num_epochs, learning_rate, hidden_units
 
 
 
-def apply_network(x_test, nn_weights):
+def apply_network(x_test, nn_weights, use_final_sigmoid):
     num_examples = x_test.shape[0]
     input_size = x_test.shape[1]
 
@@ -46,7 +46,7 @@ def apply_network(x_test, nn_weights):
     X_test = tf.convert_to_tensor(x_test, dtype=tf.float32)
     X_test = tf.reshape(X_test, [num_examples, input_size])
 
-    Y_pred = forward_propagation(tf.transpose(X_test), parameters)
+    Y_pred = forward_propagation(tf.transpose(X_test), parameters, use_final_sigmoid)
 
     y_pred = Y_pred.numpy()
 
@@ -57,7 +57,7 @@ def apply_network(x_test, nn_weights):
 # Taken from Coursera by deeplearning.AI Andrew Ng:
 # https://www.coursera.org/specializations/deep-learning?skipBrowseRedirect=true
 def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
-          num_epochs, minibatch_size, print_cost, start_epoch):
+          num_epochs, minibatch_size, print_cost, start_epoch, use_final_sigmoid):
     """
     Implements a three-layer tensorflow neural network: LINEAR->RELU->LINEAR->RELU->LINEAR->SIGMOID.
 
@@ -109,7 +109,7 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
     # Save pre-training cost and accuracy
     epoch_cost = 0.0
     for (minibatch_X, minibatch_Y) in minibatches:
-        Z4 = forward_propagation(tf.transpose(minibatch_X), parameters)
+        Z4 = forward_propagation(tf.transpose(minibatch_X), parameters, use_final_sigmoid)
         train_accuracy.update_state(minibatch_Y, tf.transpose(Z4))
         minibatch_cost = calculate_cost(minibatch_Y, tf.transpose(Z4))
         epoch_cost += minibatch_cost
@@ -119,7 +119,7 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
     train_acc = [train_accuracy.result()]
 
     for (minibatch_X, minibatch_Y) in test_minibatches:
-        Z4 = forward_propagation(tf.transpose(minibatch_X), parameters)
+        Z4 = forward_propagation(tf.transpose(minibatch_X), parameters, use_final_sigmoid)
         test_accuracy.update_state(minibatch_Y, tf.transpose(Z4))
     test_acc = [test_accuracy.result()]
 
@@ -141,7 +141,7 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
 
             with tf.GradientTape() as tape:
                 # 1. predict
-                Z4 = forward_propagation(tf.transpose(minibatch_X), parameters)
+                Z4 = forward_propagation(tf.transpose(minibatch_X), parameters, use_final_sigmoid)
 
                 # 2. loss
                 minibatch_cost = calculate_cost(minibatch_Y, tf.transpose(Z4))
@@ -162,7 +162,7 @@ def model(X_train, Y_train, X_test, Y_test, parameters, learning_rate,
 
             # We evaluate the test set every 10 epochs to avoid computational overhead
             for (minibatch_X, minibatch_Y) in test_minibatches:
-                Z4 = forward_propagation(tf.transpose(minibatch_X), parameters)
+                Z4 = forward_propagation(tf.transpose(minibatch_X), parameters, use_final_sigmoid)
                 test_accuracy.update_state(minibatch_Y, tf.transpose(Z4))
 
             if (print_cost == True):
@@ -200,7 +200,7 @@ def calculate_cost(y_true, y_pred):
 # Taken from Coursera by deeplearning.AI Andrew Ng:
 # https://www.coursera.org/specializations/deep-learning?skipBrowseRedirect=true
 # GRADED FUNCTION: forward_propagation
-def forward_propagation(X, parameters):
+def forward_propagation(X, parameters, use_final_sigmoid):
     """
     Implements the forward propagation for the model: LINEAR -> RELU -> LINEAR -> RELU -> LINEAR
 
@@ -230,8 +230,10 @@ def forward_propagation(X, parameters):
     Z3 = tf.linalg.matmul(W3, A2) + b3
     A3 = tf.keras.activations.relu(Z3)
     Z4 = tf.linalg.matmul(W4, A3) + b4
-    #A4 = tf.keras.activations.relu(Z4)
-    A4 = tf.keras.activations.sigmoid(Z4)
+    if use_final_sigmoid==1:
+        A4 = tf.keras.activations.sigmoid(Z4)
+    else:
+        A4 = tf.keras.activations.relu(Z4)
 
     return A4
 
