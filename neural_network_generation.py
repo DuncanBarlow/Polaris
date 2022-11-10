@@ -55,7 +55,6 @@ def import_training_data(nn_params, sys_params):
     avg_powers_all = training_data.variables["avg_powers"][:]
     training_data.close()
 
-    print(np.shape(X_all), np.shape(Y_all))
     nn_params["num_examples"] = np.shape(X_all)[1]
     nn_params["input_size"] = np.shape(X_all)[0]
     nn_params["output_size"] = np.shape(Y_all)[0]
@@ -98,7 +97,6 @@ def import_training_data_reversed(nn_params, sys_params, LMAX):
     Y_all = training_data.variables["X_train"][:]
     avg_powers_all = training_data.variables["avg_powers"][:]
     training_data.close()
-    print(np.shape(X_all), np.shape(Y_all))
 
     Y_mag = change_number_modes(Y_all, avg_powers_all, LMAX)
 

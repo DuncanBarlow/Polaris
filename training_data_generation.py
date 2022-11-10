@@ -57,10 +57,6 @@ def define_dataset_params(num_examples, random_sampling=False):
     # Assume symmetry
     dataset_params["num_output"] = int(facility_spec['num_cones']/2) * dataset_params["num_sim_params"]
 
-    print("Number of examples: ", dataset_params["num_examples"])
-    print("Number of inputs: ", dataset_params["num_coeff"]*2)
-    print("Number of outputs: ", dataset_params["num_output"])
-
     rng = np.random.default_rng(dataset_params["random_seed"])
     if random_sampling:
         sample = rng.random((dataset_params["num_examples"], dataset_params["num_output"]))
@@ -106,7 +102,6 @@ def generate_training_data(dataset_params, sys_params, facility_spec):
 
     if sys_params["run_compression"]:
         nrw.save_training_data(X_train, Y_train, avg_powers, filename_trainingdata)
-    print("\n")
 
 
 
