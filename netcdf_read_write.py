@@ -150,3 +150,27 @@ def save_training_data(X_train, Y_train, avg_powers, filename_trainingdata):
     avg_powers_save[:] = avg_powers
 
     rootgrp.close()
+
+
+
+def import_training_data_reversed(sys_params, LMAX):
+    training_data = Dataset(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
+    X_all = training_data.variables["Y_train"][:]
+    Y_all = training_data.variables["X_train"][:]
+    avg_powers_all = training_data.variables["avg_powers"][:]
+    training_data.close()
+
+    Y_mag = uim.change_number_modes(Y_all, avg_powers_all, LMAX)
+
+    return X_all, Y_mag, avg_powers_all
+
+
+
+def import_training_data(sys_params):
+    training_data = Dataset(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
+    X_all = training_data.variables["X_train"][:]
+    Y_all = training_data.variables["Y_train"][:]
+    avg_powers_all = training_data.variables["avg_powers"][:]
+    training_data.close()
+
+    return X_all, Y_all, avg_powers_all
