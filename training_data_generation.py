@@ -34,6 +34,7 @@ def define_dataset_params(num_examples):
     dataset_params["num_examples"] = num_examples
 
     dataset_params["random_seed"] = 12345
+    dataset_params["hemisphere_symmetric"] = True
 
     num_sim_params = 0
     # pointings
@@ -126,6 +127,7 @@ def run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, targe
 def main(argv):
     sys_params = define_system_params(argv[1])
     dataset_params, facility_spec = define_dataset_params(int(argv[2]))
+    dataset_params["hemisphere_symmetric"] = bool(int(argv[3]))
     generate_training_data(dataset_params, sys_params, facility_spec)
 
     return dataset_params, sys_params, facility_spec

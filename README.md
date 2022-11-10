@@ -1,12 +1,12 @@
-Code written by Duncan Barlow at the Universite de Bordeaux. Some code taken from other sources but cited.
+Code written by Duncan Barlow at Universite de Bordeaux. Some code taken from other sources but cited.
 
 # README for PDD Neural Network
 
 ## Quick start
 
-To generate training data in file "Data" with 10 examples:
+To generate training data in file "Data" with 10 examples (the final "1" = "True" boolean for symmetric hemisphere pointing setup):
 
-python training\_data\_generation.py Data 10
+python training\_data\_generation.py Data 10 1
 
 To generate 1 neural network run for 10 epochs from the training data in file "Data":
 

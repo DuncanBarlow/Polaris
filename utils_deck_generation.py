@@ -39,7 +39,10 @@ def create_run_files(dataset_params, sys_params, run_data):
             y = cone_params[1] * 2.0 - 1.0
             r, offset_phi = hpoint.square2disk(x, y)
             if icone > 3:
-                offset_phi = (offset_phi + np.pi) % (2.0 * np.pi)
+                if dataset_params["hemisphere_symmetric"]:
+                    offset_phi = np.pi - offset_phi # Symmetric
+                else:
+                    offset_phi = (offset_phi + np.pi) % (2.0 * np.pi) # anti-symmetric
             offset_theta = r * dataset_params["surface_cover_radians"]
 
             cone_defocus = cone_params[2] * dataset_params["defocus_range"] # convert to mm
