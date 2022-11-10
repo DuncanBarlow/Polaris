@@ -78,8 +78,6 @@ def save_nn_weights(parameters, filename_nn_weights):
 def read_intensity(data_location, nside, target_radius_microns):
     file_name = data_location + '/p_in_z1z2_beam_all.nc'
 
-    b='Reading from: ' + file_name + "  "
-    print("\r", b, end="")
     cone_data = Dataset(file_name)
     intensity_data = cone_data.variables["intensity"][:]
     theta = cone_data.variables["theta"][:]

@@ -161,8 +161,6 @@ def generate_input_deck(the_data, run_location):
 
     if not isExist:
         os.makedirs(run_location)
-        b='Created directory: '+run_location+"  "
-        print("\r", b, end="")
     
     longStr = ("ifriit_inputs_base.txt")
     with open(longStr) as old_file:
