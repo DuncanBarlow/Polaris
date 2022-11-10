@@ -28,11 +28,10 @@ def define_system_params(root_dir):
 
 
 
-def define_dataset_params(num_examples):
+def define_dataset_params(num_examples, random_sampling=False):
     dataset_params = {}
     # Number of samples, size of NN training set
     dataset_params["num_examples"] = num_examples
-
     dataset_params["random_seed"] = 12345
     dataset_params["hemisphere_symmetric"] = True
 
@@ -63,10 +62,13 @@ def define_dataset_params(num_examples):
     print("Number of outputs: ", dataset_params["num_output"])
 
     rng = np.random.default_rng(dataset_params["random_seed"])
-    sampler = qmc.LatinHypercube(d=dataset_params["num_output"], seed=rng)
-    sample = sampler.random(n=dataset_params["num_examples"])
-    Y_train = sample.T
-    dataset_params["Y_train"] = Y_train
+    if random_sampling:
+        sample = rng.random((dataset_params["num_examples"], dataset_params["num_output"]))
+    else:
+        sampler = qmc.LatinHypercube(d=dataset_params["num_output"],
+                                     strength=1, seed=rng, optimization="random-cd")
+        sample = sampler.random(n=dataset_params["num_examples"])
+    dataset_params["Y_train"] = sample.T
 
     return dataset_params, facility_spec
 
