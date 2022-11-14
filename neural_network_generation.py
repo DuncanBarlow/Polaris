@@ -15,6 +15,7 @@ def define_nn_params(num_nn):
 
     nn_params["random_seed"] = 12345
     nn_params["test_fraction"] = 1.0 / 100.0
+    nn_params["use_test_set"] = True
     nn_params["dir_nn_weights"] = "neural_network_weights"
     nn_params["num_nn"] = num_nn
     nn_params["filename_hyperparams"] = "NN_hyper_parameters"
@@ -48,12 +49,7 @@ def define_nn_hyperparams(num_epochs, num_nn, **kwargs):
 
 
 
-def import_training_data(nn_params, sys_params):
-    training_data = Dataset(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
-    X_all = training_data.variables["X_train"][:]
-    Y_all = training_data.variables["Y_train"][:]
-    avg_powers_all = training_data.variables["avg_powers"][:]
-    training_data.close()
+def seperate_test_set(X_all, Y_all, avg_powers_all, nn_params):
 
     nn_params["num_examples"] = np.shape(X_all)[1]
     nn_params["input_size"] = np.shape(X_all)[0]
@@ -64,59 +60,9 @@ def import_training_data(nn_params, sys_params):
         test_size = 1
     nn_params["test_size"] = test_size
 
-    return X_all, Y_all, avg_powers_all, nn_params
-
-
-
-def change_number_modes(Y_train, avg_powers_all, LMAX):
-
-    num_examples = np.shape(Y_train)[1]
-    Y_train2 = np.zeros((LMAX, num_examples))
-    num_coeff = int(((LMAX + 2) * (LMAX + 1))/2.0)
-    np_complex = np.vectorize(complex)
-    for ie in range(num_examples):
-        Y_train_real = np.squeeze(Y_train[:,ie] / avg_powers_all[ie])
-        Y_train_complex = np_complex(Y_train_real[:num_coeff], Y_train_real[num_coeff:])
-        var = abs(Y_train_complex)**2
-        the_modes = np.zeros(LMAX)
-        for l in range(LMAX):
-            for m in range(l):
-                if (m>0):
-                    the_modes[l] = the_modes[l] + 2.*var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
-                else:
-                    the_modes[l] = the_modes[l] + var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
-        power_spectrum_unweighted = np.sqrt(the_modes)
-        Y_train2[:,ie] = power_spectrum_unweighted
-
-    return Y_train2
-
-
-def import_training_data_reversed(nn_params, sys_params, LMAX):
-    training_data = Dataset(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
-    X_all = training_data.variables["Y_train"][:]
-    Y_all = training_data.variables["X_train"][:]
-    avg_powers_all = training_data.variables["avg_powers"][:]
-    training_data.close()
-
-    Y_mag = change_number_modes(Y_all, avg_powers_all, LMAX)
-
-    nn_params["num_examples"] = np.shape(X_all)[1]
-    nn_params["input_size"] = np.shape(X_all)[0]
-    nn_params["output_size"] = np.shape(Y_mag)[0]
-
-    test_size = int(nn_params["num_examples"] * nn_params["test_fraction"])
-    if test_size == 0:
-        test_size = 1
-    nn_params["test_size"] = test_size
-
-    return X_all, Y_mag, avg_powers_all, nn_params
-
-
-
-def seperate_test_set(X_all, Y_all, avg_powers_all, nn_params):
     nn_dataset = {}
     test_size = nn_params["test_size"]
-    if test_size > 0:
+    if nn_params["use_test_set"]:
         nn_dataset["X_test"] = X_all.T[:test_size,:]
         nn_dataset["Y_test"] = Y_all.T[:test_size,:]
         nn_dataset["test_avg_powers"] = avg_powers_all[:test_size]
@@ -125,6 +71,9 @@ def seperate_test_set(X_all, Y_all, avg_powers_all, nn_params):
         nn_dataset["Y_train"] = Y_all.T[test_size:,:]
         nn_dataset["train_avg_powers"] = avg_powers_all[test_size:]
     else:
+        nn_params["test_size"] = 0
+        nn_params["test_fraction"] = 0.0
+
         nn_dataset["X_test"] = [0.0]
         nn_dataset["Y_test"] = [0.0]
         nn_dataset["test_avg_powers"] = [0.0]
@@ -183,8 +132,8 @@ def main(argv):
     use_final_sigmoid = argv[4]
 
     sys_params = tdg.define_system_params(root_dir)
+    X_all, Y_all, avg_powers_all = import_training_data(sys_params)
     nn_params = define_nn_params(num_nn)
-    X_all, Y_all, avg_powers_all, nn_params = import_training_data(nn_params, sys_params)
     nn_dataset = seperate_test_set(X_all, Y_all, avg_powers_all, nn_params)
     nn_dataset = normalise(nn_dataset)
 

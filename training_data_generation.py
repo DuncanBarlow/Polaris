@@ -121,6 +121,23 @@ def run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, targe
 
 
 
+def run_ifriit_input(num_examples, X_all, run_dir, LMAX, num_parallel, hemisphere_symmetric, run_clean):
+    dataset_params, facility_spec = define_dataset_params(num_examples)
+    dataset_params["hemisphere_symmetric"] = hemisphere_symmetric
+    dataset_params["Y_train"] = X_all
+
+    sys_params = define_system_params(run_dir)
+    sys_params["num_processes"] = num_parallel
+    sys_params["run_clean"] = run_clean # Create new run files
+
+    dataset_params = idg.create_run_files(dataset_params, sys_params, facility_spec)
+    generate_training_data(dataset_params, sys_params, facility_spec)
+
+    X_all, Y_all, avg_powers_all = nrw.import_training_data_reversed(sys_params, LMAX)
+    return Y_all, avg_powers_all
+
+
+
 def main(argv):
     sys_params = define_system_params(argv[1])
     dataset_params, facility_spec = define_dataset_params(int(argv[2]))

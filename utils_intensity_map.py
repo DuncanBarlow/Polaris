@@ -155,3 +155,27 @@ def imap_norm(intensity_map):
     intensity_map_normalized = intensity_map / avg_power - 1.0
 
     return intensity_map_normalized, avg_power
+
+
+
+def change_number_modes(Y_train, avg_powers_all, LMAX):
+
+    num_examples = np.shape(Y_train)[1]
+    Y_train2 = np.zeros((LMAX, num_examples))
+    num_coeff = int(((LMAX + 2) * (LMAX + 1))/2.0)
+    np_complex = np.vectorize(complex)
+    for ie in range(num_examples):
+        Y_train_real = np.squeeze(Y_train[:,ie] / avg_powers_all[ie])
+        Y_train_complex = np_complex(Y_train_real[:num_coeff], Y_train_real[num_coeff:])
+        var = abs(Y_train_complex)**2
+        the_modes = np.zeros(LMAX)
+        for l in range(LMAX):
+            for m in range(l):
+                if (m>0):
+                    the_modes[l] = the_modes[l] + 2.*var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
+                else:
+                    the_modes[l] = the_modes[l] + var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
+        power_spectrum_unweighted = np.sqrt(the_modes)
+        Y_train2[:,ie] = power_spectrum_unweighted
+
+    return Y_train2
