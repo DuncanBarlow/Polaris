@@ -1,9 +1,38 @@
 # code copied from https://github.com/fmfn/BayesianOptimization edited by Duncan Barlow
 from bayes_opt import BayesianOptimization, UtilityFunction
 import numpy as np
-import matplotlib.pyplot as plt
 import sys
 import time
+import training_data_generation as tdg
+import netcdf_read_write as nrw
+import os
+import shutil
+import copy
+
+
+def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
+    dataset_optimizer = {}
+    dataset_optimizer["X_all"] = X_all
+    dataset_optimizer["Y_all"] = Y_all
+    dataset_optimizer["avg_powers_all"] = avg_powers_all
+    return dataset_optimizer
+
+
+
+def define_optimizer_parameters(run_dir, num_inputs, num_modes, num_init_examples, n_iter, num_parallel):
+    optimizer_params = {}
+    optimizer_params["run_dir"] = run_dir
+    optimizer_params["num_inputs"] = num_inputs
+    optimizer_params["num_modes"] = num_modes
+    optimizer_params["num_init_examples"] = num_init_examples
+    optimizer_params["n_iter"] = n_iter
+    optimizer_params["num_parallel"] = num_parallel
+    optimizer_params["iter_dir"] = "iter_"
+    optimizer_params["trainingdata_filename"] = "flipped_training_data_and_labels.nc"
+    optimizer_params["hemisphere_symmetric"] = True
+    optimizer_params["run_clean"] = True
+    optimizer_params["random_generator"] = np.random.default_rng(12345)
+    return optimizer_params
 
 #################################### Bayesian Optimization ################################################
 
@@ -52,6 +81,122 @@ def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs
     return optimizer, utility
 
 ######################################## Gradient Descent ############################################
+
+def define_gradient_descent_params(num_steps_per_iter):
+    grad_descent_params = {}
+    grad_descent_params["learn_exp"] = -1.0
+    grad_descent_params["num_steps_per_iter"] = num_steps_per_iter
+    return grad_descent_params
+
+
+
+def wrapper_gradient_descent(dataset_optimizer, grad_descent_params, optimizer_params):
+    learning_rate = 10.0**grad_descent_params["learn_exp"]
+    step_size = np.array([grad_descent_params["learn_exp"] - 1.0, grad_descent_params["learn_exp"] + 1.0])
+    stencil_size = optimizer_params["num_inputs"] * 2 + 1
+
+    X_old = np.zeros((optimizer_params["num_inputs"], 1))
+    Y_old = np.zeros((optimizer_params["num_modes"], 1))
+    avg_powers_old = np.array([0.0])
+
+    mindex = np.argmin(np.sqrt(np.sum(dataset_optimizer["Y_all"]**2, axis=0)))
+    X_old[:,0] = dataset_optimizer["X_all"][:, mindex]
+
+    pbounds = np.zeros((optimizer_params["num_inputs"], 2))
+    pbounds[:,1] = 1.0
+    tic = time.perf_counter()
+    for ieval in range(optimizer_params["n_iter"]):
+
+        if (sum(abs(dataset_optimizer["X_all"][:,-1] - dataset_optimizer["X_all"][:,-2])) <= 0.0):
+            grad_descent_params["learn_exp"] = grad_descent_params["learn_exp"]-0.5
+            learning_rate = 10.0**(grad_descent_params["learn_exp"])
+            step_size = step_size - 0.5
+            print("Reducing step size to: " + str(learning_rate))
+            if learning_rate < 1.0e-4:
+                print(str(ieval+1) + " Bayesian data points added, saving to .nc")
+                print("Early stopping due to repeated results")
+                filename_trainingdata = optimizer_params["run_dir"] + '/' + optimizer_params["trainingdata_filename"]
+                nrw.save_training_data(dataset_optimizer["X_all"], dataset_optimizer["Y_all"],
+                                       dataset_optimizer["avg_powers_all"], filename_trainingdata)
+                break
+
+        X_stencil = gradient_stencil(X_old, learning_rate, pbounds,
+                                     optimizer_params["num_inputs"], stencil_size)
+        Y_stencil, avg_powers_stencil = tdg.run_ifriit_input(stencil_size, X_stencil,
+                                                             optimizer_params["run_dir"],
+                                                             optimizer_params["num_modes"],
+                                                             optimizer_params["num_parallel"],
+                                                             optimizer_params["hemisphere_symmetric"],
+                                                             optimizer_params["run_clean"])
+        target_stencil = np.sqrt(np.sum(Y_stencil**2, axis=0))
+        mindex_stencil = np.argmin(target_stencil)
+        print("The minimum in the stencil", np.min(target_stencil), mindex_stencil)
+        print("The previous value was: ", target_stencil[0], 0)
+        print(X_stencil[:,0])
+        os.rename(optimizer_params["run_dir"]  + "/run_" + str(mindex_stencil),
+                  optimizer_params["run_dir"] + "/" + optimizer_params["iter_dir"] + str(ieval+optimizer_params["num_init_examples"]))
+
+        grad = determine_gradient(X_stencil, target_stencil, learning_rate, pbounds, optimizer_params["num_inputs"])
+        X_new = grad_descent(X_old, grad, step_size, pbounds,
+                                  optimizer_params["num_inputs"],
+                                  grad_descent_params["num_steps_per_iter"])
+
+        Y_new, avg_powers_new = tdg.run_ifriit_input(grad_descent_params["num_steps_per_iter"],
+                                                     X_new, optimizer_params["run_dir"],
+                                                     optimizer_params["num_modes"],
+                                                     optimizer_params["num_parallel"],
+                                                     optimizer_params["hemisphere_symmetric"],
+                                                     optimizer_params["run_clean"])
+        target_downhill = np.sqrt(np.sum(Y_new**2, axis=0))
+        mindex_downhill = np.argmin(target_downhill)
+        print("The minimum downhill", np.min(target_downhill), mindex_downhill)
+
+        if target_downhill[mindex_downhill] < target_stencil[mindex_stencil]:
+            shutil.rmtree(optimizer_params["run_dir"] + "/" + optimizer_params["iter_dir"] + str(ieval+optimizer_params["num_init_examples"]))
+            os.rename(optimizer_params["run_dir"] + "/run_" + str(mindex_downhill),
+                      optimizer_params["run_dir"] + "/" + optimizer_params["iter_dir"] + str(ieval+optimizer_params["num_init_examples"]))
+            X_old[:,0] = X_new[:,mindex_downhill]
+            Y_old[:,0] = Y_new[:,mindex_downhill]
+            avg_powers_old = avg_powers_new[mindex_downhill]
+        else:
+            X_old[:,0] = X_stencil[:,mindex_stencil]
+            Y_old[:,0] = Y_stencil[:,mindex_stencil]
+            avg_powers_old = avg_powers_stencil[mindex_stencil]
+
+        dataset_optimizer["X_all"] = np.hstack((dataset_optimizer["X_all"], X_old))
+        dataset_optimizer["Y_all"] = np.hstack((dataset_optimizer["Y_all"], Y_old))
+        dataset_optimizer["avg_powers_all"] = np.hstack((dataset_optimizer["avg_powers_all"], avg_powers_old))
+
+        print("Iteration {} with learn rate {} value:{}".format(ieval, learning_rate, np.sqrt(np.sum(Y_old**2))))
+        print(X_old[:,0])
+
+        if (np.sqrt(np.sum(dataset_optimizer["Y_all"][:,-1]**2)) > np.sqrt(np.sum(dataset_optimizer["Y_all"][:,-2]**2))):
+            print("Bug! Ascending slope!")
+            print(np.sqrt(np.sum(dataset_optimizer["Y_all"][:,-1]**2)), np.sqrt(np.sum(dataset_optimizer["Y_all"][:,-2]**2)))
+            break
+
+        if (ieval+1)%10 <= 0.0:
+            toc = time.perf_counter()
+            print("{:0.4f} seconds".format(toc - tic))
+            print(str(ieval+1) + " Bayesian data points added, saving to .nc")
+            filename_trainingdata = optimizer_params["run_dir"] + '/' + optimizer_params["trainingdata_filename"]
+            nrw.save_training_data(dataset_optimizer["X_all"], dataset_optimizer["Y_all"], dataset_optimizer["avg_powers_all"], filename_trainingdata)
+            mindex = np.argmin(np.mean(dataset_optimizer["Y_all"], axis=0))
+            print(mindex)
+            print(np.sum(dataset_optimizer["Y_all"][:,mindex]))
+            print(np.sqrt(np.sum(dataset_optimizer["Y_all"][:,mindex]**2)))
+            mindex = np.argmin(np.sqrt(np.sum(dataset_optimizer["Y_all"]**2, axis=0)))
+            print(mindex)
+            print(np.sum(dataset_optimizer["Y_all"][:,mindex]))
+            print(np.sqrt(np.sum(dataset_optimizer["Y_all"][:,mindex]**2)))
+    for isten in range(stencil_size):
+        try:
+            shutil.rmtree(optimizer_params["run_dir"] + "/run_" + str(isten))
+        except:
+            print("File: " + optimizer_params["run_dir"] + "/run_" + str(isten) + ", already deleted.")
+    return dataset_optimizer
+
+
 
 def gradient_stencil(X_new, learning_rate, pbounds, num_inputs, stencil_size):
     X_stencil = np.zeros((num_inputs, stencil_size))
