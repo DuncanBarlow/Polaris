@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import sys
 import time
 
+#################################### Bayesian Optimization ################################################
 
 def optimize_known_func(pbounds, init_points, n_iter):
 
@@ -50,7 +51,7 @@ def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs
 
     return optimizer, utility
 
-
+######################################## Gradient Descent ############################################
 
 def gradient_stencil(X_new, learning_rate, pbounds, num_inputs, stencil_size):
     X_stencil = np.zeros((num_inputs, stencil_size))
@@ -128,3 +129,55 @@ def grad_descent(X_old, grad, step_size, pbounds, num_inputs, num_steps_per_iter
                 X_new[ii,ieval] = pbounds[ii,1]
 
     return X_new
+
+###################################### Genetic Algorithm ##############################################
+# Taken from https://github.com/ahmedfgad/GeneticAlgorithmPython/blob/master/Tutorial%20Project/Example_GeneticAlgorithm.py
+# https://towardsdatascience.com/genetic-algorithm-implementation-in-python-5ab67bb124a6
+
+def cal_pop_fitness(equation_inputs, pop):
+    # Calculating the fitness value of each solution in the current population.
+    # The fitness function calulates the sum of products between each input and its corresponding weight.
+    fitness = np.sum(pop*equation_inputs, axis=1)
+    return fitness
+
+def select_mating_pool(pop, fitness, num_parents):
+    # Selecting the best individuals in the current generation as parents for producing the offspring of the next generation.
+    parents = np.empty((num_parents, pop.shape[1]))
+    for parent_num in range(num_parents):
+        max_fitness_idx = np.where(fitness == np.max(fitness))
+        max_fitness_idx = max_fitness_idx[0][0]
+        parents[parent_num, :] = pop[max_fitness_idx, :]
+        fitness[max_fitness_idx] = -99999999999
+    return parents
+
+def crossover(parents, offspring_size):
+    offspring = np.empty(offspring_size)
+    # The point at which crossover takes place between two parents. Usually, it is at the center.
+    crossover_point = np.uint8(offspring_size[1]/2)
+
+    for k in range(offspring_size[0]):
+        # Index of the first parent to mate.
+        parent1_idx = k%parents.shape[0]
+        # Index of the second parent to mate.
+        parent2_idx = (k+1)%parents.shape[0]
+        # The new offspring will have its first half of its genes taken from the first parent.
+        offspring[k, 0:crossover_point] = parents[parent1_idx, 0:crossover_point]
+        # The new offspring will have its second half of its genes taken from the second parent.
+        offspring[k, crossover_point:] = parents[parent2_idx, crossover_point:]
+    return offspring
+
+def mutation(offspring_crossover, rng, pbounds, num_mutations=1, mutation_amplitude=1.0):
+    for idx in range(offspring_crossover.shape[0]):
+        gene_mutation_ind_float = rng.random() * (offspring_crossover.shape[1] - 1.0)
+        gene_mutation_ind = int(np.round(gene_mutation_ind_float))
+        for ind_mut in range(num_mutations):
+            random_value = (rng.random() - 0.5) * mutation_amplitude
+            offspring_crossover[idx, gene_mutation_ind] += random_value
+            if offspring_crossover[idx, gene_mutation_ind] < pbounds[gene_mutation_ind, 0]:
+                offspring_crossover[idx, gene_mutation_ind] = pbounds[gene_mutation_ind, 0]
+            if offspring_crossover[idx, gene_mutation_ind] > pbounds[gene_mutation_ind, 1]:
+                offspring_crossover[idx, gene_mutation_ind] = pbounds[gene_mutation_ind, 1]
+
+    return offspring_crossover
+
+#####################################################################################
