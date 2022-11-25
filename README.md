@@ -4,9 +4,10 @@ Code written by Duncan Barlow at Universite de Bordeaux. Some code taken from ot
 
 ## Quick start
 
-To generate training data in file "Data" with 10 examples (the final "1" = "True" boolean for symmetric hemisphere pointing setup):
+To generate training data in file "Data" with 10 examples, "1" = "True" boolean for symmetric hemisphere pointing setup,
+"12345" is the random seed and "0" is to use latin hyper-cube (rather than "1" random) sampling:
 
-python training\_data\_generation.py Data 10 1
+python training\_data\_generation.py Data 10 1 12345 0
 
 To generate 1 neural network run for 10 epochs from the training data in file "Data":
 
