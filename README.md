@@ -7,7 +7,7 @@ Code written by Duncan Barlow at Universite de Bordeaux. Some code taken from ot
 To generate training data in file "Data" with 10 examples, "1" = "True" boolean for symmetric hemisphere pointing setup,
 "12345" is the random seed and "0" is to use latin hyper-cube (rather than "1" random) sampling:
 
-python training\_data\_generation.py Data 10 1 12345 0
+python training\_data\_generation.py Data 10 1 0 12345
 
 To generate 1 neural network run for 10 epochs from the training data in file "Data":
 
@@ -15,7 +15,8 @@ python neural\_network\_generation.py Data 10 1
 
 ## Additional Install
 
-conda create -n <write_environment_name_here> scipy=1.9.1 tensorflow jupyterlab netcdf4
+conda create -n <write_environment_name_here> scipy=1.9.1 tensorflow jupyterlab netcdf4 numpy
+conda activate <write_environment_name_here>
 conda install -c conda-forge healpy bayesian-optimization
 
 ### To run data generation you will need:

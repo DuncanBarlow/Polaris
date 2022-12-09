@@ -21,6 +21,7 @@ def define_system_params(root_dir):
     sys_params["root_dir"] = root_dir
     sys_params["sim_dir"] = "run_"
     sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
+    sys_params["ifriit_ouput_name"] = "p_in_z1z2_beam_all"
     sys_params["figure_location"] = "plots"
     sys_params["plot_file_type"] = ".pdf"
 
@@ -143,7 +144,7 @@ def run_ifriit_input(num_examples, X_all, run_dir, LMAX, num_parallel, hemispher
 
 def main(argv):
     sys_params = define_system_params(argv[1])
-    dataset_params, facility_spec = define_dataset_params(int(argv[2]), int(argv[4]), int(argv[5]))
+    dataset_params, facility_spec = define_dataset_params(int(argv[2]), random_sampling=int(argv[4]), random_seed=int(argv[5]))
     dataset_params["hemisphere_symmetric"] = bool(int(argv[3]))
     generate_training_data(dataset_params, sys_params, facility_spec)
 
