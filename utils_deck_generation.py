@@ -106,7 +106,7 @@ def import_nif_config():
     run_data['num_quads'] = 48
     run_data['num_cones'] = 8
     run_data['beams_per_quad'] = int(run_data['nbeams'] / run_data['num_quads'])
-    run_data['default_power'] = 0.25 #TW per beam
+    run_data['default_power'] = 1.0 #TW per beam
     filename = "NIF_UpperBeams.txt"
 
     j = -1
