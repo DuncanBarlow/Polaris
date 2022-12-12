@@ -83,28 +83,26 @@ def extract_run_parameters(dataset_params, facility_spec, sys_params):
 
 def power_spectrum(intensity_map, LMAX, verbose=True):
     intensity_map_normalized, avg_power = imap_norm(intensity_map)
+    alms = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
 
-    # Compute the corresponding normalized mode spectrum
-    rmsalms = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
-    var = abs(rmsalms)**2
     the_modes = np.zeros(LMAX)
-    power_spectrum = np.zeros(LMAX)
+    the_modes_full = np.zeros((LMAX,LMAX+1))
     for l in range(LMAX):
-        for m in range(l):
+        for m in range(l+1):
+            the_modes_full[l,m] = np.real(alms[hp.sphtfunc.Alm.getidx(LMAX, l, m)]*
+                np.conjugate(alms[hp.sphtfunc.Alm.getidx(LMAX, l, m)]))
             if (m>0):
-                the_modes[l] = the_modes[l] + 2.*var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
+                the_modes[l] = the_modes[l] + 2.*the_modes_full[l,m]
             else:          
-                the_modes[l] = the_modes[l] + var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
-        # Correct calulation of power spectrum is:
-        power_spectrum[l] = the_modes[l] / (2.0 * l + 1.0) #/ (4.0 * np.pi)
+                the_modes[l] = the_modes[l] + the_modes_full[l,m]
 
-    power_spectrum_unweighted = np.sqrt(the_modes)
-    power_spectrum_weighted = np.sqrt(power_spectrum)
+    the_modes = the_modes / (4.*np.pi)
+    sqrt_power_spectrum = np.sqrt(the_modes)
+
     if verbose:
         print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(the_modes))*100.0, "%")
-        print("The weighted modal rms: ", np.sqrt(np.sum(power_spectrum))*100.0, "%")
 
-    return power_spectrum_unweighted, power_spectrum_weighted
+    return sqrt_power_spectrum
 
 
 

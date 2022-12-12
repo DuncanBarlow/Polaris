@@ -24,12 +24,14 @@ def read_nn_weights(filename_nn_weights):
 
 
 
-def read_general_netcdf(filename_nn_weights):
+def read_general_netcdf(filename):
     parameters = {}
 
-    rootgrp = Dataset(filename_nn_weights + ".nc")
+    rootgrp = Dataset(filename + ".nc")
     keys = list(rootgrp.variables.keys())
     for key in keys:
+        if np.shape(np.shape(rootgrp[key]))[0] == 3:
+            parameters[key] = rootgrp[key][:,:,:]
         if np.shape(np.shape(rootgrp[key]))[0] == 2:
             parameters[key] = rootgrp[key][:,:]
         if np.shape(np.shape(rootgrp[key]))[0] == 1:
@@ -43,12 +45,13 @@ def read_general_netcdf(filename_nn_weights):
 def retrieve_xtrain_and_delete(iex, dataset_params, sys_params, target_radius_microns):
     run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
     if sys_params["run_compression"]:
-        intensity_map = read_intensity(run_location, dataset_params["imap_nside"], target_radius_microns)
+        parameters = read_general_netcdf(run_location + "/" + sys_params["ifriit_ouput_name"])
+        intensity_map = parameters["intensity"] * (target_radius_microns / 10000.0)**2
         X_train1, avg_power1 = uim.create_xtrain(intensity_map, dataset_params["LMAX"])
 
     if sys_params["run_clean"]:
         os.remove(run_location + '/main')
-        os.remove(run_location + '/p_in_z1z2_beam_all.nc')
+        os.remove(run_location + "/" + sys_params["ifriit_ouput_name"] + ".nc")
     return X_train1, avg_power1
 
 
@@ -61,14 +64,26 @@ def save_nn_weights(parameters, filename_nn_weights):
     parms = rootgrp.createGroup('parameters')
     for key, item in parameters.items():
         dims = np.shape(item)
+        if np.shape(dims)[0] == 3:
+            parms.createDimension(key+'_'+'item_dim1', dims[0])
+            parms.createDimension(key+'_'+'item_dim2', dims[1])
+            parms.createDimension(key+'_'+'item_dim3', dims[2])
+            variable = parms.createVariable(key, 'f4',
+                                            (key+'_'+'item_dim1',
+                                             key+'_'+'item_dim2',
+                                             key+'_'+'item_dim3'))
+            variable[:,:] = item
         if np.shape(dims)[0] == 2:
             parms.createDimension(key+'_'+'item_dim1', dims[0])
             parms.createDimension(key+'_'+'item_dim2', dims[1])
-            variable = parms.createVariable(key, 'f4', (key+'_'+'item_dim1',key+'_'+'item_dim2'))
+            variable = parms.createVariable(key, 'f4',
+                                            (key+'_'+'item_dim1',
+                                             key+'_'+'item_dim2'))
             variable[:,:] = item
         if np.shape(dims)[0] == 1:
             parms.createDimension(key+'_'+'item_dim1', dims[0])
-            variable = parms.createVariable(key, 'f4', (key+'_'+'item_dim1'))
+            variable = parms.createVariable(key, 'f4',
+                                            (key+'_'+'item_dim1'))
             variable[:] = item
 
     rootgrp.close()

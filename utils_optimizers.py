@@ -1,25 +1,46 @@
 # code copied from https://github.com/fmfn/BayesianOptimization edited by Duncan Barlow
 from bayes_opt import BayesianOptimization, UtilityFunction
 import numpy as np
-import matplotlib.pyplot as plt
-import sys
-import time
+import training_data_generation as tdg
+import netcdf_read_write as nrw
+
+
+def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
+    dataset = {}
+    dataset["X_all"] = X_all
+    dataset["Y_all"] = Y_all
+    dataset["avg_powers_all"] = avg_powers_all
+    return dataset
+
+
+
+def define_optimizer_parameters(run_dir, num_inputs, num_modes,
+                                num_init_examples, n_iter, num_parallel, random_seed):
+    optimizer_params = {}
+    optimizer_params["run_dir"] = run_dir
+    optimizer_params["num_inputs"] = num_inputs
+    optimizer_params["num_modes"] = num_modes
+    optimizer_params["num_init_examples"] = num_init_examples
+    optimizer_params["n_iter"] = n_iter
+    optimizer_params["num_parallel"] = num_parallel
+    optimizer_params["iter_dir"] = "iter_"
+    optimizer_params["trainingdata_filename"] = "flipped_training_data_and_labels.nc"
+    optimizer_params["hemisphere_symmetric"] = True
+    optimizer_params["run_clean"] = True
+    optimizer_params["random_generator"] = np.random.default_rng(random_seed)
+
+    pbounds = np.zeros((optimizer_params["num_inputs"], 2))
+    pbounds[:,1] = 1.0
+    optimizer_params["pbounds"] = pbounds
+    return optimizer_params
 
 #################################### Bayesian Optimization ################################################
 
-def optimize_known_func(pbounds, init_points, n_iter):
+def define_bayesian_optimisation_params(target_set_undetermined):
+    bo_params = {}
+    bo_params["target_set_undetermined"] = target_set_undetermined
+    return bo_params
 
-    optimizer = BayesianOptimization(
-      f=black_box_function, # Need to change to run this!
-      pbounds=pbounds,
-      random_state=1,
-    )
-
-    optimizer.maximize(
-      init_points=init_points,
-      n_iter=n_iter,
-    )
-    return optimizer
 
 
 def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs):
@@ -34,7 +55,6 @@ def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs
 
     # initial data points
     params = {}
-    tic = time.perf_counter()
     for ieval in range(init_points):
         # put data in dict
         for ii in range(num_inputs):
@@ -46,12 +66,18 @@ def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs
             print("Broken input!", input_data[:, ieval])
         if ieval%100 <= 0.0:
             print(str(ieval) + " initialization data points added")
-    toc = time.perf_counter()
-    print("{:0.4f} seconds".format(toc - tic))
 
     return optimizer, utility
 
 ######################################## Gradient Descent ############################################
+
+def define_gradient_descent_params(num_steps_per_iter):
+    gd_params = {}
+    gd_params["learn_exp"] = -1.0
+    gd_params["num_steps_per_iter"] = num_steps_per_iter
+    return gd_params
+
+
 
 def gradient_stencil(X_new, learning_rate, pbounds, num_inputs, stencil_size):
     X_stencil = np.zeros((num_inputs, stencil_size))
@@ -134,11 +160,13 @@ def grad_descent(X_old, grad, step_size, pbounds, num_inputs, num_steps_per_iter
 # Taken from https://github.com/ahmedfgad/GeneticAlgorithmPython/blob/master/Tutorial%20Project/Example_GeneticAlgorithm.py
 # https://towardsdatascience.com/genetic-algorithm-implementation-in-python-5ab67bb124a6
 
-def cal_pop_fitness(equation_inputs, pop):
-    # Calculating the fitness value of each solution in the current population.
-    # The fitness function calulates the sum of products between each input and its corresponding weight.
-    fitness = np.sum(pop*equation_inputs, axis=1)
-    return fitness
+def define_genetic_algorithm_params(init_points, num_parents_mating):
+    ga_params = {}
+    ga_params["num_parents_mating"] = num_parents_mating
+    ga_params["initial_pop_size"] = init_points
+    return ga_params
+
+
 
 def select_mating_pool(pop, fitness, num_parents):
     # Selecting the best individuals in the current generation as parents for producing the offspring of the next generation.
@@ -149,6 +177,8 @@ def select_mating_pool(pop, fitness, num_parents):
         parents[parent_num, :] = pop[max_fitness_idx, :]
         fitness[max_fitness_idx] = -99999999999
     return parents
+
+
 
 def crossover(parents, offspring_size):
     offspring = np.empty(offspring_size)
@@ -165,6 +195,8 @@ def crossover(parents, offspring_size):
         # The new offspring will have its second half of its genes taken from the second parent.
         offspring[k, crossover_point:] = parents[parent2_idx, crossover_point:]
     return offspring
+
+
 
 def mutation(offspring_crossover, rng, pbounds, num_mutations=1, mutation_amplitude=1.0):
     for idx in range(offspring_crossover.shape[0]):

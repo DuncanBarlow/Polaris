@@ -21,6 +21,7 @@ def define_system_params(root_dir):
     sys_params["root_dir"] = root_dir
     sys_params["sim_dir"] = "run_"
     sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
+    sys_params["ifriit_ouput_name"] = "p_in_z1z2_beam_all"
     sys_params["figure_location"] = "plots"
     sys_params["plot_file_type"] = ".pdf"
 
@@ -28,11 +29,13 @@ def define_system_params(root_dir):
 
 
 
-def define_dataset_params(num_examples, random_sampling=False):
+def define_dataset_params(num_examples,
+                          random_sampling=0,
+                          random_seed=12345):
     dataset_params = {}
     # Number of samples, size of NN training set
     dataset_params["num_examples"] = num_examples
-    dataset_params["random_seed"] = 12345
+    dataset_params["random_seed"] = random_seed
     dataset_params["hemisphere_symmetric"] = True
 
     num_sim_params = 0
@@ -57,12 +60,13 @@ def define_dataset_params(num_examples, random_sampling=False):
     # Assume symmetry
     dataset_params["num_output"] = int(facility_spec['num_cones']/2) * dataset_params["num_sim_params"]
 
-    rng = np.random.default_rng(dataset_params["random_seed"])
-    if random_sampling:
-        sample = rng.random((dataset_params["num_examples"], dataset_params["num_output"]))
+    random_generator=np.random.default_rng(dataset_params["random_seed"])
+    if random_sampling == 1:
+        print("Random Sampling!")
+        sample = random_generator.random((dataset_params["num_examples"], dataset_params["num_output"]))
     else:
         sampler = qmc.LatinHypercube(d=dataset_params["num_output"],
-                                     strength=1, seed=rng, optimization="random-cd")
+                                     strength=1, seed=random_generator, optimization="random-cd")
         sample = sampler.random(n=dataset_params["num_examples"])
     dataset_params["Y_train"] = sample.T
 
@@ -140,7 +144,7 @@ def run_ifriit_input(num_examples, X_all, run_dir, LMAX, num_parallel, hemispher
 
 def main(argv):
     sys_params = define_system_params(argv[1])
-    dataset_params, facility_spec = define_dataset_params(int(argv[2]))
+    dataset_params, facility_spec = define_dataset_params(int(argv[2]), random_sampling=int(argv[4]), random_seed=int(argv[5]))
     dataset_params["hemisphere_symmetric"] = bool(int(argv[3]))
     generate_training_data(dataset_params, sys_params, facility_spec)
 
