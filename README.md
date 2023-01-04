@@ -37,3 +37,7 @@ conda install tensorflow
 You will need python modules: bayesian-optimization
 
 conda install -c conda-forge bayesian-optimization
+
+# License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
