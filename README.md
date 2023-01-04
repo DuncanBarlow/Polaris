@@ -2,6 +2,18 @@ Code written by Duncan Barlow at Universite de Bordeaux. Some code taken from ot
 
 # README for PDD Neural Network
 
+## Clone
+
+use command:
+
+git clone git@github.com:DuncanBarlow/PDDNeuralNetwork.git
+
+to clone the repository via ssh or:
+
+git clone https://github.com/DuncanBarlow/PDDNeuralNetwork.git
+
+via https.
+
 ## Quick start
 
 To generate training data in file "Data" with 10 examples, "1" = "True" boolean for symmetric hemisphere pointing setup,
