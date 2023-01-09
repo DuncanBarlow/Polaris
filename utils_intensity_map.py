@@ -105,7 +105,7 @@ def power_spectrum(intensity_map, LMAX, verbose=True):
     power_spectrum = alms2power_spectrum(alms, LMAX)
 
     if verbose:
-        print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(power_spectrum))*100.0, "%")
+        print("The LLE quoted rms cumulative over all modes is: ", np.sqrt(np.sum(power_spectrum))*100.0, "%")
     sqrt_power_spectrum = np.sqrt(power_spectrum)
 
     return sqrt_power_spectrum
