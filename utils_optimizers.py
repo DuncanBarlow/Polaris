@@ -164,6 +164,8 @@ def define_genetic_algorithm_params(init_points, num_parents_mating):
     ga_params = {}
     ga_params["num_parents_mating"] = num_parents_mating
     ga_params["initial_pop_size"] = init_points
+    ga_params["num_mutations"] = 8
+    ga_params["mutation_amplitude"] = 0.25 # multiplier for standard normal distribution
     return ga_params
 
 
@@ -200,10 +202,10 @@ def crossover(parents, offspring_size):
 
 def mutation(offspring_crossover, rng, pbounds, num_mutations=1, mutation_amplitude=1.0):
     for idx in range(offspring_crossover.shape[0]):
-        gene_mutation_ind_float = rng.random() * (offspring_crossover.shape[1] - 1.0)
-        gene_mutation_ind = int(np.round(gene_mutation_ind_float))
         for ind_mut in range(num_mutations):
-            random_value = (rng.random() - 0.5) * mutation_amplitude
+            gene_mutation_ind = int(np.round(rng.random()
+                                * (offspring_crossover.shape[1] - 1.0)))
+            random_value = rng.standard_normal() * mutation_amplitude
             offspring_crossover[idx, gene_mutation_ind] += random_value
             if offspring_crossover[idx, gene_mutation_ind] < pbounds[gene_mutation_ind, 0]:
                 offspring_crossover[idx, gene_mutation_ind] = pbounds[gene_mutation_ind, 0]
