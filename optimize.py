@@ -250,7 +250,9 @@ def wrapper_genetic_algorithm(dataset, ga_params, opt_params):
 
         # Adding some variations to the offspring using mutation.
         offspring_mutation = uopt.mutation(offspring_crossover, opt_params["random_generator"],
-                                           opt_params["pbounds"], num_mutations=2)
+                                           opt_params["pbounds"],
+                                           num_mutations=ga_params["num_mutations"],
+                                           mutation_amplitude=ga_params["mutation_amplitude"])
 
         # Creating the new population based on the parents and offspring.
         X_pop[:,0:ga_params["num_parents_mating"]] = parents.T
@@ -338,7 +340,7 @@ def main(argv):
     elif data_init_type == 2: # Genetic algorithm
         print("Using a genetic algorithm!")
         ga_n_iter = int(argv[4])
-        init_points = int(num_examples / ga_n_iter)
+        init_points = num_examples
 
         num_parents_mating = int(init_points / 10.0)
         if (num_parents_mating % 2) != 0:

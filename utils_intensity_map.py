@@ -80,10 +80,7 @@ def extract_run_parameters(dataset_params, facility_spec, sys_params):
     return mean_power_fraction
 
 
-
-def power_spectrum(intensity_map, LMAX, verbose=True):
-    intensity_map_normalized, avg_power = imap_norm(intensity_map)
-    alms = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
+def alms2power_spectrum(alms, LMAX):
 
     the_modes = np.zeros(LMAX)
     the_modes_full = np.zeros((LMAX,LMAX+1))
@@ -97,10 +94,19 @@ def power_spectrum(intensity_map, LMAX, verbose=True):
                 the_modes[l] = the_modes[l] + the_modes_full[l,m]
 
     the_modes = the_modes / (4.*np.pi)
-    sqrt_power_spectrum = np.sqrt(the_modes)
+
+    return the_modes
+
+
+
+def power_spectrum(intensity_map, LMAX, verbose=True):
+    intensity_map_normalized, avg_power = imap_norm(intensity_map)
+    alms = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
+    power_spectrum = alms2power_spectrum(alms, LMAX)
 
     if verbose:
-        print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(the_modes))*100.0, "%")
+        print("The LLE quoted rms cumulative over all modes is: ", np.sqrt(np.sum(power_spectrum))*100.0, "%")
+    sqrt_power_spectrum = np.sqrt(power_spectrum)
 
     return sqrt_power_spectrum
 
@@ -165,15 +171,8 @@ def change_number_modes(Y_train, avg_powers_all, LMAX):
     for ie in range(num_examples):
         Y_train_real = np.squeeze(Y_train[:,ie] / avg_powers_all[ie])
         Y_train_complex = np_complex(Y_train_real[:num_coeff], Y_train_real[num_coeff:])
-        var = abs(Y_train_complex)**2
-        the_modes = np.zeros(LMAX)
-        for l in range(LMAX):
-            for m in range(l):
-                if (m>0):
-                    the_modes[l] = the_modes[l] + 2.*var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
-                else:
-                    the_modes[l] = the_modes[l] + var[hp.sphtfunc.Alm.getidx(LMAX, l, m)]
-        power_spectrum_unweighted = np.sqrt(the_modes)
-        Y_train2[:,ie] = power_spectrum_unweighted
+
+        power_spectrum = alms2power_spectrum(Y_train_complex, LMAX)
+        Y_train2[:,ie] = np.sqrt(power_spectrum)
 
     return Y_train2
