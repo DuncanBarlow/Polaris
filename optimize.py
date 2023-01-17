@@ -335,18 +335,23 @@ def main(argv):
     trainingdata_filename = "flipped_training_data_and_labels.nc"
     iter_dir = "iter_"
     num_modes = 30
-    num_inputs = 16
     num_parallel = 12
     hemisphere_symmetric = True
     random_seed = int(argv[10])
     random_sampling = int(argv[9])
+    run_clean = True
+
+    sys_params = tdg.define_system_params(input_dir)
+    sys_params["run_clean"] = run_clean
+    dataset_params, facility_spec = tdg.define_dataset_params(num_examples, random_sampling=random_sampling, random_seed=random_seed)
+    dataset_params["hemisphere_symmetric"] = hemisphere_symmetric
+    dataset_params["run_clean"] = run_clean
 
     if data_init_type == 1: # Generate new initialization dataset
         print("Generating data!")
-        _ = None
-        _, _, _ = tdg.main((_, output_dir, num_examples, hemisphere_symmetric, random_seed, random_sampling))
+        sys_params["root_dir"] = output_dir
+        tdg.generate_training_data(dataset_params, sys_params, facility_spec)
         # choose test data set
-        sys_params = tdg.define_system_params(output_dir)
         X_all, Y_all, avg_powers_all = nrw.import_training_data_reversed(sys_params, num_modes)
         filename_trainingdata = output_dir + '/' + trainingdata_filename 
         nrw.save_training_data(X_all, Y_all, avg_powers_all, filename_trainingdata)
@@ -358,6 +363,7 @@ def main(argv):
         print("Using a genetic algorithm!")
         ga_n_iter = int(argv[4])
         init_points = num_examples
+        num_inputs = dataset_params["num_output"]
 
         num_parents_mating = int(init_points / 10.0)
         if (num_parents_mating % 2) != 0:
@@ -368,10 +374,11 @@ def main(argv):
         X_all = np.array([], dtype=np.int64).reshape(num_inputs,0)
         Y_all= np.array([], dtype=np.int64).reshape(num_modes,0)
         avg_powers_all = np.array([], dtype=np.int64)
-        
+
         opt_params = uopt.define_optimizer_parameters(output_dir, num_inputs,
                                                       num_modes, num_init_examples,
                                                       ga_n_iter, num_parallel, random_seed)
+        opt_params["run_clean"] = run_clean
         dataset = uopt.define_optimizer_dataset(X_all, Y_all, avg_powers_all)
         ga_params = uopt.define_genetic_algorithm_params(init_points, num_parents_mating)
         dataset = wrapper_genetic_algorithm(dataset, ga_params, opt_params)
@@ -382,10 +389,10 @@ def main(argv):
         sys.exit("Dataset not properly specified")
 
     print("Importing data!")
-    sys_params = tdg.define_system_params(input_dir)
     sys_params["trainingdata_filename"] = trainingdata_filename
     X_all, Y_all, avg_powers_all = nrw.import_training_data(sys_params)
     num_init_examples = np.shape(X_all)[1]
+    num_inputs = np.shape(X_all)[0]
     dataset = uopt.define_optimizer_dataset(X_all, Y_all, avg_powers_all)
 
     use_bayesian_optimization = bool(int(argv[5]))
@@ -397,6 +404,8 @@ def main(argv):
         opt_params = uopt.define_optimizer_parameters(output_dir, num_inputs,
                                                       num_modes, num_init_examples,
                                                       bo_n_iter, num_parallel, random_seed)
+        opt_params["run_clean"] = run_clean
+
         bo_params = uopt.define_bayesian_optimisation_params(target_set_undetermined, np.mean(dataset["avg_powers_all"]))
         dataset = wrapper_bayesian_optimisation(dataset, bo_params, opt_params)
         num_init_examples = np.shape(dataset["X_all"])[1]
@@ -408,6 +417,8 @@ def main(argv):
         opt_params = uopt.define_optimizer_parameters(output_dir, num_inputs,
                                                             num_modes, num_init_examples,
                                                             gd_n_iter, num_parallel, random_seed)
+        opt_params["run_clean"] = run_clean
+
         gd_params = uopt.define_gradient_descent_params(num_parallel)
         dataset = wrapper_gradient_descent(dataset, gd_params, opt_params)
         num_init_examples = np.shape(dataset["X_all"])[1]

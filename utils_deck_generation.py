@@ -13,12 +13,15 @@ def create_run_files(dataset_params, sys_params, run_data):
     coord_o = np.zeros(3)
     coord_o[2] = run_data['target_radius']
 
+    # The order of these is important (top-to-equator, then bottom-to-equator)
     if (run_data['facility'] == "NIF"):
         run_data['quad_from_each_cone'] = ('Q15T', 'Q13T', 'Q14T', 'Q11T', 'Q15B', 'Q16B', 'Q14B', 'Q13B')
         num_ifriit_beams = run_data['nbeams']
+        beams_per_ifriit_beam = 1
     elif (run_data['facility'] == "LMJ"):
-        run_data['quad_from_each_cone'] = ('28U', '10U', '28L', '10L')
+        run_data['quad_from_each_cone'] = ('28U', '10U', '10L', '28L')
         num_ifriit_beams = run_data['num_quads']
+        beams_per_ifriit_beam = 4
 
     run_data['pointings'] = np.zeros((num_ifriit_beams, 3))
     run_data["Port_centre_theta"] = np.zeros(num_ifriit_beams)
@@ -39,22 +42,32 @@ def create_run_files(dataset_params, sys_params, run_data):
         else:
             ex_params =  dataset_params["Y_train"]
         for icone in range(run_data['num_cones']):
-            il = (icone*4) % num_output #4 = dataset_params["num_sim_params"]?
-            iu = ((icone+1)*4-1) % num_output + 1
+            il = (icone*dataset_params["num_sim_params"]) % num_output
+            iu = ((icone+1)*dataset_params["num_sim_params"]-1) % num_output + 1
             cone_params = ex_params[il:iu]
 
-            x = cone_params[0] * 2.0 - 1.0
-            y = cone_params[1] * 2.0 - 1.0
+            x = cone_params[dataset_params["theta_index"]] * 2.0 - 1.0
+            y = cone_params[dataset_params["phi_index"]] * 2.0 - 1.0
             r, offset_phi = hpoint.square2disk(x, y)
-            if icone > 3:
+
+            if icone > int(run_data['num_cones']/2.0-1):
                 if dataset_params["hemisphere_symmetric"]:
                     offset_phi = np.pi - offset_phi # Symmetric
                 else:
                     offset_phi = (offset_phi + np.pi) % (2.0 * np.pi) # anti-symmetric
             offset_theta = r * dataset_params["surface_cover_radians"]
+            sim_params[icone*dataset_params["num_sim_params"]+dataset_params["theta_index"],iex] = offset_theta
+            sim_params[icone*dataset_params["num_sim_params"]+dataset_params["phi_index"],iex] = offset_phi
 
-            cone_defocus = cone_params[2] * dataset_params["defocus_range"] # convert to mm
-            cone_power = cone_params[3] * (1.0 - dataset_params["min_power"]) + dataset_params["min_power"]
+            if dataset_params["defocus_bool"]:
+                cone_defocus = cone_params[dataset_params["defocus_index"]] * dataset_params["defocus_range"]
+                sim_params[icone*dataset_params["num_sim_params"]+dataset_params["defocus_index"],iex] = cone_defocus
+            else:
+                cone_defocus = dataset_params["defocus_default"]
+
+            cone_power = (cone_params[dataset_params["power_index"]] * (1.0 - dataset_params["min_power"])
+                          + dataset_params["min_power"])
+            sim_params[icone*dataset_params["num_sim_params"]+dataset_params["power_index"],iex] = cone_power
 
             quad_name = run_data['quad_from_each_cone'][icone]
             quad_start_ind = run_data["Quad"].index(quad_name)
@@ -62,10 +75,7 @@ def create_run_files(dataset_params, sys_params, run_data):
 
             ind_base = run_data["Quad"].index(quad_name)
             cone_name = run_data['Cone'][ind_base]
-            run_data['beams_per_cone'][icone] = int(run_data["Cone"].count(cone_name)/2)
-            sim_params[icone*dataset_params["num_sim_params"]:
-                       (icone+1)*dataset_params["num_sim_params"],iex] = (
-                       offset_theta, offset_phi, cone_defocus, cone_power)
+            run_data['beams_per_cone'][icone] = int(run_data["Cone"].count(cone_name)/2) * beams_per_ifriit_beam
 
             cone_slice = (np.where(np.array(run_data['Cone']) == cone_name)[0])
             quad_list_in_cone = np.array(run_data["Quad"])[cone_slice]
@@ -94,7 +104,7 @@ def create_run_files(dataset_params, sys_params, run_data):
 
                     run_data['pointings'][ind:ind+run_data['beams_per_quad'],:] = np.array(coord_n)
                     run_data["defocus"][quad_slice] = cone_defocus
-                    run_data["p0"][quad_slice] = run_data['default_power'] * cone_power
+                    run_data["p0"][quad_slice] = run_data['default_power'] * cone_power  * beams_per_ifriit_beam
 
         if sys_params["run_gen_deck"]:
             run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
@@ -170,7 +180,7 @@ def import_lmj_config():
     run_data['num_quads'] = 20
     run_data['num_cones'] = 4
     run_data['beams_per_quad'] = 1
-    run_data['default_power'] = 4.0 #TW per beam
+    run_data['default_power'] = 1.0 #TW per beam
 
     filename = "LMJ_UpperBeams.txt"
     j = -1
