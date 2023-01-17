@@ -37,6 +37,7 @@ def define_dataset_params(num_examples,
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
     dataset_params["hemisphere_symmetric"] = True
+    dataset_params["imap_nside"] = 256
 
     num_sim_params = 0
     # pointings
@@ -50,10 +51,11 @@ def define_dataset_params(num_examples,
     num_sim_params += 1
     dataset_params["num_sim_params"] = num_sim_params
 
-    dataset_params["imap_nside"] = 256
-
-    dataset_params["run_type"] = "nif" #"test" #"nif"
-    facility_spec = idg.import_nif_config()
+    dataset_params["run_type"] = "lmj" #"test" #"nif"
+    if dataset_params["run_type"] == "nif":
+        facility_spec = idg.import_nif_config()
+    elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
+        facility_spec = idg.import_lmj_config()
 
     dataset_params["LMAX"] = 30
     dataset_params["num_coeff"] = int(((dataset_params["LMAX"] + 2) * (dataset_params["LMAX"] + 1))/2.0)
