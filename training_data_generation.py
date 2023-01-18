@@ -47,8 +47,8 @@ def define_dataset_params(num_examples,
     dataset_params["phi_index"] = num_sim_params
     num_sim_params += 1
     # defocus
-    dataset_params["defocus_default"] = 0.0
-    dataset_params["defocus_range"] = 20.0 # mm
+    dataset_params["defocus_default"] = 35.0
+    dataset_params["defocus_range"] = 35.0 # mm
     dataset_params["defocus_bool"] = False
     if dataset_params["defocus_bool"]:
         dataset_params["defocus_index"] = num_sim_params
@@ -59,7 +59,7 @@ def define_dataset_params(num_examples,
     num_sim_params += 1
     dataset_params["num_sim_params"] = num_sim_params
 
-    dataset_params["run_type"] = "lmj" #"test" #"nif"
+    dataset_params["run_type"] = "nif" #"test" #"nif"
     if dataset_params["run_type"] == "nif":
         facility_spec = idg.import_nif_config()
     elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):

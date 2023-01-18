@@ -121,7 +121,7 @@ def import_nif_config():
     run_data = dict()
 
     run_data['nbeams'] = 192
-    run_data['target_radius'] = 1100.0
+    run_data['target_radius'] = 2343.0
     run_data['facility'] = "NIF"
     run_data['num_quads'] = 48
     run_data['num_cones'] = 8
