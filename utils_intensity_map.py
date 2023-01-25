@@ -1,5 +1,6 @@
 import numpy as np
 import healpy as hp
+import os
 
 
 def angle2moll(theta, phi):
@@ -27,7 +28,7 @@ def angle2moll(theta, phi):
 
 
 
-def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0):
+def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0, file_location="."):
     n_beams = the_data['nbeams']
     total_TW = np.mean(intensity_map)*10**(-12) * 4.0 * np.pi
 
@@ -37,25 +38,35 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0):
     intensity_map_rms = 100.0 * np.sqrt(np.mean(intensity_map_normalised**2))
     intensity_map_rms_spatial = imap_pn * 100.0 * np.abs(intensity_map_normalised)
 
+    print_line = []
     print('')
-    print('RMS is ', intensity_map_rms, '%')
-    print('Number of beams ', n_beams)
-    print('The total power deposited is ', total_TW , 'TW')
-    print('The power per beam deposited is ', total_TW / n_beams, 'TW')
+    print_line.append('RMS is {:.4f}%, '.format(intensity_map_rms))
+    print_line.append('Number of beams ' + str(n_beams))
+    print_line.append('Mean intensity is {:.2e}W/cm^2, '.format(avg_power))
+    print_line.append('The total power deposited is {:.2f}TW, '.format(total_TW))
+    print_line.append('The power per beam deposited is {:.4f}TW, '.format(total_TW / n_beams))
     if mean_power_fraction > 0.0:
-        print('This is a drive efficiency of ', total_TW / (n_beams * the_data['default_power'] * mean_power_fraction) * 100.0, '%')
-        print('Mean power percentage ', mean_power_fraction * 100.0, '%')
+        print_line.append('This is a drive efficiency of {:.2f}%, '.format(total_TW / (n_beams * the_data['default_power'] * mean_power_fraction) * 100.0))
+        print_line.append('Mean power percentage {:.2f}%, '.format(mean_power_fraction * 100.0))
     print('')
+
+    file1 = open(file_location+"/stats.txt","a")
+    for line in range(len(print_line)):
+        print(print_line[line])
+        file1.writelines(print_line[line]+"\n")
+    file1.close()
 
     return intensity_map_rms_spatial
 
 
 
-def extract_run_parameters(dataset_params, facility_spec, sys_params):
+def extract_run_parameters(dataset_params, facility_spec, sys_params, file_location="."):
 
     beams_prev = 0
     beams_tot = 0
     total_power = 0
+    print_line = []
+
     for icone in range(facility_spec['num_cones']):
         ind_cone_start = icone * dataset_params["num_sim_params"]
 
@@ -77,12 +88,21 @@ def extract_run_parameters(dataset_params, facility_spec, sys_params):
         beams_prev += beams_per_cone
 
         if icone < int(facility_spec['num_cones']/2):
-            print("For cone " + str(icone+1) +
-                  ": {:.2f}\N{DEGREE SIGN}".format(np.degrees(cone_theta_offset)),
-                  "{:.2f}\N{DEGREE SIGN}".format(np.degrees(cone_phi_offset)),
-                  "{:.2f}mm".format(cone_defocus),
-                  "{:.2f}% power".format(cone_powers * 100))
+            print_line.append("For cone " + str(icone+1) +
+                  ": {:.2f}\N{DEGREE SIGN}, ".format(np.degrees(cone_theta_offset)) +
+                  "{:.2f}\N{DEGREE SIGN}, ".format(np.degrees(cone_phi_offset)) +
+                  "{:.2f}mm, ".format(cone_defocus) +
+                  "{:.2f}% power, ".format(cone_powers * 100))
     mean_power_fraction = total_power / facility_spec['nbeams']
+
+    if os.path.exists(file_location+"/stats.txt"):
+        os.remove(file_location+"/stats.txt")
+    file1 = open(file_location+"/stats.txt","a")
+    for line in range(len(print_line)):
+        print(print_line[line])
+        file1.writelines(print_line[line]+"\n")
+    file1.close()
+
     return mean_power_fraction
 
 

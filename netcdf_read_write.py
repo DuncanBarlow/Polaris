@@ -1,6 +1,5 @@
 from netCDF4 import Dataset
 import numpy as np
-from os import path
 import os
 import glob
 from healpy_pointings import rot_mat
@@ -57,7 +56,7 @@ def retrieve_xtrain_and_delete(iex, dataset_params, sys_params, target_radius_mi
 
 
 def save_nn_weights(parameters, filename_nn_weights):
-    if path.exists(filename_nn_weights + '.nc'):
+    if os.path.exists(filename_nn_weights + '.nc'):
         os.remove(filename_nn_weights + '.nc')
 
     rootgrp = Dataset(filename_nn_weights + '.nc', 'w')
@@ -148,7 +147,7 @@ def save_training_data(X_train, Y_train, avg_powers, filename_trainingdata):
     num_inputs = np.shape(X_train)[0]
     num_output = np.shape(Y_train)[0]
 
-    if path.exists(filename_trainingdata):
+    if os.path.exists(filename_trainingdata):
         os.remove(filename_trainingdata)
     rootgrp = Dataset(filename_trainingdata, "w", format="NETCDF4")
     rootgrp.createDimension('num_examples', num_examples)
