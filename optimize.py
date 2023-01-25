@@ -9,12 +9,16 @@ import shutil
 import copy
 
 
+
 def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
     pbounds = {}
     for ii in range(opt_params["num_inputs"]):
         pbounds["x"+str(ii)] = opt_params["pbounds"][ii,:]
 
-    target = -np.sqrt(np.sum(dataset["Y_all"]**2, axis=0)) # Critical to make negative (min not max)
+    # Critical to make negative (min not max)
+    target = uopt.bayesian_change_min2max(np.sqrt(np.sum(dataset["Y_all"]**2, axis=0)),
+                                          dataset["avg_powers_all"],
+                                          bo_params["initial_mean_power"])
 
     optimizer, utility = uopt.initialize_unknown_func(dataset["X_all"],
                                                       target, pbounds,
@@ -35,7 +39,7 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
             try:
                 optimizer2.register(params=next_point, target=bo_params["target_set_undetermined"])
             except:
-                print("Broken input!", next_point, target_set_undetermined)
+                print("Broken input!", next_point, bo_params["target_set_undetermined"])
 
         Y_new, avg_powers_new = tdg.run_ifriit_input(opt_params["num_parallel"],
                                                      X_new, opt_params["run_dir"],
@@ -53,7 +57,9 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
                       opt_params["run_dir"] + "/" + opt_params["iter_dir"]
                       + str(ieval+opt_params["num_init_examples"]))
 
-            target = -np.sqrt(np.sum(Y_new[:,npar]**2))
+            target = uopt.bayesian_change_min2max(np.sqrt(np.sum(Y_new[:,npar]**2)),
+                                                  avg_powers_new[npar],
+                                                  bo_params["initial_mean_power"])
             for ii in range(opt_params["num_inputs"]):
                 next_point["x"+str(ii)] = X_new[ii,npar]
             try:
@@ -69,12 +75,23 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
             nrw.save_training_data(dataset["X_all"], dataset["Y_all"],
                                    dataset["avg_powers_all"], filename_trainingdata)
             print(optimizer.max)
+
+            fit_func_all = uopt.bayesian_change_min2max(np.sqrt(np.sum(dataset["Y_all"]**2, axis=0)),
+                                                        dataset["avg_powers_all"],
+                                                        bo_params["initial_mean_power"])
+            mindex = np.argmax(fit_func_all)
+            print(mindex)
+            print(np.sum(fit_func_all[mindex]))
+            print(np.sum(dataset["Y_all"][:,mindex]))
+            print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
             mindex = np.argmin(np.mean(dataset["Y_all"], axis=0))
             print(mindex)
+            print(np.sum(fit_func_all[mindex]))
             print(np.sum(dataset["Y_all"][:,mindex]))
             print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
             mindex = np.argmin(np.sqrt(np.sum(dataset["Y_all"]**2, axis=0)))
             print(mindex)
+            print(np.sum(fit_func_all[mindex]))
             print(np.sum(dataset["Y_all"][:,mindex]))
             print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
     print(next_point)
@@ -376,11 +393,11 @@ def main(argv):
         bo_n_iter = int(argv[6])
         target_all = np.sqrt(np.sum(dataset["Y_all"]**2, axis=0))
         target_mean = np.mean(target_all)
-        target_set_undetermined = - target_mean / 2.0
+        target_set_undetermined = target_mean / 2.0 # half mean for all undetermined BO values
         opt_params = uopt.define_optimizer_parameters(output_dir, num_inputs,
                                                       num_modes, num_init_examples,
                                                       bo_n_iter, num_parallel, random_seed)
-        bo_params = uopt.define_bayesian_optimisation_params(target_set_undetermined)
+        bo_params = uopt.define_bayesian_optimisation_params(target_set_undetermined, np.mean(dataset["avg_powers_all"]))
         dataset = wrapper_bayesian_optimisation(dataset, bo_params, opt_params)
         num_init_examples = np.shape(dataset["X_all"])[1]
 

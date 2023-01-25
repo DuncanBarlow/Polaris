@@ -36,10 +36,19 @@ def define_optimizer_parameters(run_dir, num_inputs, num_modes,
 
 #################################### Bayesian Optimization ################################################
 
-def define_bayesian_optimisation_params(target_set_undetermined):
+def define_bayesian_optimisation_params(target_set_undetermined, initial_mean_power):
     bo_params = {}
-    bo_params["target_set_undetermined"] = target_set_undetermined
+    bo_params["target_set_undetermined"] = bayesian_change_min2max(target_set_undetermined,
+                                                                   initial_mean_power,
+                                                                   initial_mean_power)
+    bo_params["initial_mean_power"] = initial_mean_power
     return bo_params
+
+
+
+def bayesian_change_min2max(Y, avg_power, initial_mean_power):
+    maxi_func = np.exp(-Y/0.03) * avg_power/initial_mean_power
+    return maxi_func
 
 
 
