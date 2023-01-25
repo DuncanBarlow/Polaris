@@ -175,12 +175,12 @@ def import_lmj_config():
     run_data = dict()
 
     run_data['nbeams'] = 80 # no quad splitting so this is quads not beams
-    run_data['target_radius'] = 1100.0
+    run_data['target_radius'] = 1000.0
     run_data['facility'] = "LMJ"
     run_data['num_quads'] = 20
     run_data['num_cones'] = 4
     run_data['beams_per_quad'] = 1
-    run_data['default_power'] = 1.0 #TW per beam
+    run_data['default_power'] = 0.63 #TW per beam
 
     filename = "LMJ_UpperBeams.txt"
     j = -1

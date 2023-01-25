@@ -59,7 +59,7 @@ def define_dataset_params(num_examples,
     num_sim_params += 1
     dataset_params["num_sim_params"] = num_sim_params
 
-    dataset_params["run_type"] = "lmj" #"test" #"nif"
+    dataset_params["run_type"] = "nif" #"test" #"lmj"
     if dataset_params["run_type"] == "nif":
         facility_spec = idg.import_nif_config()
     elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
