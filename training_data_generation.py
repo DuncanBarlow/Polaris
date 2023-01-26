@@ -37,23 +37,33 @@ def define_dataset_params(num_examples,
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
     dataset_params["hemisphere_symmetric"] = True
+    dataset_params["imap_nside"] = 256
 
     num_sim_params = 0
     # pointings
     dataset_params["surface_cover_radians"] = np.radians(45.0)
-    num_sim_params += 2
-    # defocus
-    dataset_params["defocus_range"] = 20.0 # mm
+    dataset_params["theta_index"] = num_sim_params
     num_sim_params += 1
+    dataset_params["phi_index"] = num_sim_params
+    num_sim_params += 1
+    # defocus
+    dataset_params["defocus_default"] = 0.0
+    dataset_params["defocus_range"] = 20.0 # mm
+    dataset_params["defocus_bool"] = False
+    if dataset_params["defocus_bool"]:
+        dataset_params["defocus_index"] = num_sim_params
+        num_sim_params += 1
     #power
     dataset_params["min_power"] = 0.5 # fraction of full power
+    dataset_params["power_index"] = num_sim_params
     num_sim_params += 1
     dataset_params["num_sim_params"] = num_sim_params
 
-    dataset_params["imap_nside"] = 256
-
-    dataset_params["run_type"] = "nif" #"test" #"nif"
-    facility_spec = idg.import_nif_config()
+    dataset_params["run_type"] = "nif" #"test" #"lmj"
+    if dataset_params["run_type"] == "nif":
+        facility_spec = idg.import_nif_config()
+    elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
+        facility_spec = idg.import_lmj_config()
 
     dataset_params["LMAX"] = 30
     dataset_params["num_coeff"] = int(((dataset_params["LMAX"] + 2) * (dataset_params["LMAX"] + 1))/2.0)
