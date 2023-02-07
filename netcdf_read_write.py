@@ -6,7 +6,6 @@ from healpy_pointings import rot_mat
 import utils_intensity_map as uim
 
 
-
 def read_nn_weights(filename_nn_weights):
     parameters = {}
 
@@ -35,9 +34,82 @@ def read_general_netcdf(filename):
             parameters[key] = rootgrp[key][:,:]
         if np.shape(np.shape(rootgrp[key]))[0] == 1:
             parameters[key] = rootgrp[key][:]
+        #print(key, parameters[key])
+
+    keys = list(rootgrp.__dict__.keys())
+    for key in keys:
+        parameters[key] = getattr(rootgrp, key)
+
     rootgrp.close()
 
     return parameters
+
+
+
+def save_general_netcdf(parameters, filename):
+    if os.path.exists(filename + '.nc'):
+        os.remove(filename + '.nc')
+
+    rootgrp = Dataset(filename + '.nc', 'w')
+    for key, item in parameters.items():
+        dims = np.shape(item)
+        total_dims = np.shape(dims)[0]
+        #print(key, type(item))
+        if isinstance(item, tuple):
+            var_type = 'f4'
+        if isinstance(item, np.ndarray):
+            #print(item.dtype)
+            if item.dtype == "i":
+                var_type = 'i4'
+            if "float" in str(item.dtype):# == "float64":
+                var_type = 'f4'
+            if "<U" in str(item.dtype):
+                # this is designed to catch strings use np.array(my_array, dtype='<U*')
+                str_length = len(item[0])
+                item = np.array(item, dtype='S'+str(str_length))
+                var_type = 'S1'
+                dims = dims + (str_length,)
+                total_dims += 1
+        if isinstance(item, list):
+            var_type = 'S1'
+            try: # if string
+                str_length = len(item[0])
+            except:
+                str_length = 10 # this is definitely not robust
+            item = np.array(item, dtype='S'+str(str_length))
+            dims = dims + (str_length,)
+            total_dims += 1
+        if total_dims == 3:
+            rootgrp.createDimension(key+'_'+'item_dim1', dims[0])
+            rootgrp.createDimension(key+'_'+'item_dim2', dims[1])
+            rootgrp.createDimension(key+'_'+'item_dim3', dims[2])
+            variable = rootgrp.createVariable(key, var_type,
+                                            (key+'_'+'item_dim1',
+                                             key+'_'+'item_dim2',
+                                             key+'_'+'item_dim3'))
+            variable._Encoding = 'ascii' # this enables automatic conversion of strings
+            variable[:,:,:] = item
+        if total_dims == 2:
+            rootgrp.createDimension(key+'_'+'item_dim1', dims[0])
+            rootgrp.createDimension(key+'_'+'item_dim2', dims[1])
+            variable = rootgrp.createVariable(key, var_type,
+                                            (key+'_'+'item_dim1',
+                                             key+'_'+'item_dim2'))
+            variable._Encoding = 'ascii' # this enables automatic conversion
+            variable[:,:] = item
+        if total_dims == 1:
+            rootgrp.createDimension(key+'_'+'item_dim1', dims[0])
+            variable = rootgrp.createVariable(key, var_type,
+                                            (key+'_'+'item_dim1'))
+            variable._Encoding = 'ascii' # this enables automatic conversion
+            variable[:] = item
+        if total_dims == 0:
+            if item == True:
+                item = 1
+            if item == False:
+                item = 0
+            setattr(rootgrp, key, item)
+    rootgrp.close()
 
 
 
@@ -71,7 +143,7 @@ def save_nn_weights(parameters, filename_nn_weights):
                                             (key+'_'+'item_dim1',
                                              key+'_'+'item_dim2',
                                              key+'_'+'item_dim3'))
-            variable[:,:] = item
+            variable[:,:,:] = item
         if np.shape(dims)[0] == 2:
             parms.createDimension(key+'_'+'item_dim1', dims[0])
             parms.createDimension(key+'_'+'item_dim2', dims[1])

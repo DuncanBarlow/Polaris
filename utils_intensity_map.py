@@ -62,8 +62,6 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0, file_lo
 
 def extract_run_parameters(dataset_params, facility_spec, sys_params, file_location="."):
 
-    beams_prev = 0
-    beams_tot = 0
     total_power = 0
     print_line = []
 
@@ -83,9 +81,7 @@ def extract_run_parameters(dataset_params, facility_spec, sys_params, file_locat
             dataset_params["sim_params"][ind_cone_start+dataset_params["power_index"]])
 
         beams_per_cone = facility_spec['beams_per_cone'][icone]
-        beams_tot += beams_per_cone
         total_power += cone_powers * beams_per_cone
-        beams_prev += beams_per_cone
 
         if icone < int(facility_spec['num_cones']/2):
             print_line.append("For cone " + str(icone+1) +

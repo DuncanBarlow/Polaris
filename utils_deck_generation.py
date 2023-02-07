@@ -13,15 +13,7 @@ def create_run_files(dataset_params, sys_params, run_data):
     coord_o = np.zeros(3)
     coord_o[2] = run_data['target_radius']
 
-    # The order of these is important (top-to-equator, then bottom-to-equator)
-    if (run_data['facility'] == "NIF"):
-        run_data['quad_from_each_cone'] = ('Q15T', 'Q13T', 'Q14T', 'Q11T', 'Q15B', 'Q16B', 'Q14B', 'Q13B')
-        num_ifriit_beams = run_data['nbeams']
-        beams_per_ifriit_beam = 1
-    elif (run_data['facility'] == "LMJ"):
-        run_data['quad_from_each_cone'] = ('28U', '10U', '10L', '28L')
-        num_ifriit_beams = run_data['num_quads']
-        beams_per_ifriit_beam = 4
+    num_ifriit_beams = int(run_data['nbeams'] / run_data['beams_per_ifriit_beam'])
 
     run_data['pointings'] = np.zeros((num_ifriit_beams, 3))
     run_data["Port_centre_theta"] = np.zeros(num_ifriit_beams)
@@ -31,8 +23,6 @@ def create_run_files(dataset_params, sys_params, run_data):
     run_data["defocus"] = np.zeros(num_ifriit_beams)
     run_data["p0"] = np.zeros(num_ifriit_beams)
     run_data["fuse"] = [False] * num_ifriit_beams
-
-    run_data['beams_per_cone'] = [0] * run_data['num_cones']
 
     sim_params = np.zeros((num_output*2, num_examples))
 
@@ -70,21 +60,19 @@ def create_run_files(dataset_params, sys_params, run_data):
             sim_params[icone*dataset_params["num_sim_params"]+dataset_params["power_index"],iex] = cone_power
 
             quad_name = run_data['quad_from_each_cone'][icone]
-            quad_start_ind = run_data["Quad"].index(quad_name)
-            quad_slice = slice(quad_start_ind, quad_start_ind+run_data['beams_per_quad'])
+            quad_slice = np.where(run_data["Quad"] == quad_name)[0]
+            quad_start_ind = quad_slice[0]
 
-            ind_base = run_data["Quad"].index(quad_name)
-            cone_name = run_data['Cone'][ind_base]
-            run_data['beams_per_cone'][icone] = int(run_data["Cone"].count(cone_name)/2) * beams_per_ifriit_beam
-
+            cone_name = run_data['Cone'][quad_start_ind]
             cone_slice = (np.where(np.array(run_data['Cone']) == cone_name)[0])
             quad_list_in_cone = np.array(run_data["Quad"])[cone_slice]
 
             for quad_name in quad_list_in_cone:
-                ind = run_data["Quad"].index(quad_name)
-                # remove beams in symmetric cone
-                if np.abs(run_data["Theta"][ind] - run_data["Theta"][ind_base]) < np.radians(5.0):
-                    quad_slice = slice(ind,ind+run_data['beams_per_quad'])
+                quad_slice = np.where(run_data["Quad"] == quad_name)[0]
+                ind = quad_slice[0]
+                # remove beams in symmetric cone, 5.0 degrees is used as a small number to contain
+                # only the beams in a single cone (not any quads from the symmtric cone)
+                if np.abs(run_data["Theta"][ind] - run_data["Theta"][quad_start_ind]) < np.radians(5.0):
                     beam_names = run_data['Beam'][quad_slice]
 
                     run_data["Port_centre_theta"][quad_slice] = np.mean(run_data["Theta"][quad_slice])
@@ -104,7 +92,7 @@ def create_run_files(dataset_params, sys_params, run_data):
 
                     run_data['pointings'][ind:ind+run_data['beams_per_quad'],:] = np.array(coord_n)
                     run_data["defocus"][quad_slice] = cone_defocus
-                    run_data["p0"][quad_slice] = run_data['default_power'] * cone_power  * beams_per_ifriit_beam
+                    run_data["p0"][quad_slice] = run_data['default_power'] * cone_power  * run_data['beams_per_ifriit_beam']
 
         if sys_params["run_gen_deck"]:
             run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
@@ -127,45 +115,15 @@ def import_nif_config():
     run_data['num_cones'] = 8
     run_data['beams_per_quad'] = int(run_data['nbeams'] / run_data['num_quads'])
     run_data['default_power'] = 1.0 #TW per beam
-    filename = "NIF_UpperBeams.txt"
 
-    j = -1
-    f=open(filename, "r")
-    reader = csv.reader(f, delimiter='\t')
-    for row in reader:
-        if j==-1:
-            key = row
-            for i in range(len(row)):
-                run_data[row[i]] = [None] * int(run_data['nbeams'])
-        else:
-            for i in range(len(row)):
-                if i < 2:
-                    run_data[key[i]][j] = row[i]
-                elif i < 5:
-                    run_data[key[i]][j] = float(row[i])
-                else:
-                    run_data[key[i]][j] = int(row[i])
-        j=j+1
-    f.close()
-    filename = "NIF_LowerBeams.txt"
-    f=open(filename, "r")
-    reader = csv.reader(f, delimiter='\t')
-    for row in reader:
-        if j==int(run_data['nbeams']/2.0):
-            key = row
-        else:
-            for i in range(len(row)):
-                if i < 2:
-                    run_data[key[i]][j-1] = row[i]
-                elif i < 5:
-                    run_data[key[i]][j-1] = float(row[i])
-                else:
-                    run_data[key[i]][j-1] = int(row[i])
-        j=j+1
-    f.close()
+    # The order of these is important (top-to-equator, then bottom-to-equator)
+    run_data['quad_from_each_cone'] = np.array(('Q15T', 'Q13T', 'Q14T', 'Q11T', 'Q15B', 'Q16B', 'Q14B', 'Q13B'), dtype='<U4')
+    run_data["beams_per_ifriit_beam"] = 1 # fuse quads?
 
-    run_data["Theta"] = np.radians(run_data["Theta"])
-    run_data["Phi"] = np.radians(run_data["Phi"])
+    filename1 = "NIF_UpperBeams.txt"
+    filename2 = "NIF_LowerBeams.txt"
+    run_data = config_read_csv(run_data, filename1, filename2)
+    run_data = config_formatting(run_data)
 
     return run_data
 
@@ -174,7 +132,7 @@ def import_nif_config():
 def import_lmj_config():
     run_data = dict()
 
-    run_data['nbeams'] = 80 # no quad splitting so this is quads not beams
+    run_data['nbeams'] = 80
     run_data['target_radius'] = 1000.0
     run_data['facility'] = "LMJ"
     run_data['num_quads'] = 20
@@ -182,15 +140,29 @@ def import_lmj_config():
     run_data['beams_per_quad'] = 1
     run_data['default_power'] = 0.63 #TW per beam
 
-    filename = "LMJ_UpperBeams.txt"
+    # The order of these is important (top-to-equator, then bottom-to-equator)
+    run_data['quad_from_each_cone'] = np.array(('28U', '10U', '10L', '28L'), dtype='<U4')
+    run_data["beams_per_ifriit_beam"] = 4 # fuse quads?
+
+    filename1 = "LMJ_UpperBeams.txt"
+    filename2 = "LMJ_LowerBeams.txt"
+    run_data = config_read_csv(run_data, filename1, filename2)
+    run_data = config_formatting(run_data)
+
+    return run_data
+
+
+
+def config_read_csv(run_data, filename1, filename2):
+    num_ifriit_beams = int(run_data['nbeams'] / run_data['beams_per_ifriit_beam'])
     j = -1
-    f=open(filename, "r")
+    f=open(filename1, "r")
     reader = csv.reader(f, delimiter='\t')
     for row in reader:
         if j==-1:
             key = row
             for i in range(len(row)):
-                run_data[row[i]] = [None] * int(run_data['num_quads'])
+                run_data[row[i]] = [None] * int(num_ifriit_beams)
         else:
             for i in range(len(row)):
                 if i < 2:
@@ -201,11 +173,10 @@ def import_lmj_config():
                     run_data[key[i]][j] = int(row[i])
         j=j+1
     f.close()
-    filename = "LMJ_LowerBeams.txt"
-    f=open(filename, "r")
+    f=open(filename2, "r")
     reader = csv.reader(f, delimiter='\t')
     for row in reader:
-        if j==int(run_data['num_quads']/2.0):
+        if j==int(num_ifriit_beams/2.0):
             key = row
         else:
             for i in range(len(row)):
@@ -217,9 +188,26 @@ def import_lmj_config():
                     run_data[key[i]][j-1] = int(row[i])
         j=j+1
     f.close()
+    return run_data
 
+
+def config_formatting(run_data):
+    run_data["PR"] = np.array(run_data["PR"], dtype='i')
+    run_data["Beam"] = np.array(run_data["Beam"], dtype='<U4')
+    run_data["Quad"] = np.array(run_data["Quad"], dtype='<U4')
+    run_data["Cone"] = np.array(run_data["Cone"])
     run_data["Theta"] = np.radians(run_data["Theta"])
     run_data["Phi"] = np.radians(run_data["Phi"])
+
+    run_data['beams_per_cone'] = [0] * run_data['num_cones']
+    for icone in range(run_data['num_cones']):
+        quad_name = run_data['quad_from_each_cone'][icone]
+        quad_slice = np.where(run_data["Quad"] == quad_name)[0]
+        quad_start_ind = quad_slice[0]
+
+        cone_name = run_data['Cone'][quad_start_ind]
+        run_data['beams_per_cone'][icone] = int(np.count_nonzero(run_data["Cone"] == cone_name) / 2 * run_data["beams_per_ifriit_beam"])
+    run_data['beams_per_cone'] = np.array(run_data['beams_per_cone'], dtype='int8')
 
     return run_data
 
@@ -261,7 +249,7 @@ def generate_input_pointing_and_pulses(dat, run_location, run_type):
         j = 0
         with open(run_location+'/ifriit_inputs.txt','a') as f:
             for beam in dat['Beam']:
-                cone_name = dat["Cone"][dat["Beam"].index(beam)]
+                cone_name = dat["Cone"][np.where(dat["Beam"] == beam)[0][0]]
                 if (cone_name == 23.5):
                     cpp="inner-23"
                 elif (cone_name == 30):

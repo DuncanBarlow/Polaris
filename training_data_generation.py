@@ -85,7 +85,10 @@ def define_dataset_params(num_examples,
 
 
 def generate_training_data(dataset_params, sys_params, facility_spec):
+    nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/dataset_params")
+    nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/facility_spec")
     dataset_params = idg.create_run_files(dataset_params, sys_params, facility_spec)
+
     Y_train = dataset_params["Y_train"]
 
     min_parallel = 0
@@ -136,15 +139,16 @@ def run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, targe
 
 
 def run_ifriit_input(num_examples, X_all, run_dir, LMAX, num_parallel, hemisphere_symmetric, run_clean):
-    dataset_params, facility_spec = define_dataset_params(num_examples)
-    dataset_params["hemisphere_symmetric"] = hemisphere_symmetric
-    dataset_params["Y_train"] = X_all
-
     sys_params = define_system_params(run_dir)
     sys_params["num_processes"] = num_parallel
     sys_params["run_clean"] = run_clean # Create new run files
 
-    dataset_params = idg.create_run_files(dataset_params, sys_params, facility_spec)
+    dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/dataset_params")
+    facility_spec = nrw.read_general_netcdf(sys_params["root_dir"] + "/facility_spec")
+    dataset_params["num_examples"] = num_examples
+    dataset_params["hemisphere_symmetric"] = hemisphere_symmetric
+    dataset_params["Y_train"] = X_all
+
     generate_training_data(dataset_params, sys_params, facility_spec)
 
     X_all, Y_all, avg_powers_all = nrw.import_training_data_reversed(sys_params, LMAX)

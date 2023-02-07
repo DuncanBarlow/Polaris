@@ -9,7 +9,6 @@ import shutil
 import copy
 
 
-
 def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
     pbounds = {}
     for ii in range(opt_params["num_inputs"]):
@@ -343,13 +342,15 @@ def main(argv):
 
     sys_params = tdg.define_system_params(input_dir)
     sys_params["run_clean"] = run_clean
-    dataset_params, facility_spec = tdg.define_dataset_params(num_examples, random_sampling=random_sampling, random_seed=random_seed)
-    dataset_params["hemisphere_symmetric"] = hemisphere_symmetric
-    dataset_params["run_clean"] = run_clean
 
     if data_init_type == 1: # Generate new initialization dataset
         print("Generating data!")
         sys_params["root_dir"] = output_dir
+
+        dataset_params, facility_spec = tdg.define_dataset_params(num_examples, random_sampling=random_sampling, random_seed=random_seed)
+        dataset_params["hemisphere_symmetric"] = hemisphere_symmetric
+        dataset_params["run_clean"] = run_clean
+
         tdg.generate_training_data(dataset_params, sys_params, facility_spec)
         # choose test data set
         X_all, Y_all, avg_powers_all = nrw.import_training_data_reversed(sys_params, num_modes)
@@ -384,6 +385,9 @@ def main(argv):
         dataset = wrapper_genetic_algorithm(dataset, ga_params, opt_params)
     elif data_init_type == 0:
         print("Importing pre-generated data!")
+        # copy across dataset_params and facility_spec
+        shutil.copyfile(input_dir + "/dataset_params.nc", output_dir + "/dataset_params.nc")
+        shutil.copyfile(input_dir + "/facility_spec.nc", output_dir + "/facility_spec.nc")
     else:
         print("")
         sys.exit("Dataset not properly specified")
