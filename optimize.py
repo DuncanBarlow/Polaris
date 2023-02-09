@@ -132,6 +132,7 @@ def wrapper_gradient_descent(dataset, gd_params, opt_params):
 
         grad = uopt.determine_gradient(X_stencil, target_stencil, learning_rate,
                                   opt_params["pbounds"], opt_params["num_inputs"])
+        grad = grad / np.sum(np.abs(grad))
         X_new = uopt.grad_descent(X_old, grad, step_size, opt_params["pbounds"],
                              opt_params["num_inputs"],
                              gd_params["num_steps_per_iter"])
