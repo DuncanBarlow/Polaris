@@ -14,10 +14,7 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
     for ii in range(opt_params["num_inputs"]):
         pbounds["x"+str(ii)] = opt_params["pbounds"][ii,:]
 
-    # Critical to make negative (min not max)
-    target = uopt.bayesian_change_min2max(np.sqrt(np.sum(dataset["Y_all"]**2, axis=0)),
-                                          dataset["avg_powers_all"],
-                                          bo_params["initial_mean_power"])
+    target = uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"], opt_params)
 
     optimizer, utility = uopt.initialize_unknown_func(dataset["X_all"],
                                                       target, pbounds,
@@ -56,9 +53,7 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
                       opt_params["run_dir"] + "/" + opt_params["iter_dir"]
                       + str(ieval+opt_params["num_init_examples"]))
 
-            target = uopt.bayesian_change_min2max(np.sqrt(np.sum(Y_new[:,npar]**2)),
-                                                  avg_powers_new[npar],
-                                                  bo_params["initial_mean_power"])
+            target = uopt.fitness_function(Y_new[:,npar], avg_powers_new[npar], opt_params)
             for ii in range(opt_params["num_inputs"]):
                 next_point["x"+str(ii)] = X_new[ii,npar]
             try:
@@ -75,20 +70,9 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
                                    dataset["avg_powers_all"], filename_trainingdata)
             print(optimizer.max)
 
-            fit_func_all = uopt.bayesian_change_min2max(np.sqrt(np.sum(dataset["Y_all"]**2, axis=0)),
-                                                        dataset["avg_powers_all"],
-                                                        bo_params["initial_mean_power"])
+            fit_func_all = uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"],
+                                                 opt_params)
             mindex = np.argmax(fit_func_all)
-            print(mindex)
-            print(np.sum(fit_func_all[mindex]))
-            print(np.sum(dataset["Y_all"][:,mindex]))
-            print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
-            mindex = np.argmin(np.mean(dataset["Y_all"], axis=0))
-            print(mindex)
-            print(np.sum(fit_func_all[mindex]))
-            print(np.sum(dataset["Y_all"][:,mindex]))
-            print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
-            mindex = np.argmin(np.sqrt(np.sum(dataset["Y_all"]**2, axis=0)))
             print(mindex)
             print(np.sum(fit_func_all[mindex]))
             print(np.sum(dataset["Y_all"][:,mindex]))
@@ -107,8 +91,11 @@ def wrapper_gradient_descent(dataset, gd_params, opt_params):
     Y_old = np.zeros((opt_params["num_modes"], 1))
     avg_powers_old = np.array([0.0])
 
-    mindex = np.argmin(np.sqrt(np.sum(dataset["Y_all"]**2, axis=0)))
+    fitness_pop = -uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"],
+                                         opt_params)
+    mindex = np.argmin(fitness_pop)
     X_old[:,0] = dataset["X_all"][:, mindex]
+    print(np.argmin(fitness_pop), fitness_pop[mindex])
 
     tic = time.perf_counter()
     for ieval in range(opt_params["n_iter"]):
@@ -134,7 +121,7 @@ def wrapper_gradient_descent(dataset, gd_params, opt_params):
                                                              opt_params["num_parallel"],
                                                              opt_params["hemisphere_symmetric"],
                                                              opt_params["run_clean"])
-        target_stencil = np.sqrt(np.sum(Y_stencil**2, axis=0))
+        target_stencil = -uopt.fitness_function(Y_stencil, avg_powers_stencil, opt_params)
         mindex_stencil = np.argmin(target_stencil)
         print("The minimum in the stencil", np.min(target_stencil), mindex_stencil)
         print("The previous value was: ", target_stencil[0], 0)
@@ -155,7 +142,7 @@ def wrapper_gradient_descent(dataset, gd_params, opt_params):
                                                      opt_params["num_parallel"],
                                                      opt_params["hemisphere_symmetric"],
                                                      opt_params["run_clean"])
-        target_downhill = np.sqrt(np.sum(Y_new**2, axis=0))
+        target_downhill = -uopt.fitness_function(Y_new, avg_powers_new, opt_params)
         mindex_downhill = np.argmin(target_downhill)
         print("The minimum downhill", np.min(target_downhill), mindex_downhill)
 
@@ -180,10 +167,12 @@ def wrapper_gradient_descent(dataset, gd_params, opt_params):
         print("Iteration {} with learn rate {} value:{}".format(ieval, learning_rate, np.sqrt(np.sum(Y_old**2))))
         print(X_old[:,0])
 
-        if (np.sqrt(np.sum(dataset["Y_all"][:,-1]**2)) 
-            > np.sqrt(np.sum(dataset["Y_all"][:,-2]**2))):
+        fit_func_all = -uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"],
+                                              opt_params)
+
+        if fit_func_all[-1] > fit_func_all[-2]:
             print("Bug! Ascending slope!")
-            print(np.sqrt(np.sum(dataset["Y_all"][:,-1]**2)), np.sqrt(np.sum(dataset["Y_all"][:,-2]**2)))
+            print(fit_func_all[-1], fit_func_all[-2])
             break
 
         if (ieval+1)%1 <= 0.0:
@@ -193,12 +182,9 @@ def wrapper_gradient_descent(dataset, gd_params, opt_params):
             filename_trainingdata = opt_params["run_dir"] + '/' + opt_params["trainingdata_filename"]
             nrw.save_training_data(dataset["X_all"], dataset["Y_all"],
                                    dataset["avg_powers_all"], filename_trainingdata)
-            mindex = np.argmin(np.mean(dataset["Y_all"], axis=0))
+            mindex = np.argmin(fit_func_all)
             print(mindex)
-            print(np.sum(dataset["Y_all"][:,mindex]))
-            print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
-            mindex = np.argmin(np.sqrt(np.sum(dataset["Y_all"]**2, axis=0)))
-            print(mindex)
+            print(np.sum(fit_func_all[mindex]))
             print(np.sum(dataset["Y_all"][:,mindex]))
             print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
     for isten in range(stencil_size):
@@ -232,7 +218,7 @@ def wrapper_genetic_algorithm(dataset, ga_params, opt_params):
             os.rename(opt_params["run_dir"] + "/run_" + str(irun), opt_params["run_dir"]
                       + "/" + opt_params["iter_dir"] + str(irun+ga_params["initial_pop_size"] *generation))
 
-        fitness_pop = -np.sqrt(np.sum(Y_pop**2, axis=0))
+        fitness_pop = uopt.fitness_function(Y_pop, avg_powers_pop, opt_params)
         mindex_pop = np.argmax(fitness_pop)
 
         if (generation+1)%1 <= 0.0:
@@ -242,12 +228,12 @@ def wrapper_genetic_algorithm(dataset, ga_params, opt_params):
             filename_trainingdata = opt_params["run_dir"] + '/' + opt_params["trainingdata_filename"]
             nrw.save_training_data(dataset["X_all"], dataset["Y_all"],
                                    dataset["avg_powers_all"], filename_trainingdata)
-            mindex = np.argmin(np.mean(dataset["Y_all"], axis=0))
+
+            fit_func_all = uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"],
+                                                 opt_params)
+            mindex = np.argmax(fit_func_all)
             print(mindex)
-            print(np.sum(dataset["Y_all"][:,mindex]))
-            print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
-            mindex = np.argmin(np.sqrt(np.sum(dataset["Y_all"]**2, axis=0)))
-            print(mindex)
+            print(np.sum(fit_func_all[mindex]))
             print(np.sum(dataset["Y_all"][:,mindex]))
             print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
 
@@ -291,7 +277,7 @@ def wrapper_genetic_algorithm(dataset, ga_params, opt_params):
                   + str(irun+ga_params["initial_pop_size"] *(generation+1)))
 
     # Then return the index of that solution corresponding to the best fitness.
-    fitness_pop = -np.sqrt(np.sum(Y_pop**2, axis=0))
+    fitness_pop = uopt.fitness_function(Y_pop, avg_powers_pop, opt_params)
     mindex_pop = np.argmax(fitness_pop)
 
     print("Best solution : ", X_pop[:, mindex_pop])
@@ -303,12 +289,11 @@ def wrapper_genetic_algorithm(dataset, ga_params, opt_params):
     filename_trainingdata = opt_params["run_dir"] + '/' + opt_params["trainingdata_filename"]
     nrw.save_training_data(dataset["X_all"], dataset["Y_all"],
                            dataset["avg_powers_all"], filename_trainingdata)
-    mindex = np.argmin(np.mean(dataset["Y_all"], axis=0))
+    fit_func_all = uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"],
+                                         opt_params)
+    mindex = np.argmax(fit_func_all)
     print(mindex)
-    print(np.sum(dataset["Y_all"][:,mindex]))
-    print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
-    mindex = np.argmin(np.sqrt(np.sum(dataset["Y_all"]**2, axis=0)))
-    print(mindex)
+    print(np.sum(fit_func_all[mindex]))
     print(np.sum(dataset["Y_all"][:,mindex]))
     print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
     
@@ -364,7 +349,10 @@ def main(argv):
         print("Using a genetic algorithm!")
         ga_n_iter = int(argv[4])
         init_points = num_examples
+        dataset_params, facility_spec = tdg.define_dataset_params(num_examples, random_sampling=random_sampling, random_seed=random_seed)
         num_inputs = dataset_params["num_output"]
+        nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/dataset_params")
+        nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/facility_spec")
 
         num_parents_mating = int(init_points / 10.0)
         if (num_parents_mating % 2) != 0:
@@ -378,7 +366,8 @@ def main(argv):
 
         opt_params = uopt.define_optimizer_parameters(output_dir, num_inputs,
                                                       num_modes, num_init_examples,
-                                                      ga_n_iter, num_parallel, random_seed)
+                                                      ga_n_iter, num_parallel,
+                                                      random_seed, facility_spec)
         opt_params["run_clean"] = run_clean
         dataset = uopt.define_optimizer_dataset(X_all, Y_all, avg_powers_all)
         ga_params = uopt.define_genetic_algorithm_params(init_points, num_parents_mating)
@@ -394,6 +383,8 @@ def main(argv):
 
     print("Importing data!")
     sys_params["trainingdata_filename"] = trainingdata_filename
+    dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/dataset_params")
+    facility_spec = nrw.read_general_netcdf(sys_params["root_dir"] + "/facility_spec")
     X_all, Y_all, avg_powers_all = nrw.import_training_data(sys_params)
     num_init_examples = np.shape(X_all)[1]
     num_inputs = np.shape(X_all)[0]
@@ -402,15 +393,17 @@ def main(argv):
     use_bayesian_optimization = bool(int(argv[5]))
     if use_bayesian_optimization: # Bayesian optimization
         bo_n_iter = int(argv[6])
-        target_all = np.sqrt(np.sum(dataset["Y_all"]**2, axis=0))
-        target_mean = np.mean(target_all)
-        target_set_undetermined = target_mean / 2.0 # half mean for all undetermined BO values
         opt_params = uopt.define_optimizer_parameters(output_dir, num_inputs,
                                                       num_modes, num_init_examples,
-                                                      bo_n_iter, num_parallel, random_seed)
+                                                      bo_n_iter, num_parallel,
+                                                      random_seed, facility_spec)
         opt_params["run_clean"] = run_clean
 
-        bo_params = uopt.define_bayesian_optimisation_params(target_set_undetermined, np.mean(dataset["avg_powers_all"]))
+        target = uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"],
+                                       opt_params)
+        target_mean = np.mean(target)
+        target_set_undetermined = target_mean / 2.0 # half mean for all undetermined BO values
+        bo_params = uopt.define_bayesian_optimisation_params(target_set_undetermined)
         dataset = wrapper_bayesian_optimisation(dataset, bo_params, opt_params)
         num_init_examples = np.shape(dataset["X_all"])[1]
 
@@ -419,8 +412,9 @@ def main(argv):
         print("Using gradient descent!")
         gd_n_iter = int(argv[8])
         opt_params = uopt.define_optimizer_parameters(output_dir, num_inputs,
-                                                            num_modes, num_init_examples,
-                                                            gd_n_iter, num_parallel, random_seed)
+                                                      num_modes, num_init_examples,
+                                                      gd_n_iter, num_parallel,
+                                                      random_seed, facility_spec)
         opt_params["run_clean"] = run_clean
 
         gd_params = uopt.define_gradient_descent_params(num_parallel)

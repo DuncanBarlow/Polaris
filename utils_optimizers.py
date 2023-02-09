@@ -15,7 +15,8 @@ def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
 
 
 def define_optimizer_parameters(run_dir, num_inputs, num_modes,
-                                num_init_examples, n_iter, num_parallel, random_seed):
+                                num_init_examples, n_iter, num_parallel,
+                                random_seed, facility_spec):
     optimizer_params = {}
     optimizer_params["run_dir"] = run_dir
     optimizer_params["num_inputs"] = num_inputs
@@ -28,28 +29,34 @@ def define_optimizer_parameters(run_dir, num_inputs, num_modes,
     optimizer_params["hemisphere_symmetric"] = True
     optimizer_params["run_clean"] = True
     optimizer_params["random_generator"] = np.random.default_rng(random_seed)
+    optimizer_params["fitness_max_power_per_steradian"] = facility_spec['nbeams'] * facility_spec['default_power'] * 1.0e12 / (4.0 * np.pi)
+    optimizer_params["fitness_desired_rms"] = 0.03
+    optimizer_params["fitness_norm_factor"] = 10.0
 
     pbounds = np.zeros((optimizer_params["num_inputs"], 2))
     pbounds[:,1] = 1.0
     optimizer_params["pbounds"] = pbounds
     return optimizer_params
 
-#################################### Bayesian Optimization ################################################
-
-def define_bayesian_optimisation_params(target_set_undetermined, initial_mean_power):
-    bo_params = {}
-    bo_params["target_set_undetermined"] = bayesian_change_min2max(target_set_undetermined,
-                                                                   initial_mean_power,
-                                                                   initial_mean_power)
-    bo_params["initial_mean_power"] = initial_mean_power
-    return bo_params
 
 
+def fitness_function(Y, avg_power, optimizer_params):
+    target_rms = optimizer_params["fitness_desired_rms"]
+    target_flux = optimizer_params["fitness_max_power_per_steradian"]
+    norm_factor = optimizer_params["fitness_norm_factor"]
 
-def bayesian_change_min2max(Y, avg_power, initial_mean_power):
-    maxi_func = np.exp(-Y/0.03) * avg_power/initial_mean_power
+    rms = np.sqrt(np.sum(Y**2, axis=0))
+
+    maxi_func = np.exp(-rms/target_rms) * (avg_power/target_flux)**2 * norm_factor
     return maxi_func
 
+#################################### Bayesian Optimization ################################################
+
+def define_bayesian_optimisation_params(target_set_undetermined):
+    bo_params = {}
+    bo_params["target_set_undetermined"] = target_set_undetermined
+
+    return bo_params
 
 
 def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs):
