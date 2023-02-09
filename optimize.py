@@ -95,7 +95,6 @@ def wrapper_gradient_descent(dataset, gd_params, opt_params):
                                          opt_params)
     mindex = np.argmin(fitness_pop)
     X_old[:,0] = dataset["X_all"][:, mindex]
-    print(np.argmin(fitness_pop), fitness_pop[mindex])
 
     tic = time.perf_counter()
     for ieval in range(opt_params["n_iter"]):
@@ -202,6 +201,7 @@ def wrapper_genetic_algorithm(dataset, ga_params, opt_params):
     X_pop = opt_params["random_generator"].random((opt_params["num_inputs"], ga_params["initial_pop_size"]))
 
     best_outputs = []
+    generation = -1
     tic = time.perf_counter()
     for generation in range(opt_params["n_iter"]-1):
         print("Generation : ", generation)
