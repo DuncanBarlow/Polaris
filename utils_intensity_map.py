@@ -31,6 +31,7 @@ def angle2moll(theta, phi):
 def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0, file_location="."):
     n_beams = the_data['nbeams']
     total_TW = np.mean(intensity_map)*10**(-12) * 4.0 * np.pi
+    mean_intensity = np.mean(intensity_map) / (the_data['target_radius'] / 10000.0)**2
 
     #rms
     intensity_map_normalised, avg_power = imap_norm(intensity_map)
@@ -42,7 +43,7 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0, file_lo
     print('')
     print_line.append('RMS is {:.4f}%, '.format(intensity_map_rms))
     print_line.append('Number of beams ' + str(n_beams))
-    print_line.append('Mean intensity is {:.2e}W/cm^2, '.format(avg_power))
+    print_line.append('Mean intensity is {:.2e}W/cm^2, '.format(mean_intensity))
     print_line.append('The total power deposited is {:.2f}TW, '.format(total_TW))
     print_line.append('The power per beam deposited is {:.4f}TW, '.format(total_TW / n_beams))
     if mean_power_fraction > 0.0:
@@ -177,7 +178,7 @@ def xtrain2imap(X_train, LMAX, imap_nside, avg_power):
 
 def imap_norm(intensity_map):
 
-    avg_power = np.mean(intensity_map)
+    avg_power = np.mean(intensity_map) # average power per steradian
     intensity_map_normalized = intensity_map / avg_power - 1.0
 
     return intensity_map_normalized, avg_power
