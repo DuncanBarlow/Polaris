@@ -226,10 +226,7 @@ def generate_input_deck(the_data, run_location):
     if not isExist:
         os.makedirs(run_location)
 
-    if (the_data['facility'] == "NIF"):
-        num_ifriit_beams = the_data['nbeams']
-    if (the_data['facility'] == "LMJ"):
-        num_ifriit_beams = the_data['num_quads']
+    num_ifriit_beams = int(run_data['nbeams'] / run_data['beams_per_ifriit_beam'])
 
     longStr = ("ifriit_inputs_base.txt")
     with open(longStr) as old_file:
