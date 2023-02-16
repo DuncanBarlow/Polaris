@@ -178,10 +178,10 @@ def create_ytrain(pointing_per_cone, pointing_nside, defocus_per_cone, num_defoc
 
 def create_xtrain(intensity_map, LMAX):
 
-    intensity_map_normalized, avg_power = imap_norm(intensity_map)
-    X_train = imap2xtrain(intensity_map_normalized, LMAX, avg_power)
+    intensity_map_normalized, avg_flux = imap_norm(intensity_map)
+    complex_modes = imap2xtrain(intensity_map_normalized, LMAX, avg_flux)
 
-    return X_train, avg_power
+    return complex_modes, avg_flux
 
 
 
@@ -189,7 +189,7 @@ def imap2xtrain(intensity_map_normalized, LMAX, avg_power):
 
     X_train_complex = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
     X_train = np.hstack((X_train_complex.real, X_train_complex.imag))
-    X_train = X_train * avg_power
+    #X_train = X_train * avg_power # weighting to allow NN to adjust for mean flux
 
     return X_train
 
@@ -199,7 +199,8 @@ def xtrain2imap(X_train, LMAX, imap_nside, avg_power):
 
     num_coeff = int(((LMAX + 2) * (LMAX + 1))/2.0)
     np_complex = np.vectorize(complex)
-    X_train = np.squeeze(X_train / avg_power)
+    # weighting to allow NN to adjust for mean flux
+    #X_train = np.squeeze(X_train / avg_power)
     X_train_complex = np_complex(X_train[:num_coeff], X_train[num_coeff:])
     intensity_map_normalized = hp.alm2map(X_train_complex, imap_nside)
 
@@ -209,10 +210,10 @@ def xtrain2imap(X_train, LMAX, imap_nside, avg_power):
 
 def imap_norm(intensity_map):
 
-    avg_power = np.mean(intensity_map) # average power per steradian
-    intensity_map_normalized = intensity_map / avg_power - 1.0
+    avg_flux = np.mean(intensity_map) # average power per steradian (i.e. a flux)
+    intensity_map_normalized = intensity_map / avg_flux - 1.0
 
-    return intensity_map_normalized, avg_power
+    return intensity_map_normalized, avg_flux
 
 
 
@@ -223,7 +224,8 @@ def change_number_modes(Y_train, avg_powers_all, LMAX):
     num_coeff = int(((LMAX + 2) * (LMAX + 1))/2.0)
     np_complex = np.vectorize(complex)
     for ie in range(num_examples):
-        Y_train_real = np.squeeze(Y_train[:,ie] / avg_powers_all[ie])
+        # weighting to allow NN to adjust for mean flux
+        #Y_train_real = np.squeeze(Y_train[:,ie] / avg_powers_all[ie])
         Y_train_complex = np_complex(Y_train_real[:num_coeff], Y_train_real[num_coeff:])
 
         power_spectrum = alms2power_spectrum(Y_train_complex, LMAX)
