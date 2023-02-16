@@ -31,6 +31,8 @@ def define_system_params(root_dir):
     sys_params["ifriit_input_name"] = "ifriit_inputs_base.txt"
     sys_params["plasma_profile_nc"] = "ifriit_1davg_input.nc"
     sys_params["heat_source_nc"] = "heat_source_all_beams.nc"
+    sys_params["dataset_params_filename"] = "dataset_params.nc"
+    sys_params["facility_spec_filename"] = "facility_spec.nc"
 
     return sys_params
 
@@ -92,8 +94,8 @@ def define_dataset_params(num_examples,
 
 
 def generate_training_data(dataset_params, sys_params, facility_spec):
-    nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/dataset_params")
-    nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/facility_spec")
+    nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
+    nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
     dataset_params = idg.create_run_files(dataset_params, sys_params, facility_spec)
 
     Y_train = dataset_params["Y_train"]
@@ -155,8 +157,8 @@ def run_ifriit_input(num_examples, X_all, run_dir, LMAX, num_parallel, hemispher
     sys_params["num_processes"] = num_parallel
     sys_params["run_clean"] = run_clean # Create new run files
 
-    dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/dataset_params")
-    facility_spec = nrw.read_general_netcdf(sys_params["root_dir"] + "/facility_spec")
+    dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
+    facility_spec = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
     dataset_params["num_examples"] = num_examples
     dataset_params["hemisphere_symmetric"] = hemisphere_symmetric
     dataset_params["Y_train"] = X_all

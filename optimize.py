@@ -352,8 +352,8 @@ def main(argv):
         init_points = num_examples
         dataset_params, facility_spec = tdg.define_dataset_params(num_examples, random_sampling=random_sampling, random_seed=random_seed)
         num_inputs = dataset_params["num_output"]
-        nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/dataset_params")
-        nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/facility_spec")
+        nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
+        nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
 
         num_parents_mating = int(init_points / 10.0)
         if (num_parents_mating % 2) != 0:
@@ -376,16 +376,16 @@ def main(argv):
     elif data_init_type == 0:
         print("Importing pre-generated data!")
         # copy across dataset_params and facility_spec
-        shutil.copyfile(input_dir + "/dataset_params.nc", output_dir + "/dataset_params.nc")
-        shutil.copyfile(input_dir + "/facility_spec.nc", output_dir + "/facility_spec.nc")
+        shutil.copyfile(input_dir + "/dataset_params.nc", output_dir + "/" + sys_params["dataset_params_filename"])
+        shutil.copyfile(input_dir + "/facility_spec.nc", output_dir + "/" + sys_params["facility_spec_filename"])
     else:
         print("")
         sys.exit("Dataset not properly specified")
 
     print("Importing data!")
     sys_params["trainingdata_filename"] = trainingdata_filename
-    dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/dataset_params")
-    facility_spec = nrw.read_general_netcdf(sys_params["root_dir"] + "/facility_spec")
+    dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
+    facility_spec = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
     X_all, Y_all, avg_powers_all = nrw.import_training_data(sys_params)
     num_init_examples = np.shape(X_all)[1]
     num_inputs = np.shape(X_all)[0]
