@@ -11,19 +11,26 @@ from scipy.stats import qmc
 
 def define_system_params(root_dir):
     sys_params = {}
-    sys_params["num_processes"] = 10
-    sys_params["num_ex_checkpoint"] = 1000
+    sys_params["num_processes"] = 1
+    sys_params["num_ex_checkpoint"] = 10
+    sys_params["num_profiles_evaluated"] = 2
+
     sys_params["run_gen_deck"] = True
     sys_params["run_sims"] = True
-    sys_params["run_compression"] = True
-    sys_params["run_clean"] = True
+    sys_params["run_checkpoint"] = True
+    sys_params["run_clean"] = False
+    sys_params["run_plasma_profile"] = False
 
     sys_params["root_dir"] = root_dir
     sys_params["sim_dir"] = "run_"
     sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
-    sys_params["ifriit_ouput_name"] = "p_in_z1z2_beam_all"
+    sys_params["ifriit_ouput_name"] = "p_in_z1z2_beam_all.nc"
     sys_params["figure_location"] = "plots"
     sys_params["plot_file_type"] = ".pdf"
+    sys_params["plasma_profile_dir"] = "plasma_profiles"
+    sys_params["ifriit_input_name"] = "ifriit_inputs_base.txt"
+    sys_params["plasma_profile_nc"] = "ifriit_1davg_input.nc"
+    sys_params["heat_source_nc"] = "heat_source_all_beams.nc"
 
     return sys_params
 
@@ -59,7 +66,7 @@ def define_dataset_params(num_examples,
     num_sim_params += 1
     dataset_params["num_sim_params"] = num_sim_params
 
-    dataset_params["run_type"] = "nif" #"test" #"lmj"
+    dataset_params["run_type"] = "lmj" #"test" #"lmj" #"nif"
     if dataset_params["run_type"] == "nif":
         facility_spec = idg.import_nif_config()
     elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
@@ -104,9 +111,9 @@ def generate_training_data(dataset_params, sys_params, facility_spec):
             for ir in range(num_parallel_runs):
                 min_parallel = ir * sys_params["num_processes"]
                 max_parallel = (ir + 1) * sys_params["num_processes"] - 1
-                X_train[:,min_parallel:max_parallel+1], avg_powers[min_parallel:max_parallel+1] = run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, facility_spec['target_radius'])
+                X_train[:,min_parallel:max_parallel+1], avg_powers[min_parallel:max_parallel+1] = run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, facility_spec)
 
-                if sys_params["run_compression"]:
+                if sys_params["run_checkpoint"]:
                     if ((max_parallel + 1) >= (chkp_marker * sys_params["num_ex_checkpoint"])):
                         print("Save training data checkpoint at run: " + str(max_parallel))
                         nrw.save_training_data(X_train[:,:max_parallel+1], Y_train[:,:max_parallel+1], avg_powers[:max_parallel+1], filename_trainingdata)
@@ -115,24 +122,29 @@ def generate_training_data(dataset_params, sys_params, facility_spec):
         if max_parallel != (dataset_params["num_examples"] - 1):
             min_parallel = max_parallel + 1
             max_parallel = dataset_params["num_examples"] - 1
-            X_train[:,min_parallel:max_parallel+1], avg_powers[min_parallel:max_parallel+1] = run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, facility_spec['target_radius'])
+            X_train[:,min_parallel:max_parallel+1], avg_powers[min_parallel:max_parallel+1] = run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, facility_spec)
 
-    if sys_params["run_compression"]:
+    if sys_params["run_checkpoint"]:
         nrw.save_training_data(X_train, Y_train, avg_powers, filename_trainingdata)
 
 
 
-def run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, target_radius_microns):
+def run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, facility_spec):
     run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"]
+
+    if sys_params["run_plasma_profile"]:
+        num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
+    else:
+        num_mpi_parallel = 1
+
+    subprocess.check_call(["./bash_parallel_ifriit", run_location, str(min_parallel), str(max_parallel), str(num_mpi_parallel)])
+
+    i = 0
     range_ind = max_parallel + 1 - min_parallel
     X_train = np.zeros((dataset_params["num_coeff"] * 2, range_ind))
     avg_powers = np.zeros(range_ind)
     for iex in range(min_parallel, max_parallel+1):
-        idg.copy_ifriit_exc(run_location, iex)
-    subprocess.check_call(["./bash_parallel_ifriit", run_location, str(min_parallel), str(max_parallel)])
-    i = 0
-    for iex in range(min_parallel, max_parallel+1):
-        X_train[:,i], avg_powers[i] = nrw.retrieve_xtrain_and_delete(iex, dataset_params, sys_params, target_radius_microns)
+        X_train[:,i], avg_powers[i] = nrw.retrieve_xtrain_and_delete(iex, dataset_params, sys_params, facility_spec)
         i += 1
     return X_train, avg_powers
 

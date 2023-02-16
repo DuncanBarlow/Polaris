@@ -90,13 +90,13 @@ def create_run_files(dataset_params, sys_params, run_data):
                     theta_pointings[quad_slice,iex] = np.arccos(coord_n[2] / run_data['target_radius'])
                     phi_pointings[quad_slice,iex] = np.arctan2(coord_n[1], coord_n[0])
 
-                    run_data['pointings'][ind:ind+run_data['beams_per_quad'],:] = np.array(coord_n)
+                    run_data['pointings'][quad_slice] = np.array(coord_n)
                     run_data["defocus"][quad_slice] = cone_defocus
                     run_data["p0"][quad_slice] = run_data['default_power'] * cone_power  * run_data['beams_per_ifriit_beam']
 
         if sys_params["run_gen_deck"]:
             run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
-            generate_input_deck(run_data, run_location)
+            generate_input_deck(run_data, sys_params, run_location)
             generate_input_pointing_and_pulses(run_data, run_location, dataset_params["run_type"])
     dataset_params["sim_params"] = sim_params
     dataset_params["theta_pointings"] = theta_pointings
@@ -113,7 +113,6 @@ def import_nif_config():
     run_data['facility'] = "NIF"
     run_data['num_quads'] = 48
     run_data['num_cones'] = 8
-    run_data['beams_per_quad'] = int(run_data['nbeams'] / run_data['num_quads'])
     run_data['default_power'] = 1.0 #TW per beam
 
     # The order of these is important (top-to-equator, then bottom-to-equator)
@@ -133,12 +132,11 @@ def import_lmj_config():
     run_data = dict()
 
     run_data['nbeams'] = 80
-    run_data['target_radius'] = 1000.0
+    run_data['target_radius'] = 1100.0 # 1000.0
     run_data['facility'] = "LMJ"
     run_data['num_quads'] = 20
     run_data['num_cones'] = 4
-    run_data['beams_per_quad'] = 1
-    run_data['default_power'] = 0.63 #TW per beam
+    run_data['default_power'] = 1.0 # 0.63 #TW per beam
 
     # The order of these is important (top-to-equator, then bottom-to-equator)
     run_data['quad_from_each_cone'] = np.array(('28U', '10U', '10L', '28L'), dtype='<U4')
@@ -213,29 +211,31 @@ def config_formatting(run_data):
 
 
 
-def copy_ifriit_exc(run_location, iex):
-    run_location = run_location + str(iex)
-    shutil.copyfile("main", run_location+"/main")
-
-
-
-def generate_input_deck(the_data, run_location):
+def generate_input_deck(facility_spec, sys_params, run_location):
 
     isExist = os.path.exists(run_location)
 
     if not isExist:
         os.makedirs(run_location)
 
-    num_ifriit_beams = int(run_data['nbeams'] / run_data['beams_per_ifriit_beam'])
+    shutil.copyfile("main", run_location+"/main")
+    if sys_params["run_plasma_profile"]:
+        base_input_txt_loc = (sys_params["plasma_profile_dir"] + "/"
+                              + sys_params["ifriit_input_name"])
+        shutil.copyfile(sys_params["plasma_profile_dir"] + "/" +
+                        sys_params["plasma_profile_nc"],
+                        run_location + "/" + sys_params["plasma_profile_nc"])
+    else:
+        base_input_txt_loc = ("ifriit_inputs_base.txt")
 
-    longStr = ("ifriit_inputs_base.txt")
-    with open(longStr) as old_file:
+    num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
+    with open(base_input_txt_loc) as old_file:
         with open(run_location+"/ifriit_inputs.txt", "w") as new_file:
             for line in old_file:
                 if "NBEAMS" in line:
                     new_file.write("    NBEAMS                      = " + str(num_ifriit_beams) + ",\n")
                 elif "DIAGNOSE_INPUT_BEAMS_RADIUS_UM" in line:
-                    new_file.write("    DIAGNOSE_INPUT_BEAMS_RADIUS_UM = " + str(the_data['target_radius']) + "d0,\n")
+                    new_file.write("    DIAGNOSE_INPUT_BEAMS_RADIUS_UM = " + str(facility_spec['target_radius']) + "d0,\n")
                 else:
                     new_file.write(line)
 

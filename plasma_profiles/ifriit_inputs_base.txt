@@ -1,0 +1,92 @@
+&GENERAL
+    INLINE                      = .FALSE.,
+    NBEAMS                      = 20,
+    CARTESIAN_MESHER            = .FALSE.,
+    CYLINDRICAL_MESHER          = .FALSE.,
+    SPHERICAL_MESHER            = .TRUE.,
+    BBOX_INTERFACE_REFRACTION   = .FALSE.,
+    TARGET_OFFSET_UM            = 0.d0,0.d0,0.d0,
+    POSTPROC_FORWARD_GO         = .FALSE.,
+    FULL_OUTPUT_PHASE_SPACE     = .FALSE.,
+    FULL_OUTPUT_BEAMS           = .TRUE.,
+    T_FLOOR_NU_IB_EV = 25.d0, 
+    LOG_LAMBDA_MODEL = "LILAC",
+    PERMITTIVITY_MODEL = "SIMPLIFIED",
+    RTBIN_SOLVER_APPROX_NRAYS_PER_FACE      = 50,
+    MODEL_STALK = .FALSE.,
+    CBET                        = .FALSE.,
+    ABSORPTION_LANGDON = .TRUE.,
+    DUMP_INTEGRATED_HEAT_SOURCE = .TRUE.,
+    DIAGNOSE_INPUT_BEAMS           = .TRUE.
+    DIAGNOSE_INPUT_BEAMS_RADIUS_UM = 1100.d0
+/
+
+&CBET_MODEL
+    CBET_DNN_KINETIC=.TRUE.,
+    CBET_LANGDON=.FALSE.,
+    CBET_POLARIZED=.FALSE.,
+    CBET_KSPREAD=.FALSE.,
+    CBET_DNDT = .FALSE.    !see with Diego if we need to put it to true
+    CBET_DNN_CLAMP      = 0.02
+/
+
+&IO_PRINT
+    VERBOSE_LEVEL = 1,
+    PRINT_CHANNEL_IFRIIT_VERBOSE = 6,
+    PRINT_CHANNEL_IFRIIT = 6,
+/
+
+&OFFLINE_HYDRO
+    NBEAM_NC                                 = 0,
+    NUMSPEC                                  = 2,
+    FROM_FILE                                = .TRUE.
+    SPHERICAL_1D_NCDFFILE                     = .TRUE.
+    SPHERICAL_1D_NCDFFILE_FILENAME            = "ifriit_1davg_input.nc"
+/
+
+&SPHERICAL_MESH
+    CGAL_MESHER             = .FALSE.,
+    PLATONIC_SOLID_MESHER   = .TRUE.,
+    PLATONIC_SOLID_MESHER_ALTERNATED_RADIAL_MESH = .TRUE.
+    USE_SIZING_FUNCTION     = .TRUE.,
+    DISABLE_RANDOM_ROTATION = .TRUE.,
+    NR_INI                  = 100,
+    RMAX                    = 6000.d0,
+/
+
+&SIZING_FUNCTION
+    !
+    ! ---- CUTOFF PERMITTIVITIES ----
+    !
+    EPS_CUTOFF_VACUUM           = .99d0,
+    EPS_CUTOFF_VACUUM_OBSERVATION = .99d0,
+    EPS_CUTOFF_SOLID            = 0.d0,
+    !
+    ! ---- RAYTRACING MESH ----
+    !
+    ! ** warmup mode, for solid ball mode or t > raytrace_mesh_n_circ_perim_main_switch_ps
+    !
+    RAYTRACE_MESH_N_CIRC_PERIM_MAIN_SWITCH_PS = 0.d0,
+    RAYTRACE_MESH_N_CIRC_PERIM_INITIALIZATION = 360,
+    RAYTRACE_MESH_N_LAMBDA_MIN_SCALE_INITIALIZATION = 20.d0,
+    !
+    ! ** main mode
+    !
+    RAYTRACE_MESH_N_CIRC_PERIM_MAIN = 360,
+    RAYTRACE_MESH_N_LAMBDA_MIN_SCALE = .1d0,
+    RAYTRACE_MESH_N_LAMBDA_MAX_SCALE = 500.d0,
+    RAYTRACE_MESH_NCELLS_SCALELENGTH = 25.d0,
+    !
+    ! ---- OBSERVATION MESH ----
+    !
+    DECOUPLE_OBSERVATION_MESH = .TRUE.,
+    OBSERVATION_MESH_NTHETA = 180, !90,
+    OBSERVATION_MESH_NPHI = 360, !180,
+    OBSERVATION_MESH_N_LAMBDA_MIN_SCALE = .1d0,
+    OBSERVATION_MESH_N_LAMBDA_MAX_SCALE = 500.d0,   
+    OBSERVATION_MESH_NCELLS_SCALELENGTH = 50.d0,
+    !
+/
+
+!!!!!!!!!!!!!!!!!! beams !!!!!!!!!!!!!!!!!!
+

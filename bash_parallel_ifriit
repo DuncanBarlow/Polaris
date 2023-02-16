@@ -3,6 +3,7 @@
 run_location=$1
 min=$2
 max=$3
+nbeams=$4
 
 echo "Running example "$min" to "$max
 export OMP_NUM_THREADS=4
@@ -11,7 +12,7 @@ for i in $(seq $min $max)
 do
 	cd $run_location$i
         chmod +x main
-	mpirun -np 1 ./main > a.out &
+	mpirun -np $nbeams ./main > a.out &
 	cd ../..
 done
 

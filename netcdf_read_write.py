@@ -25,7 +25,7 @@ def read_nn_weights(filename_nn_weights):
 def read_general_netcdf(filename):
     parameters = {}
 
-    rootgrp = Dataset(filename + ".nc")
+    rootgrp = Dataset(filename)
     keys = list(rootgrp.variables.keys())
     for key in keys:
         if np.shape(np.shape(rootgrp[key]))[0] == 3:
@@ -47,10 +47,10 @@ def read_general_netcdf(filename):
 
 
 def save_general_netcdf(parameters, filename):
-    if os.path.exists(filename + '.nc'):
-        os.remove(filename + '.nc')
+    if os.path.exists(filename):
+        os.remove(filename)
 
-    rootgrp = Dataset(filename + '.nc', 'w')
+    rootgrp = Dataset(filename, 'w')
     for key, item in parameters.items():
         dims = np.shape(item)
         total_dims = np.shape(dims)[0]
@@ -113,12 +113,19 @@ def save_general_netcdf(parameters, filename):
 
 
 
-def retrieve_xtrain_and_delete(iex, dataset_params, sys_params, target_radius_microns):
+def retrieve_xtrain_and_delete(iex, dataset_params, sys_params, facility_spec):
     run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
-    if sys_params["run_compression"]:
-        parameters = read_general_netcdf(run_location + "/" + sys_params["ifriit_ouput_name"])
-        intensity_map = parameters["intensity"] * (target_radius_microns / 10000.0)**2
-        X_train1, avg_power1 = uim.create_xtrain(intensity_map, dataset_params["LMAX"])
+
+    parameters = read_general_netcdf(run_location + "/" + sys_params["ifriit_ouput_name"])
+    intensity_map = parameters["intensity"] * (facility_spec["target_radius"] / 10000.0)**2
+
+    X_train1, avg_power1 = uim.create_xtrain(intensity_map, dataset_params["LMAX"])
+
+    if sys_params["run_plasma_profile"]:
+        hs_and_modes = read_general_netcdf(run_location+"/"+sys_params["heat_source_nc"])
+        complex_modes, hs_avg_flux = uim.heatsource_analysis(hs_and_modes, dataset_params, facility_spec)
+        print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(hs_and_modes["modes"]/4./np.pi))*100.0, "%")
+        print('Intensity per steradian, {:.2e}sr^-1'.format(hs_avg_flux))
 
     if sys_params["run_clean"]:
         os.remove(run_location + '/main')
