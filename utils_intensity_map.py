@@ -61,31 +61,11 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0, file_lo
 
 
 def heatsource_analysis(hs_and_modes, facility_spec, dataset_params):
-    """
-    theta_edges = (hs_and_modes["theta"][1:] + hs_and_modes["theta"][:-1]) / 2.0
-    theta_edges = np.append(0.0, theta_edges)
-    theta_edges = np.append(theta_edges, np.pi)
-    phi_edges = (hs_and_modes["phi"][1:] + hs_and_modes["phi"][:-1]) / 2.0
-    phi_edges = np.append(0.0, phi_edges)
-    phi_edges = np.append(phi_edges, 2.0*np.pi)
-
-    theta_grid, phi_grid = np.meshgrid(theta_edges, phi_edges)
-
-    dphi = phi_grid[1:,1:] - phi_grid[:-1,1:]
-    d_cos_theta = np.cos(theta_grid[1:,1:]) - np.cos(theta_grid[1:,:-1])
-    domega = np.abs(dphi * d_cos_theta)
-
-    total_pwr = np.sum(hs_and_modes["heat_source"] * domega)
-    surface_area = 4.0 * np.pi * (facility_spec['target_radius'] / 10000.0)**2
-    avg_flux = total_pwr / (4.0 * np.pi)
-    """
 
     avg_flux = hs_and_modes["complex_modes"][0,0]
     hs_and_modes["complex_modes"][0,0] = 0.0
 
-    #dataset_params["LMAX"]
-    np_complex = np.vectorize(complex)
-    complex_modes = np_complex(hs_and_modes["complex_modes"][0,:], hs_and_modes["complex_modes"][1,:])
+    complex_modes = np.hstack((hs_and_modes["complex_modes"][0,:],hs_and_modes["complex_modes"][1,:]))
 
     return complex_modes, avg_flux
 

@@ -113,24 +113,26 @@ def save_general_netcdf(parameters, filename):
 
 
 
-def retrieve_xtrain_and_delete(iex, dataset_params, sys_params, facility_spec):
-    run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
+def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec):
 
-    parameters = read_general_netcdf(run_location + "/" + sys_params["ifriit_ouput_name"])
-    intensity_map = parameters["intensity"] * (facility_spec["target_radius"] / 10000.0)**2
+    for iex in range(min_parallel, max_parallel+1):
+        run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
 
-    X_train1, avg_power1 = uim.create_xtrain(intensity_map, dataset_params["LMAX"])
+        parameters = read_general_netcdf(run_location + "/" + sys_params["ifriit_ouput_name"])
+        intensity_map = parameters["intensity"] * (facility_spec["target_radius"] / 10000.0)**2
 
-    if sys_params["run_plasma_profile"]:
-        hs_and_modes = read_general_netcdf(run_location+"/"+sys_params["heat_source_nc"])
-        complex_modes, hs_avg_flux = uim.heatsource_analysis(hs_and_modes, dataset_params, facility_spec)
-        print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(hs_and_modes["modes"]/4./np.pi))*100.0, "%")
-        print('Intensity per steradian, {:.2e}sr^-1'.format(hs_avg_flux))
+        dataset["sph_modes"][iex, 0, :], dataset["avg_flux"][iex, 0] = uim.create_xtrain(intensity_map, dataset_params["LMAX"])
 
-    if sys_params["run_clean"]:
-        os.remove(run_location + '/main')
-        os.remove(run_location + "/" + sys_params["ifriit_ouput_name"] + ".nc")
-    return X_train1, avg_power1
+        if sys_params["run_plasma_profile"]:
+            hs_and_modes = read_general_netcdf(run_location+"/"+sys_params["heat_source_nc"])
+            dataset["sph_modes"][iex, 1, :], dataset["avg_flux"][iex, 1] = uim.heatsource_analysis(hs_and_modes, dataset_params, facility_spec)
+            print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(hs_and_modes["modes"]/4./np.pi))*100.0, "%")
+            print('Intensity per steradian, {:.2e}sr^-1'.format(dataset["avg_flux"][iex, 1]))
+
+        if sys_params["run_clean"]:
+            os.remove(run_location + "/" + sys_params["ifriit_binary_filename"])
+            os.remove(run_location + "/" + sys_params["ifriit_ouput_name"])
+    return dataset
 
 
 

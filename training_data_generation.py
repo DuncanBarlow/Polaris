@@ -11,15 +11,18 @@ from scipy.stats import qmc
 
 def define_system_params(root_dir):
     sys_params = {}
-    sys_params["num_processes"] = 1
+    sys_params["num_processes"] = 2
     sys_params["num_ex_checkpoint"] = 10
-    sys_params["num_profiles_evaluated"] = 2
 
     sys_params["run_gen_deck"] = True
     sys_params["run_sims"] = True
     sys_params["run_checkpoint"] = True
     sys_params["run_clean"] = False
-    sys_params["run_plasma_profile"] = False
+    sys_params["run_plasma_profile"] = True
+    if sys_params["run_plasma_profile"]:
+        sys_params["num_profiles_evaluated"] = 2 # change this
+    else:
+        sys_params["num_profiles_evaluated"] = 1 # leave this
 
     sys_params["root_dir"] = root_dir
     sys_params["sim_dir"] = "run_"
@@ -33,6 +36,7 @@ def define_system_params(root_dir):
     sys_params["heat_source_nc"] = "heat_source_all_beams.nc"
     sys_params["dataset_params_filename"] = "dataset_params.nc"
     sys_params["facility_spec_filename"] = "facility_spec.nc"
+    sys_params["ifriit_binary_filename"] = "main"
 
     return sys_params
 
@@ -93,19 +97,28 @@ def define_dataset_params(num_examples,
 
 
 
+def define_dataset(dataset_params, sys_params):
+    dataset = {}
+    dataset["evaluated_up_to"] = 0
+    dataset["input_parameters"] = np.zeros((dataset_params["num_examples"], dataset_params["num_output"]))
+    dataset["sph_modes"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles_evaluated"], dataset_params["num_coeff"]*2))
+    dataset["avg_flux"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles_evaluated"]))
+    return dataset
+
+
+
 def generate_training_data(dataset_params, sys_params, facility_spec):
     nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
     nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
     dataset_params = idg.create_run_files(dataset_params, sys_params, facility_spec)
 
-    Y_train = dataset_params["Y_train"]
+    dataset = define_dataset(dataset_params, sys_params)
+    dataset["input_parameters"] = dataset_params["Y_train"].T
 
     min_parallel = 0
     max_parallel = -1
     chkp_marker = 1.0
     run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"]
-    X_train = np.zeros((dataset_params["num_coeff"] * 2, dataset_params["num_examples"]))
-    avg_powers = np.zeros(dataset_params["num_examples"])
     filename_trainingdata = sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"]
     if sys_params["run_sims"]:
         num_parallel_runs = int(dataset_params["num_examples"] / sys_params["num_processes"])
@@ -113,42 +126,39 @@ def generate_training_data(dataset_params, sys_params, facility_spec):
             for ir in range(num_parallel_runs):
                 min_parallel = ir * sys_params["num_processes"]
                 max_parallel = (ir + 1) * sys_params["num_processes"] - 1
-                X_train[:,min_parallel:max_parallel+1], avg_powers[min_parallel:max_parallel+1] = run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, facility_spec)
+                dataset = run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
 
                 if sys_params["run_checkpoint"]:
                     if ((max_parallel + 1) >= (chkp_marker * sys_params["num_ex_checkpoint"])):
                         print("Save training data checkpoint at run: " + str(max_parallel))
-                        nrw.save_training_data(X_train[:,:max_parallel+1], Y_train[:,:max_parallel+1], avg_powers[:max_parallel+1], filename_trainingdata)
+                        dataset["evaluated_up_to"] = max_parallel
+                        nrw.save_general_netcdf(dataset, filename_trainingdata)
                         chkp_marker +=1
 
         if max_parallel != (dataset_params["num_examples"] - 1):
             min_parallel = max_parallel + 1
             max_parallel = dataset_params["num_examples"] - 1
-            X_train[:,min_parallel:max_parallel+1], avg_powers[min_parallel:max_parallel+1] = run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, facility_spec)
+            dataset = run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
 
     if sys_params["run_checkpoint"]:
-        nrw.save_training_data(X_train, Y_train, avg_powers, filename_trainingdata)
+        dataset["evaluated_up_to"] = max_parallel
+        nrw.save_general_netcdf(dataset, filename_trainingdata)
+    print(np.shape(dataset["input_parameters"]), np.shape(dataset["sph_modes"]), np.shape(dataset["avg_flux"]))
 
 
 
-def run_and_delete(min_parallel, max_parallel, dataset_params, sys_params, facility_spec):
+def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec):
     run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"]
 
     if sys_params["run_plasma_profile"]:
-        num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
+        num_mpi_parallel = 1 #int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
     else:
         num_mpi_parallel = 1
 
     subprocess.check_call(["./bash_parallel_ifriit", run_location, str(min_parallel), str(max_parallel), str(num_mpi_parallel)])
 
-    i = 0
-    range_ind = max_parallel + 1 - min_parallel
-    X_train = np.zeros((dataset_params["num_coeff"] * 2, range_ind))
-    avg_powers = np.zeros(range_ind)
-    for iex in range(min_parallel, max_parallel+1):
-        X_train[:,i], avg_powers[i] = nrw.retrieve_xtrain_and_delete(iex, dataset_params, sys_params, facility_spec)
-        i += 1
-    return X_train, avg_powers
+    dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
+    return dataset
 
 
 

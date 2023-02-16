@@ -218,7 +218,7 @@ def generate_input_deck(facility_spec, sys_params, run_location):
     if not isExist:
         os.makedirs(run_location)
 
-    shutil.copyfile("main", run_location+"/main")
+    shutil.copyfile(sys_params["ifriit_binary_filename"], run_location + "/" + sys_params["ifriit_binary_filename"])
     if sys_params["run_plasma_profile"]:
         base_input_txt_loc = (sys_params["plasma_profile_dir"] + "/"
                               + sys_params["ifriit_input_name"])
