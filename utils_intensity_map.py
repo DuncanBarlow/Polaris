@@ -62,9 +62,7 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0, file_lo
 
 def heatsource_analysis(hs_and_modes, facility_spec, dataset_params):
 
-    avg_flux = hs_and_modes["complex_modes"][0,0]
-    hs_and_modes["complex_modes"][0,0] = 0.0
-
+    avg_flux = hs_and_modes["average_flux"][0]
     complex_modes = np.hstack((hs_and_modes["complex_modes"][0,:],hs_and_modes["complex_modes"][1,:]))
 
     return complex_modes, avg_flux

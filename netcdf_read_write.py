@@ -126,7 +126,6 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
         if sys_params["run_plasma_profile"]:
             hs_and_modes = read_general_netcdf(run_location+"/"+sys_params["heat_source_nc"])
             dataset["sph_modes"][iex, 1, :], dataset["avg_flux"][iex, 1] = uim.heatsource_analysis(hs_and_modes, dataset_params, facility_spec)
-            print("The LLE quoted rms cumalitive over all modes is: ", np.sqrt(np.sum(hs_and_modes["modes"]/4./np.pi))*100.0, "%")
             print('Intensity per steradian, {:.2e}sr^-1'.format(dataset["avg_flux"][iex, 1]))
 
         if sys_params["run_clean"]:
