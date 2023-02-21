@@ -101,8 +101,10 @@ def define_dataset(dataset_params, sys_params):
     dataset = {}
     dataset["evaluated_up_to"] = 0
     dataset["input_parameters"] = np.zeros((dataset_params["num_examples"], dataset_params["num_output"]))
-    dataset["sph_modes"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles_evaluated"], dataset_params["num_coeff"]*2))
+    dataset["real_modes"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles_evaluated"], dataset_params["num_coeff"]))
+    dataset["imag_modes"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles_evaluated"], dataset_params["num_coeff"]))
     dataset["avg_flux"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles_evaluated"]))
+    dataset["rms"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles_evaluated"]))
     return dataset
 
 
@@ -143,7 +145,6 @@ def generate_training_data(dataset_params, sys_params, facility_spec):
     if sys_params["run_checkpoint"]:
         dataset["evaluated_up_to"] = max_parallel
         nrw.save_general_netcdf(dataset, filename_trainingdata)
-    print(np.shape(dataset["input_parameters"]), np.shape(dataset["sph_modes"]), np.shape(dataset["avg_flux"]))
 
 
 

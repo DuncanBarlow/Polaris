@@ -60,12 +60,14 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0, file_lo
     return intensity_map_rms_spatial
 
 
-def heatsource_analysis(hs_and_modes, facility_spec, dataset_params):
+
+def heatsource_analysis(hs_and_modes):
 
     avg_flux = hs_and_modes["average_flux"][0]
-    complex_modes = np.hstack((hs_and_modes["complex_modes"][0,:],hs_and_modes["complex_modes"][1,:]))
+    real_modes = hs_and_modes["complex_modes"][0,:]
+    imag_modes = hs_and_modes["complex_modes"][1,:]
 
-    return complex_modes, avg_flux
+    return real_modes, imag_modes, avg_flux
 
 
 
@@ -131,6 +133,18 @@ def alms2power_spectrum(alms, LMAX):
 
 
 
+def alms2rms(real_modes, imag_modes, lmax):
+
+    # modes with m!=0 need to be x2 to account for negative terms
+    # in healpix indexing the first lmax terms are all m=0
+    pwr_spec_m0 = np.sum(np.abs(real_modes[:lmax]**2 + imag_modes[:lmax]**2))
+    pwr_spec_rest = np.sum(np.abs(real_modes[lmax:]**2 + imag_modes[lmax:]**2)*2)
+    rms = np.sqrt((pwr_spec_m0+pwr_spec_rest)/4.0/np.pi)
+
+    return rms
+
+
+
 def power_spectrum(intensity_map, LMAX, verbose=True):
     intensity_map_normalized, avg_power = imap_norm(intensity_map)
     alms = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
@@ -154,33 +168,28 @@ def create_ytrain(pointing_per_cone, pointing_nside, defocus_per_cone, num_defoc
 
 
 
-def create_xtrain(intensity_map, LMAX):
+def extract_modes_and_flux(intensity_map, LMAX):
 
     intensity_map_normalized, avg_flux = imap_norm(intensity_map)
-    complex_modes = imap2xtrain(intensity_map_normalized, LMAX, avg_flux)
+    real_modes, imag_modes = imap2modes(intensity_map_normalized, LMAX, avg_flux)
 
-    return complex_modes, avg_flux
-
-
-
-def imap2xtrain(intensity_map_normalized, LMAX, avg_power):
-
-    X_train_complex = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
-    X_train = np.hstack((X_train_complex.real, X_train_complex.imag))
-    #X_train = X_train * avg_power # weighting to allow NN to adjust for mean flux
-
-    return X_train
+    return real_modes, imag_modes, avg_flux
 
 
 
-def xtrain2imap(X_train, LMAX, imap_nside, avg_power):
+def imap2modes(intensity_map_normalized, LMAX, avg_power):
 
-    num_coeff = int(((LMAX + 2) * (LMAX + 1))/2.0)
+    modes_complex = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
+
+    return modes_complex.real, modes_complex.imag
+
+
+
+def modes2imap(real_modes, imag_modes, imap_nside):
+
     np_complex = np.vectorize(complex)
-    # weighting to allow NN to adjust for mean flux
-    #X_train = np.squeeze(X_train / avg_power)
-    X_train_complex = np_complex(X_train[:num_coeff], X_train[num_coeff:])
-    intensity_map_normalized = hp.alm2map(X_train_complex, imap_nside)
+    modes_complex = np_complex(real_modes, imag_modes)
+    intensity_map_normalized = hp.alm2map(modes_complex, imap_nside)
 
     return intensity_map_normalized
 

@@ -121,12 +121,16 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
         parameters = read_general_netcdf(run_location + "/" + sys_params["ifriit_ouput_name"])
         intensity_map = parameters["intensity"] * (facility_spec["target_radius"] / 10000.0)**2
 
-        dataset["sph_modes"][iex, 0, :], dataset["avg_flux"][iex, 0] = uim.create_xtrain(intensity_map, dataset_params["LMAX"])
+        dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:], dataset["avg_flux"][iex, 0] = uim.extract_modes_and_flux(intensity_map, dataset_params["LMAX"])
+        dataset["rms"][iex,0] = uim.alms2rms(dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:], dataset_params["LMAX"])
 
         if sys_params["run_plasma_profile"]:
             hs_and_modes = read_general_netcdf(run_location+"/"+sys_params["heat_source_nc"])
-            dataset["sph_modes"][iex, 1, :], dataset["avg_flux"][iex, 1] = uim.heatsource_analysis(hs_and_modes, dataset_params, facility_spec)
-            print('Intensity per steradian, {:.2e}sr^-1'.format(dataset["avg_flux"][iex, 1]))
+            dataset["real_modes"][iex,1,:], dataset["imag_modes"][iex,1,:], dataset["avg_flux"][iex,1] = uim.heatsource_analysis(hs_and_modes)
+            dataset["rms"][iex,1] = uim.alms2rms(dataset["real_modes"][iex,1,:], dataset["imag_modes"][iex,1,:], dataset_params["LMAX"])
+
+            print('Intensity per steradian, {:.2e}W/sr^-1'.format(dataset["avg_flux"][iex, 1]))
+            print("The LLE quoted rms cumulative over all modes is: ", rms*100.0, "%")
 
         if sys_params["run_clean"]:
             os.remove(run_location + "/" + sys_params["ifriit_binary_filename"])
