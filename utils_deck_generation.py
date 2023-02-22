@@ -7,8 +7,9 @@ import healpy_pointings as hpoint
 
 def create_run_files(dataset_params, sys_params, run_data):
 
-    num_output = dataset_params["num_output"]
+    num_input_params = dataset_params["num_input_params"]
     num_examples = dataset_params["num_examples"]
+    num_vars = dataset_params["num_variables_per_beam"]
 
     coord_o = np.zeros(3)
     coord_o[2] = run_data['target_radius']
@@ -24,7 +25,7 @@ def create_run_files(dataset_params, sys_params, run_data):
     run_data["p0"] = np.zeros(num_ifriit_beams)
     run_data["fuse"] = [False] * num_ifriit_beams
 
-    sim_params = np.zeros((num_output*2, num_examples))
+    sim_params = np.zeros((num_input_params*2, num_examples))
 
     for iex in range(num_examples):
         if num_examples>1:
@@ -32,8 +33,8 @@ def create_run_files(dataset_params, sys_params, run_data):
         else:
             ex_params =  dataset_params["Y_train"]
         for icone in range(run_data['num_cones']):
-            il = (icone*dataset_params["num_sim_params"]) % num_output
-            iu = ((icone+1)*dataset_params["num_sim_params"]-1) % num_output + 1
+            il = (icone*num_vars) % num_input_params
+            iu = ((icone+1)*num_vars-1) % num_input_params + 1
             cone_params = ex_params[il:iu]
 
             x = cone_params[dataset_params["theta_index"]] * 2.0 - 1.0
@@ -46,18 +47,18 @@ def create_run_files(dataset_params, sys_params, run_data):
                 else:
                     offset_phi = (offset_phi + np.pi) % (2.0 * np.pi) # anti-symmetric
             offset_theta = r * dataset_params["surface_cover_radians"]
-            sim_params[icone*dataset_params["num_sim_params"]+dataset_params["theta_index"],iex] = offset_theta
-            sim_params[icone*dataset_params["num_sim_params"]+dataset_params["phi_index"],iex] = offset_phi
+            sim_params[icone*num_vars+dataset_params["theta_index"],iex] = offset_theta
+            sim_params[icone*num_vars+dataset_params["phi_index"],iex] = offset_phi
 
             if dataset_params["defocus_bool"]:
                 cone_defocus = cone_params[dataset_params["defocus_index"]] * dataset_params["defocus_range"]
-                sim_params[icone*dataset_params["num_sim_params"]+dataset_params["defocus_index"],iex] = cone_defocus
+                sim_params[icone*num_vars+dataset_params["defocus_index"],iex] = cone_defocus
             else:
                 cone_defocus = dataset_params["defocus_default"]
 
             cone_power = (cone_params[dataset_params["power_index"]] * (1.0 - dataset_params["min_power"])
                           + dataset_params["min_power"])
-            sim_params[icone*dataset_params["num_sim_params"]+dataset_params["power_index"],iex] = cone_power
+            sim_params[icone*num_vars+dataset_params["power_index"],iex] = cone_power
 
             quad_name = run_data['quad_from_each_cone'][icone]
             quad_slice = np.where(run_data["Quad"] == quad_name)[0]

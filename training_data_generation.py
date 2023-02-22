@@ -21,9 +21,9 @@ def define_system_params(root_dir):
     sys_params["run_clean"] = False
     sys_params["run_plasma_profile"] = True
     if sys_params["run_plasma_profile"]:
-        sys_params["num_profiles_evaluated"] = 2 # change this
+        sys_params["num_profiles"] = 2 # change this
     else:
-        sys_params["num_profiles_evaluated"] = 1 # leave this
+        sys_params["num_profiles"] = 1 # leave this
 
     sys_params["root_dir"] = root_dir
     sys_params["sim_dir"] = "run_"
@@ -53,25 +53,25 @@ def define_dataset_params(num_examples,
     dataset_params["hemisphere_symmetric"] = True
     dataset_params["imap_nside"] = 256
 
-    num_sim_params = 0
+    num_variables_per_beam = 0
     # pointings
     dataset_params["surface_cover_radians"] = np.radians(45.0)
-    dataset_params["theta_index"] = num_sim_params
-    num_sim_params += 1
-    dataset_params["phi_index"] = num_sim_params
-    num_sim_params += 1
+    dataset_params["theta_index"] = num_variables_per_beam
+    num_variables_per_beam += 1
+    dataset_params["phi_index"] = num_variables_per_beam
+    num_variables_per_beam += 1
     # defocus
     dataset_params["defocus_default"] = 0.0
     dataset_params["defocus_range"] = 20.0 # mm
     dataset_params["defocus_bool"] = False
     if dataset_params["defocus_bool"]:
-        dataset_params["defocus_index"] = num_sim_params
-        num_sim_params += 1
+        dataset_params["defocus_index"] = num_variables_per_beam
+        num_variables_per_beam += 1
     #power
     dataset_params["min_power"] = 0.5 # fraction of full power
-    dataset_params["power_index"] = num_sim_params
-    num_sim_params += 1
-    dataset_params["num_sim_params"] = num_sim_params
+    dataset_params["power_index"] = num_variables_per_beam
+    num_variables_per_beam += 1
+    dataset_params["num_variables_per_beam"] = num_variables_per_beam
 
     dataset_params["run_type"] = "lmj" #"test" #"lmj" #"nif"
     if dataset_params["run_type"] == "nif":
@@ -82,14 +82,14 @@ def define_dataset_params(num_examples,
     dataset_params["LMAX"] = 30
     dataset_params["num_coeff"] = int(((dataset_params["LMAX"] + 2) * (dataset_params["LMAX"] + 1))/2.0)
     # Assume symmetry
-    dataset_params["num_output"] = int(facility_spec['num_cones']/2) * dataset_params["num_sim_params"]
+    dataset_params["num_input_params"] = int(facility_spec['num_cones']/2) * dataset_params["num_variables_per_beam"]
 
     random_generator=np.random.default_rng(dataset_params["random_seed"])
     if random_sampling == 1:
         print("Random Sampling!")
-        sample = random_generator.random((dataset_params["num_examples"], dataset_params["num_output"]))
+        sample = random_generator.random((dataset_params["num_examples"], dataset_params["num_input_params"]))
     else:
-        sampler = qmc.LatinHypercube(d=dataset_params["num_output"],
+        sampler = qmc.LatinHypercube(d=dataset_params["num_input_params"],
                                      strength=1, seed=random_generator, optimization="random-cd")
         sample = sampler.random(n=dataset_params["num_examples"])
     dataset_params["Y_train"] = sample.T
@@ -100,12 +100,12 @@ def define_dataset_params(num_examples,
 
 def define_dataset(dataset_params, sys_params):
     dataset = {}
-    dataset["evaluated_up_to"] = 0
-    dataset["input_parameters"] = np.zeros((dataset_params["num_examples"], dataset_params["num_output"]))
-    dataset["real_modes"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles_evaluated"], dataset_params["num_coeff"]))
-    dataset["imag_modes"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles_evaluated"], dataset_params["num_coeff"]))
-    dataset["avg_flux"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles_evaluated"]))
-    dataset["rms"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles_evaluated"]))
+    dataset["num_evaluated"] = 0
+    dataset["input_parameters"] = np.zeros((dataset_params["num_examples"], dataset_params["num_input_params"]))
+    dataset["real_modes"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles"], dataset_params["num_coeff"]))
+    dataset["imag_modes"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles"], dataset_params["num_coeff"]))
+    dataset["avg_flux"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles"]))
+    dataset["rms"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles"]))
     return dataset
 
 
@@ -134,7 +134,7 @@ def generate_training_data(dataset_params, sys_params, facility_spec):
                 if sys_params["run_checkpoint"]:
                     if ((max_parallel + 1) >= (chkp_marker * sys_params["num_ex_checkpoint"])):
                         print("Save training data checkpoint at run: " + str(max_parallel))
-                        dataset["evaluated_up_to"] = max_parallel
+                        dataset["num_evaluated"] = max_parallel
                         nrw.save_general_netcdf(dataset, filename_trainingdata)
                         chkp_marker +=1
 
@@ -144,7 +144,7 @@ def generate_training_data(dataset_params, sys_params, facility_spec):
             dataset = run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
 
     if sys_params["run_checkpoint"]:
-        dataset["evaluated_up_to"] = max_parallel
+        dataset["num_evaluated"] = max_parallel
         nrw.save_general_netcdf(dataset, filename_trainingdata)
 
 

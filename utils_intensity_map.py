@@ -78,7 +78,7 @@ def extract_run_parameters(dataset_params, facility_spec, sys_params, file_locat
     print_line = []
 
     for icone in range(facility_spec['num_cones']):
-        ind_cone_start = icone * dataset_params["num_sim_params"]
+        ind_cone_start = icone * dataset_params["num_variables_per_beam"]
 
         cone_theta_offset = float(
             dataset_params["sim_params"][ind_cone_start+dataset_params["theta_index"]])
