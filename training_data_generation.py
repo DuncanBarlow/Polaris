@@ -12,6 +12,7 @@ from scipy.stats import qmc
 def define_system_params(root_dir):
     sys_params = {}
     sys_params["num_processes"] = 1
+    sys_params["num_openmp_parallel"] = 4
     sys_params["num_ex_checkpoint"] = 10
 
     sys_params["run_gen_deck"] = True
@@ -156,7 +157,7 @@ def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_para
     else:
         num_mpi_parallel = 1
 
-    subprocess.check_call(["./bash_parallel_ifriit", run_location, str(min_parallel), str(max_parallel), str(num_mpi_parallel)])
+    subprocess.check_call(["./bash_parallel_ifriit", run_location, str(min_parallel), str(max_parallel), str(num_mpi_parallel), str(sys_params["num_openmp_parallel"])])
 
     dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
     return dataset

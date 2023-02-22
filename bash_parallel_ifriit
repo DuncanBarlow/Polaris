@@ -4,9 +4,10 @@ run_location=$1
 min=$2
 max=$3
 nbeams=$4
+num_openmp=$5
 
-echo "Running example "$min" to "$max
-export OMP_NUM_THREADS=4
+echo "Running example "$min" to "$max" with mpi_procs="$nbeams" and openmp_threads="$num_openmp" per proc"
+export OMP_NUM_THREADS=$num_openmp
 
 for i in $(seq $min $max)
 do

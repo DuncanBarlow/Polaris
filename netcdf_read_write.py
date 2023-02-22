@@ -124,13 +124,18 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
         dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:], dataset["avg_flux"][iex, 0] = uim.extract_modes_and_flux(intensity_map, dataset_params["LMAX"])
         dataset["rms"][iex,0] = uim.alms2rms(dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:], dataset_params["LMAX"])
 
+        print("Without density profiles:")
+        print('Intensity per steradian, {:.2e}W/sr^-1'.format(dataset["avg_flux"][iex, 0]))
+        print("The LLE quoted rms cumulative over all modes is: ", dataset["rms"][iex,0]*100.0, "%")
+
         if sys_params["run_plasma_profile"]:
             hs_and_modes = read_general_netcdf(run_location+"/"+sys_params["heat_source_nc"])
             dataset["real_modes"][iex,1,:], dataset["imag_modes"][iex,1,:], dataset["avg_flux"][iex,1] = uim.heatsource_analysis(hs_and_modes)
             dataset["rms"][iex,1] = uim.alms2rms(dataset["real_modes"][iex,1,:], dataset["imag_modes"][iex,1,:], dataset_params["LMAX"])
 
+            print("With density profiles:")
             print('Intensity per steradian, {:.2e}W/sr^-1'.format(dataset["avg_flux"][iex, 1]))
-            print("The LLE quoted rms cumulative over all modes is: ", rms*100.0, "%")
+            print("The LLE quoted rms cumulative over all modes is: ", dataset["rms"][iex,1]*100.0, "%")
 
         if sys_params["run_clean"]:
             os.remove(run_location + "/" + sys_params["ifriit_binary_filename"])
