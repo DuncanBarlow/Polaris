@@ -118,7 +118,10 @@ def define_dataset(dataset_params, sys_params):
 
 
 
-def generate_training_data(dataset, dataset_params, sys_params, facility_spec, deck_gen_params):
+def generate_training_data(dataset, dataset_params, sys_params, facility_spec):
+
+    nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
+    nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
 
     min_parallel = dataset["num_evaluated"]
     max_parallel = dataset["num_evaluated"]-1
@@ -195,11 +198,7 @@ def main(argv):
 
     deck_gen_params = idg.create_run_files(dataset["input_parameters"], dataset_params, sys_params, facility_spec)
 
-    nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
-    nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
-    nrw.save_general_netcdf(deck_gen_params, sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
-
-    generate_training_data(dataset, dataset_params, sys_params, facility_spec, deck_gen_params)
+    generate_training_data(dataset, dataset_params, sys_params, facility_spec)
 
     return dataset_params, sys_params, facility_spec
 

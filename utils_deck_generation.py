@@ -89,6 +89,8 @@ def create_run_files(dataset_params, sys_params, facility_spec):
             run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
             generate_input_deck(facility_spec, sys_params, run_location)
             generate_input_pointing_and_pulses(iex, facility_spec, deck_gen_params, run_location, dataset_params["run_type"])
+
+    nrw.save_general_netcdf(deck_gen_params, sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
     return deck_gen_params
 
 
