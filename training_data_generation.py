@@ -37,6 +37,7 @@ def define_system_params(root_dir):
     sys_params["heat_source_nc"] = "heat_source_all_beams.nc"
     sys_params["dataset_params_filename"] = "dataset_params.nc"
     sys_params["facility_spec_filename"] = "facility_spec.nc"
+    sys_params["deck_gen_params_filename"] = "deck_gen_params.nc"
     sys_params["ifriit_binary_filename"] = "main"
 
     return sys_params
@@ -111,9 +112,10 @@ def define_dataset(dataset_params, sys_params):
 
 
 def generate_training_data(dataset_params, sys_params, facility_spec):
+    deck_gen_params = idg.create_run_files(dataset_params, sys_params, facility_spec)
     nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
     nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
-    dataset_params = idg.create_run_files(dataset_params, sys_params, facility_spec)
+    nrw.save_general_netcdf(deck_gen_params, sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
 
     dataset = define_dataset(dataset_params, sys_params)
     dataset["input_parameters"] = dataset_params["Y_train"].T
