@@ -1,6 +1,7 @@
 import training_data_generation as tdg
 import netcdf_read_write as nrw
 import utils_optimizers as uopt
+import utils_deck_generation as idg
 import numpy as np
 import sys
 import time
@@ -11,72 +12,56 @@ import copy
 
 def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
     pbounds = {}
-    for ii in range(opt_params["num_inputs"]):
+    for ii in range(opt_params["num_optimization_params"]):
         pbounds["x"+str(ii)] = opt_params["pbounds"][ii,:]
 
-    target = uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"], opt_params)
+    target = uopt.fitness_function(dataset, opt_params)
 
-    optimizer, utility = uopt.initialize_unknown_func(dataset["X_all"],
+    optimizer, utility = uopt.initialize_unknown_func(dataset["input_parameters"],
                                                       target, pbounds,
                                                       opt_params["num_init_examples"],
-                                                      opt_params["num_inputs"])
+                                                      opt_params["num_optimization_params"])
     print(optimizer.max)
 
     tic = time.perf_counter()
     for it in range(opt_params["n_iter"]):
         optimizer2 = copy.deepcopy(optimizer)
 
-        X_new = np.zeros((opt_params["num_inputs"], opt_params["num_parallel"]))
+        X_new = np.zeros((opt_params["num_parallel"], opt_params["num_optimization_params"]))
         for npar in range(opt_params["num_parallel"]):
             next_point = optimizer2.suggest(utility)
-            for ii in range(opt_params["num_inputs"]):
-                X_new[ii,npar] = next_point["x"+str(ii)]
+            for ii in range(opt_params["num_optimization_params"]):
+                X_new[npar,ii] = next_point["x"+str(ii)]
 
             try:
                 optimizer2.register(params=next_point, target=bo_params["target_set_undetermined"])
             except:
                 print("Broken input!", next_point, bo_params["target_set_undetermined"])
 
-        Y_new, avg_powers_new = tdg.run_ifriit_input(opt_params["num_parallel"],
-                                                     X_new, opt_params["run_dir"],
-                                                     opt_params["num_modes"],
-                                                     opt_params["num_parallel"],
-                                                     opt_params["hemisphere_symmetric"],
-                                                     opt_params["run_clean"])
-        dataset["X_all"] = np.hstack((dataset["X_all"], X_new))
-        dataset["Y_all"] = np.hstack((dataset["Y_all"], Y_new))
-        dataset["avg_powers_all"] = np.hstack((dataset["avg_powers_all"], avg_powers_new))
+        old_max_eval = dataset["num_evaluated"]
+        dataset = uopt.run_ifriit_input(opt_params["num_parallel"], X_new, opt_params)
 
+        target = uopt.fitness_function(dataset, opt_params)
         for npar in range(opt_params["num_parallel"]):
-            ieval = it * opt_params["num_parallel"] + npar
-            os.rename(opt_params["run_dir"] + "/run_" + str(npar),
-                      opt_params["run_dir"] + "/" + opt_params["iter_dir"]
-                      + str(ieval+opt_params["num_init_examples"]))
+            ieval = old_max_eval + npar
 
-            target = uopt.fitness_function(Y_new[:,npar], avg_powers_new[npar], opt_params)
-            for ii in range(opt_params["num_inputs"]):
-                next_point["x"+str(ii)] = X_new[ii,npar]
+            for ii in range(opt_params["num_optimization_params"]):
+                next_point["x"+str(ii)] = dataset["input_parameters"][ieval,ii]
+
             try:
-                optimizer.register(params=next_point, target=target)
+                optimizer.register(params=next_point, target=target[ieval])
             except:
-                print("Broken input!", next_point, target)
+                print("Broken input!", next_point, target[ieval])
 
         if (it+1)%1 <= 0.0:
             toc = time.perf_counter()
             print("{:0.4f} seconds".format(toc - tic))
-            print(str(ieval+1) + " data points added, saving to .nc")
-            filename_trainingdata = opt_params["run_dir"] + '/' + opt_params["trainingdata_filename"]
-            nrw.save_training_data(dataset["X_all"], dataset["Y_all"],
-                                   dataset["avg_powers_all"], filename_trainingdata)
             print(optimizer.max)
 
-            fit_func_all = uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"],
-                                                 opt_params)
-            mindex = np.argmax(fit_func_all)
+            mindex = np.argmax(target)
             print(mindex)
-            print(np.sum(fit_func_all[mindex]))
-            print(np.sum(dataset["Y_all"][:,mindex]))
-            print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
+            print(target[mindex])
+            print(dataset["rms"][mindex,:])
     print(next_point)
     return dataset
 
@@ -311,41 +296,36 @@ def main(argv):
     """
     #
     data_init_type = int(argv[3])
-    if (data_init_type == 0):
-        input_dir = argv[11]
-    else:
-        input_dir = argv[1]
+    input_dir = argv[11]
     output_dir = argv[1]
     num_examples = int(argv[2])
-    trainingdata_filename = "flipped_training_data_and_labels.nc"
-    iter_dir = "iter_"
-    num_modes = 30
-    num_parallel = 12
-    hemisphere_symmetric = True
     random_seed = int(argv[10])
     random_sampling = int(argv[9])
-    run_clean = True
 
-    sys_params = tdg.define_system_params(input_dir)
+    sub_dataset_filename = "mini_save.nc"
+    final_sim_dir = "run_"
+    num_parallel = 5
+    run_clean = False
+
+    sys_params = tdg.define_system_params(output_dir)
     sys_params["run_clean"] = run_clean
+    sys_params["num_parallel_ifriits"] = num_parallel
 
     if data_init_type == 1: # Generate new initialization dataset
         print("Generating data!")
         sys_params["root_dir"] = output_dir
 
         dataset_params, facility_spec = tdg.define_dataset_params(num_examples, random_sampling=random_sampling, random_seed=random_seed)
-        dataset_params["hemisphere_symmetric"] = hemisphere_symmetric
         dataset_params["run_clean"] = run_clean
+        dataset_params["sim_dir"] = final_sim_dir
 
-        tdg.generate_training_data(dataset_params, sys_params, facility_spec)
-        # choose test data set
-        X_all, Y_all, avg_powers_all = nrw.import_training_data_reversed(sys_params, num_modes)
-        filename_trainingdata = output_dir + '/' + trainingdata_filename 
-        nrw.save_training_data(X_all, Y_all, avg_powers_all, filename_trainingdata)
-        for ieval in range(num_examples):
-            os.rename(output_dir + "/run_" + str(ieval),
-                      output_dir + "/" + iter_dir
-                      + str(ieval))
+        dataset = tdg.define_dataset(dataset_params)
+        dataset = tdg.populate_dataset_random_inputs(dataset_params, dataset)
+
+        deck_gen_params = idg.define_deck_generation_params(dataset_params, facility_spec)
+        deck_gen_params = idg.create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
+        tdg.generate_training_data(dataset, dataset_params, sys_params, facility_spec)
+
     elif data_init_type == 2: # Genetic algorithm
         print("Using a genetic algorithm!")
         ga_n_iter = int(argv[4])
@@ -376,37 +356,39 @@ def main(argv):
     elif data_init_type == 0:
         print("Importing pre-generated data!")
         # copy across dataset_params and facility_spec
-        shutil.copyfile(input_dir + "/dataset_params.nc", output_dir + "/" + sys_params["dataset_params_filename"])
-        shutil.copyfile(input_dir + "/facility_spec.nc", output_dir + "/" + sys_params["facility_spec_filename"])
+        shutil.copyfile(input_dir + "/" + sys_params["dataset_params_filename"],
+                        output_dir + "/" + sys_params["dataset_params_filename"])
+        shutil.copyfile(input_dir + "/" + sys_params["facility_spec_filename"],
+                        output_dir + "/" + sys_params["facility_spec_filename"])
+        shutil.copyfile(input_dir + "/" + sys_params["trainingdata_filename"],
+                        output_dir + "/" + sys_params["trainingdata_filename"])
+        shutil.copyfile(input_dir + "/" + sys_params["deck_gen_params_filename"],
+                        output_dir + "/" + sys_params["deck_gen_params_filename"])
     else:
         print("")
         sys.exit("Dataset not properly specified")
 
     print("Importing data!")
-    sys_params["trainingdata_filename"] = trainingdata_filename
     dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
     facility_spec = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
-    X_all, Y_all, avg_powers_all = nrw.import_training_data(sys_params)
-    num_init_examples = np.shape(X_all)[1]
-    num_inputs = np.shape(X_all)[0]
-    dataset = uopt.define_optimizer_dataset(X_all, Y_all, avg_powers_all)
+    dataset = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
+    num_init_examples = dataset["num_evaluated"]
 
     use_bayesian_optimization = bool(int(argv[5]))
     if use_bayesian_optimization: # Bayesian optimization
         bo_n_iter = int(argv[6])
-        opt_params = uopt.define_optimizer_parameters(output_dir, num_inputs,
-                                                      num_modes, num_init_examples,
-                                                      bo_n_iter, num_parallel,
-                                                      random_seed, facility_spec)
+        opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
+                                                     num_init_examples,
+                                                     bo_n_iter, num_parallel,
+                                                     random_seed, facility_spec,
+                                                     sub_dataset_filename, final_sim_dir)
         opt_params["run_clean"] = run_clean
 
-        target = uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"],
-                                       opt_params)
-        target_mean = np.mean(target)
-        target_set_undetermined = target_mean / 2.0 # half mean for all undetermined BO values
+        target = uopt.fitness_function(dataset, opt_params)
+        target_set_undetermined = np.mean(target) / 2.0 # half mean for all undetermined BO values
         bo_params = uopt.define_bayesian_optimisation_params(target_set_undetermined)
         dataset = wrapper_bayesian_optimisation(dataset, bo_params, opt_params)
-        num_init_examples = np.shape(dataset["X_all"])[1]
+        num_init_examples = dataset["num_evaluated"]
 
     use_gradient_descent = bool(int(argv[7]))
     if use_gradient_descent: # Gradient descent

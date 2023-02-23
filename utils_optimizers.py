@@ -3,6 +3,7 @@ from bayes_opt import BayesianOptimization, UtilityFunction
 import numpy as np
 import training_data_generation as tdg
 import netcdf_read_write as nrw
+import utils_deck_generation as idg
 
 
 def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
@@ -14,41 +15,98 @@ def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
 
 
 
-def define_optimizer_parameters(run_dir, num_inputs, num_modes,
+def define_optimizer_parameters(run_dir, num_optimization_params,
                                 num_init_examples, n_iter, num_parallel,
-                                random_seed, facility_spec):
+                                random_seed, facility_spec, sub_dataset_filename,
+                                final_sim_dir):
     optimizer_params = {}
     optimizer_params["run_dir"] = run_dir
-    optimizer_params["num_inputs"] = num_inputs
-    optimizer_params["num_modes"] = num_modes
+    optimizer_params["num_optimization_params"] = num_optimization_params
     optimizer_params["num_init_examples"] = num_init_examples
     optimizer_params["n_iter"] = n_iter
     optimizer_params["num_parallel"] = num_parallel
-    optimizer_params["iter_dir"] = "iter_"
-    optimizer_params["trainingdata_filename"] = "flipped_training_data_and_labels.nc"
-    optimizer_params["hemisphere_symmetric"] = True
     optimizer_params["run_clean"] = True
     optimizer_params["random_generator"] = np.random.default_rng(random_seed)
     optimizer_params["fitness_max_power_per_steradian"] = facility_spec['nbeams'] * facility_spec['default_power'] * 1.0e12 / (4.0 * np.pi)
     optimizer_params["fitness_desired_rms"] = 0.03
     optimizer_params["fitness_norm_factor"] = 10.0
 
-    pbounds = np.zeros((optimizer_params["num_inputs"], 2))
+    pbounds = np.zeros((optimizer_params["num_optimization_params"], 2))
     pbounds[:,1] = 1.0
     optimizer_params["pbounds"] = pbounds
     return optimizer_params
 
 
 
-def fitness_function(Y, avg_power, optimizer_params):
-    target_rms = optimizer_params["fitness_desired_rms"]
-    target_flux = optimizer_params["fitness_max_power_per_steradian"]
-    norm_factor = optimizer_params["fitness_norm_factor"]
+def fitness_function(dataset, opt_params):
+    target_rms = opt_params["fitness_desired_rms"]
+    target_flux = opt_params["fitness_max_power_per_steradian"]
+    norm_factor = opt_params["fitness_norm_factor"]
 
-    rms = np.sqrt(np.sum(Y**2, axis=0))
+    rms = dataset["rms"][:,0]
+    avg_flux = dataset["avg_flux"][:,0]
 
-    maxi_func = np.exp(-rms/target_rms) * (avg_power/target_flux)**2 * norm_factor
+    maxi_func = np.exp(-rms/target_rms) * (avg_flux/target_flux)**2 * norm_factor
     return maxi_func
+
+
+
+def run_ifriit_input(num_new_examples, X_all, opt_params):
+    sys_params = tdg.define_system_params(opt_params["run_dir"])
+    sys_params["num_parallel_ifriits"] = opt_params["num_parallel"]
+    sys_params["run_clean"] = opt_params["run_clean"] # Create new run files
+
+    dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
+    facility_spec = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
+    dataset = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
+    deck_gen_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
+    dataset_params["num_examples"] = dataset["num_evaluated"] + num_new_examples
+
+    num_evaluated = dataset["num_evaluated"]
+    dataset = expand_dataset(dataset, dataset_params, num_evaluated)
+    deck_gen_params = expand_deck_gen_params(deck_gen_params, dataset_params, facility_spec, num_evaluated)
+    dataset["input_parameters"][dataset["num_evaluated"]:,:] = X_all
+
+    deck_gen_params = idg.create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
+
+    tdg.generate_training_data(dataset, dataset_params, sys_params, facility_spec)
+    return dataset
+
+
+
+def expand_dataset(dataset_small, dataset_params, num_evaluated):
+    dataset_big = tdg.define_dataset(dataset_params)
+    dataset_big = expand_dict(dataset_big, dataset_small, num_evaluated)
+    return dataset_big
+
+
+
+def expand_deck_gen_params(deck_gen_params_small, dataset_params, facility_spec, num_evaluated):
+    deck_gen_params_big = idg.define_deck_generation_params(dataset_params, facility_spec)
+    deck_gen_params_big = expand_dict(deck_gen_params_big, deck_gen_params_small, num_evaluated)
+    return deck_gen_params_big
+
+
+
+def expand_dict(big_dictionary, small_dictionary, old_size):
+    prohibited_list = small_dictionary["non_expand_keys"]
+    for key, item in big_dictionary.items():
+        dims = np.shape(item)
+        total_dims = np.shape(dims)[0]
+        if any(x in key for x in prohibited_list):#(key == "num_evaluated"):
+            big_dictionary[key] = small_dictionary[key]
+        else:
+            if total_dims == 3:
+                big_dictionary[key][:old_size,:,:] = small_dictionary[key][:,:,:]
+            if total_dims == 2:
+                big_dictionary[key][:old_size,:] = small_dictionary[key][:,:]
+            if total_dims == 1:
+                big_dictionary[key][:old_size] = small_dictionary[key][:]
+    small_dictionary.clear()
+    return big_dictionary
+
+
+
 
 #################################### Bayesian Optimization ################################################
 
@@ -74,12 +132,12 @@ def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs
     for ieval in range(init_points):
         # put data in dict
         for ii in range(num_inputs):
-            params["x"+str(ii)] = input_data[ii, ieval]
+            params["x"+str(ii)] = input_data[ieval, ii]
         # add to optimizer
         try:
             optimizer.register(params = params, target = target[ieval])
         except:
-            print("Broken input!", input_data[:, ieval])
+            print("Broken input!", input_data[ieval, :])
         if ieval%100 <= 0.0:
             print(str(ieval) + " initialization data points added")
 

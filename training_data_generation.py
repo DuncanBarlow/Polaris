@@ -108,7 +108,9 @@ def populate_dataset_random_inputs(dataset_params, dataset):
 
 def define_dataset(dataset_params):
     dataset = {}
+    dataset["non_expand_keys"] = ["non_expand_keys","num_evaluated"]
     dataset["num_evaluated"] = 0
+
     dataset["input_parameters"] = np.zeros((dataset_params["num_examples"], dataset_params["num_input_params"]))
     dataset["real_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles"], dataset_params["num_coeff"]))
     dataset["imag_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles"], dataset_params["num_coeff"]))
@@ -123,7 +125,6 @@ def generate_training_data(dataset, dataset_params, sys_params, facility_spec):
     nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
     nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
 
-    min_parallel = dataset["num_evaluated"]
     max_parallel = dataset["num_evaluated"]-1
     chkp_marker = 1.0
     run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"]
@@ -140,7 +141,7 @@ def generate_training_data(dataset, dataset_params, sys_params, facility_spec):
                 if sys_params["run_checkpoint"]:
                     if ((max_parallel + 1) >= (chkp_marker * sys_params["num_ex_checkpoint"])):
                         print("Save training data checkpoint at run: " + str(max_parallel))
-                        dataset["num_evaluated"] = max_parallel
+                        dataset["num_evaluated"] = max_parallel + 1
                         nrw.save_general_netcdf(dataset, filename_trainingdata)
                         chkp_marker +=1
 
@@ -150,7 +151,7 @@ def generate_training_data(dataset, dataset_params, sys_params, facility_spec):
             dataset = run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
 
     if sys_params["run_checkpoint"]:
-        dataset["num_evaluated"] = max_parallel
+        dataset["num_evaluated"] = max_parallel + 1
         nrw.save_general_netcdf(dataset, filename_trainingdata)
 
 
@@ -170,24 +171,6 @@ def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_para
 
 
 
-def run_ifriit_input(num_examples, X_all, run_dir, LMAX, num_parallel, hemisphere_symmetric, run_clean):
-    sys_params = define_system_params(run_dir)
-    sys_params["num_processes"] = num_parallel
-    sys_params["run_clean"] = run_clean # Create new run files
-
-    dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
-    facility_spec = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
-    dataset_params["num_examples"] = num_examples
-    dataset_params["hemisphere_symmetric"] = hemisphere_symmetric
-    dataset_params["Y_train"] = X_all
-
-    generate_training_data(dataset_params, sys_params, facility_spec)
-
-    X_all, Y_all, avg_powers_all = nrw.import_training_data_reversed(sys_params, LMAX)
-    return Y_all, avg_powers_all
-
-
-
 def main(argv):
     sys_params = define_system_params(argv[1])
     dataset_params, facility_spec = define_dataset_params(int(argv[2]), random_sampling=int(argv[4]), random_seed=int(argv[5]))
@@ -196,7 +179,8 @@ def main(argv):
     dataset = define_dataset(dataset_params)
     dataset = populate_dataset_random_inputs(dataset_params, dataset)
 
-    deck_gen_params = idg.create_run_files(dataset["input_parameters"], dataset_params, sys_params, facility_spec)
+    deck_gen_params = idg.define_deck_generation_params(dataset_params, facility_spec)
+    deck_gen_params = idg.create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
 
     generate_training_data(dataset, dataset_params, sys_params, facility_spec)
 

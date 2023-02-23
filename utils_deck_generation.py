@@ -6,7 +6,7 @@ import healpy_pointings as hpoint
 import netcdf_read_write as nrw
 
 
-def create_run_files(input_parameters, dataset_params, sys_params, facility_spec):
+def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec):
 
     num_input_params = dataset_params["num_input_params"]
     num_examples = dataset_params["num_examples"]
@@ -16,13 +16,12 @@ def create_run_files(input_parameters, dataset_params, sys_params, facility_spec
     coord_o[2] = facility_spec['target_radius']
 
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
-    deck_gen_params = define_deck_generation_params(num_examples, num_ifriit_beams, num_input_params)
 
-    for iex in range(num_examples):
+    for iex in range(dataset["num_evaluated"], num_examples):
         if num_examples>1:
-            ex_params = input_parameters[iex,:]
+            ex_params = dataset["input_parameters"][iex,:]
         else:
-            ex_params = input_parameters
+            ex_params = dataset["input_parameters"]
         for icone in range(facility_spec['num_cones']):
             il = (icone*num_vars) % num_input_params
             iu = ((icone+1)*num_vars-1) % num_input_params + 1
@@ -67,10 +66,10 @@ def create_run_files(input_parameters, dataset_params, sys_params, facility_spec
                 if np.abs(facility_spec["Theta"][ind] - facility_spec["Theta"][quad_start_ind]) < np.radians(5.0):
                     beam_names = facility_spec['Beam'][quad_slice]
 
-                    deck_gen_params["Port_centre_theta"][quad_slice] = np.mean(facility_spec["Theta"][quad_slice])
-                    deck_gen_params["Port_centre_phi"][quad_slice] = np.mean(facility_spec["Phi"][quad_slice])
-                    port_theta = deck_gen_params["Port_centre_theta"][ind]
-                    port_phi = deck_gen_params["Port_centre_phi"][ind]
+                    deck_gen_params["port_centre_theta"][quad_slice] = np.mean(facility_spec["Theta"][quad_slice])
+                    deck_gen_params["port_centre_phi"][quad_slice] = np.mean(facility_spec["Phi"][quad_slice])
+                    port_theta = deck_gen_params["port_centre_theta"][ind]
+                    port_phi = deck_gen_params["port_centre_phi"][ind]
 
                     rotation_matrix = np.matmul(np.matmul(hpoint.rot_mat(port_phi, "z"),
                                                           hpoint.rot_mat(port_theta, "y")),
@@ -96,11 +95,15 @@ def create_run_files(input_parameters, dataset_params, sys_params, facility_spec
 
 
 
-def define_deck_generation_params(num_examples, num_ifriit_beams, num_input_params):
-    deck_gen_params = dict()
+def define_deck_generation_params(dataset_params, facility_spec):
+    num_examples = dataset_params["num_examples"]
+    num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
 
-    deck_gen_params["Port_centre_theta"] = np.zeros(num_ifriit_beams)
-    deck_gen_params["Port_centre_phi"] = np.zeros(num_ifriit_beams)
+    deck_gen_params = dict()
+    deck_gen_params["non_expand_keys"] = ["non_expand_keys", "port_centre_theta", "port_centre_phi", "fuse_quads"]
+
+    deck_gen_params["port_centre_theta"] = np.zeros(num_ifriit_beams)
+    deck_gen_params["port_centre_phi"] = np.zeros(num_ifriit_beams)
     deck_gen_params["fuse_quads"] = [False]*num_ifriit_beams
 
     deck_gen_params['pointings'] = np.zeros((num_examples, num_ifriit_beams, 3))
@@ -108,7 +111,7 @@ def define_deck_generation_params(num_examples, num_ifriit_beams, num_input_para
     deck_gen_params["phi_pointings"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["defocus"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["p0"] = np.zeros((num_examples, num_ifriit_beams))
-    deck_gen_params["sim_params"] = np.zeros((num_examples, num_input_params*2))
+    deck_gen_params["sim_params"] = np.zeros((num_examples, dataset_params["num_input_params"]*2))
 
     return deck_gen_params
 
@@ -284,8 +287,8 @@ def generate_input_pointing_and_pulses(iex, facility_spec, deck_gen_params, run_
                     #f.write('    CPP_ROTATION_DEG    = 45.0d0,\n')
                     f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iex,j]))
                 elif (run_type == "test"):
-                    f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['Port_centre_theta'][j])))
-                    f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['Port_centre_phi'][j])))
+                    f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_theta'][j])))
+                    f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_phi'][j])))
                     f.write('    FOCAL_M             = 10.0d0,\n')
                     f.write('    SG                  = 6,\n')
                     f.write('    LAW                  = 2,\n')
@@ -325,8 +328,8 @@ def generate_input_pointing_and_pulses(iex, facility_spec, deck_gen_params, run_
                     f.write('    CPP_ROTATION_MODE   = 1,\n')
                     f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iex,j]))
                 elif (run_type == "test"):
-                    f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['Port_centre_theta'][j])))
-                    f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['Port_centre_phi'][j])))
+                    f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_theta'][j])))
+                    f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_phi'][j])))
                     f.write('    FOCAL_M             = 10.0d0,\n')
                     f.write('    SG                  = 6,\n')
                     f.write('    LAW                  = 2,\n')
