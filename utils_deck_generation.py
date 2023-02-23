@@ -3,9 +3,10 @@ import shutil
 import numpy as np
 import csv
 import healpy_pointings as hpoint
+import netcdf_read_write as nrw
 
 
-def create_run_files(dataset_params, sys_params, facility_spec):
+def create_run_files(input_parameters, dataset_params, sys_params, facility_spec):
 
     num_input_params = dataset_params["num_input_params"]
     num_examples = dataset_params["num_examples"]
@@ -19,9 +20,9 @@ def create_run_files(dataset_params, sys_params, facility_spec):
 
     for iex in range(num_examples):
         if num_examples>1:
-            ex_params =  dataset_params["Y_train"][:,iex]
+            ex_params = input_parameters[iex,:]
         else:
-            ex_params =  dataset_params["Y_train"]
+            ex_params = input_parameters
         for icone in range(facility_spec['num_cones']):
             il = (icone*num_vars) % num_input_params
             iu = ((icone+1)*num_vars-1) % num_input_params + 1
@@ -290,7 +291,7 @@ def generate_input_pointing_and_pulses(iex, facility_spec, deck_gen_params, run_
                     f.write('    LAW                  = 2,\n')
                     f.write('    RAD_1_UM            = 80.0d0,\n')
                     f.write('    RAD_2_UM            = 80.0d0,\n')
-                if 'fuse' in dat.keys() and dat['fuse'][j]:
+                if 'fuse' in deck_gen_params.keys() and deck_gen_params['fuse'][j]:
                     f.write('    FUSE_QUADS          = .TRUE.,\n')
                     f.write('    FUSE_BY_POINTINGS   = .TRUE.,\n')
                 else:
