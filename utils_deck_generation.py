@@ -88,7 +88,7 @@ def create_run_files(input_parameters, dataset_params, sys_params, facility_spec
 
         if sys_params["run_gen_deck"]:
             run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
-            generate_input_deck(facility_spec, sys_params, run_location)
+            generate_input_deck(dataset_params, facility_spec, sys_params, run_location)
             generate_input_pointing_and_pulses(iex, facility_spec, deck_gen_params, run_location, dataset_params["run_type"])
 
     nrw.save_general_netcdf(deck_gen_params, sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
@@ -220,7 +220,7 @@ def config_formatting(facility_spec):
 
 
 
-def generate_input_deck(facility_spec, sys_params, run_location):
+def generate_input_deck(dataset_params, facility_spec, sys_params, run_location):
 
     isExist = os.path.exists(run_location)
 
@@ -228,7 +228,7 @@ def generate_input_deck(facility_spec, sys_params, run_location):
         os.makedirs(run_location)
 
     shutil.copyfile(sys_params["ifriit_binary_filename"], run_location + "/" + sys_params["ifriit_binary_filename"])
-    if sys_params["run_plasma_profile"]:
+    if dataset_params["run_plasma_profile"]:
         base_input_txt_loc = (sys_params["plasma_profile_dir"] + "/"
                               + sys_params["ifriit_input_name"])
         shutil.copyfile(sys_params["plasma_profile_dir"] + "/" +

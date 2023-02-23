@@ -19,11 +19,6 @@ def define_system_params(root_dir):
     sys_params["run_sims"] = True
     sys_params["run_checkpoint"] = True
     sys_params["run_clean"] = False
-    sys_params["run_plasma_profile"] = True
-    if sys_params["run_plasma_profile"]:
-        sys_params["num_profiles"] = 2 # change this
-    else:
-        sys_params["num_profiles"] = 1 # leave this
 
     sys_params["root_dir"] = root_dir
     sys_params["sim_dir"] = "run_"
@@ -54,6 +49,11 @@ def define_dataset_params(num_examples,
     dataset_params["random_sampling"] = random_sampling
     dataset_params["hemisphere_symmetric"] = True
     dataset_params["imap_nside"] = 256
+    dataset_params["run_plasma_profile"] = False
+    if dataset_params["run_plasma_profile"]:
+        dataset_params["num_profiles"] = 2 # change this
+    else:
+        dataset_params["num_profiles"] = 1 # leave this
 
     num_variables_per_beam = 0
     # pointings
@@ -106,14 +106,14 @@ def populate_dataset_random_inputs(dataset_params, dataset):
 
 
 
-def define_dataset(dataset_params, sys_params):
+def define_dataset(dataset_params):
     dataset = {}
     dataset["num_evaluated"] = 0
     dataset["input_parameters"] = np.zeros((dataset_params["num_examples"], dataset_params["num_input_params"]))
-    dataset["real_modes"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles"], dataset_params["num_coeff"]))
-    dataset["imag_modes"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles"], dataset_params["num_coeff"]))
-    dataset["avg_flux"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles"]))
-    dataset["rms"] = np.zeros((dataset_params["num_examples"], sys_params["num_profiles"]))
+    dataset["real_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles"], dataset_params["num_coeff"]))
+    dataset["imag_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles"], dataset_params["num_coeff"]))
+    dataset["avg_flux"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles"]))
+    dataset["rms"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles"]))
     return dataset
 
 
@@ -158,7 +158,7 @@ def generate_training_data(dataset, dataset_params, sys_params, facility_spec):
 def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec):
     run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"]
 
-    if sys_params["run_plasma_profile"]:
+    if dataset_params["run_plasma_profile"]:
         num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
     else:
         num_mpi_parallel = 1
@@ -193,7 +193,7 @@ def main(argv):
     dataset_params, facility_spec = define_dataset_params(int(argv[2]), random_sampling=int(argv[4]), random_seed=int(argv[5]))
     dataset_params["hemisphere_symmetric"] = bool(int(argv[3]))
 
-    dataset = define_dataset(dataset_params, sys_params)
+    dataset = define_dataset(dataset_params)
     dataset = populate_dataset_random_inputs(dataset_params, dataset)
 
     deck_gen_params = idg.create_run_files(dataset["input_parameters"], dataset_params, sys_params, facility_spec)
