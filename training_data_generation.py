@@ -51,6 +51,7 @@ def define_dataset_params(num_examples,
     # Number of samples, size of NN training set
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
+    dataset_params["random_sampling"] = random_sampling
     dataset_params["hemisphere_symmetric"] = True
     dataset_params["imap_nside"] = 256
 
@@ -85,17 +86,23 @@ def define_dataset_params(num_examples,
     # Assume symmetry
     dataset_params["num_input_params"] = int(facility_spec['num_cones']/2) * dataset_params["num_variables_per_beam"]
 
+    return dataset_params, facility_spec
+
+
+def populate_dataset_random_inputs(dataset_params, dataset):
+
     random_generator=np.random.default_rng(dataset_params["random_seed"])
-    if random_sampling == 1:
+    if dataset_params["random_sampling"] == 1:
         print("Random Sampling!")
         sample = random_generator.random((dataset_params["num_examples"], dataset_params["num_input_params"]))
     else:
         sampler = qmc.LatinHypercube(d=dataset_params["num_input_params"],
                                      strength=1, seed=random_generator, optimization="random-cd")
         sample = sampler.random(n=dataset_params["num_examples"])
-    dataset_params["Y_train"] = sample.T
+    print(np.shape(sample))
+    dataset["input_parameters"] = sample
 
-    return dataset_params, facility_spec
+    return dataset
 
 
 
@@ -183,13 +190,14 @@ def main(argv):
     dataset_params, facility_spec = define_dataset_params(int(argv[2]), random_sampling=int(argv[4]), random_seed=int(argv[5]))
     dataset_params["hemisphere_symmetric"] = bool(int(argv[3]))
 
-    deck_gen_params = idg.create_run_files(dataset_params, sys_params, facility_spec)
+    dataset = define_dataset(dataset_params, sys_params)
+    dataset = populate_dataset_random_inputs(dataset_params, dataset)
+
+    deck_gen_params = idg.create_run_files(dataset["input_parameters"], dataset_params, sys_params, facility_spec)
+
     nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
     nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
     nrw.save_general_netcdf(deck_gen_params, sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
-
-    dataset = define_dataset(dataset_params, sys_params)
-    dataset["input_parameters"] = dataset_params["Y_train"].T
 
     generate_training_data(dataset, dataset_params, sys_params, facility_spec, deck_gen_params)
 
