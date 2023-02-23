@@ -11,7 +11,7 @@ from scipy.stats import qmc
 
 def define_system_params(root_dir):
     sys_params = {}
-    sys_params["num_processes"] = 1
+    sys_params["num_parallel_ifriits"] = 1
     sys_params["num_openmp_parallel"] = 4
     sys_params["num_ex_checkpoint"] = 10
 
@@ -111,26 +111,20 @@ def define_dataset(dataset_params, sys_params):
 
 
 
-def generate_training_data(dataset_params, sys_params, facility_spec):
-    deck_gen_params = idg.create_run_files(dataset_params, sys_params, facility_spec)
-    nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
-    nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
-    nrw.save_general_netcdf(deck_gen_params, sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
+def generate_training_data(dataset, dataset_params, sys_params, facility_spec, deck_gen_params):
 
-    dataset = define_dataset(dataset_params, sys_params)
-    dataset["input_parameters"] = dataset_params["Y_train"].T
-
-    min_parallel = 0
-    max_parallel = -1
+    min_parallel = dataset["num_evaluated"]
+    max_parallel = dataset["num_evaluated"]-1
     chkp_marker = 1.0
     run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"]
     filename_trainingdata = sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"]
     if sys_params["run_sims"]:
-        num_parallel_runs = int(dataset_params["num_examples"] / sys_params["num_processes"])
+        # int is a floor round
+        num_parallel_runs = int(dataset_params["num_examples"] / sys_params["num_parallel_ifriits"])
         if num_parallel_runs > 0:
             for ir in range(num_parallel_runs):
-                min_parallel = ir * sys_params["num_processes"]
-                max_parallel = (ir + 1) * sys_params["num_processes"] - 1
+                min_parallel = max_parallel + 1
+                max_parallel = min_parallel + sys_params["num_parallel_ifriits"] - 1
                 dataset = run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
 
                 if sys_params["run_checkpoint"]:
@@ -188,7 +182,16 @@ def main(argv):
     sys_params = define_system_params(argv[1])
     dataset_params, facility_spec = define_dataset_params(int(argv[2]), random_sampling=int(argv[4]), random_seed=int(argv[5]))
     dataset_params["hemisphere_symmetric"] = bool(int(argv[3]))
-    generate_training_data(dataset_params, sys_params, facility_spec)
+
+    deck_gen_params = idg.create_run_files(dataset_params, sys_params, facility_spec)
+    nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
+    nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
+    nrw.save_general_netcdf(deck_gen_params, sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
+
+    dataset = define_dataset(dataset_params, sys_params)
+    dataset["input_parameters"] = dataset_params["Y_train"].T
+
+    generate_training_data(dataset, dataset_params, sys_params, facility_spec, deck_gen_params)
 
     return dataset_params, sys_params, facility_spec
 
