@@ -13,7 +13,7 @@ def define_system_params(root_dir):
     sys_params = {}
     sys_params["num_parallel_ifriits"] = 1
     sys_params["num_openmp_parallel"] = 4
-    sys_params["num_ex_checkpoint"] = 10
+    sys_params["num_ex_checkpoint"] = 1
 
     sys_params["run_gen_deck"] = True
     sys_params["run_sims"] = True
@@ -99,7 +99,6 @@ def populate_dataset_random_inputs(dataset_params, dataset):
         sampler = qmc.LatinHypercube(d=dataset_params["num_input_params"],
                                      strength=1, seed=random_generator, optimization="random-cd")
         sample = sampler.random(n=dataset_params["num_examples"])
-    print(np.shape(sample))
     dataset["input_parameters"] = sample
 
     return dataset
@@ -131,7 +130,7 @@ def generate_training_data(dataset, dataset_params, sys_params, facility_spec):
     filename_trainingdata = sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"]
     if sys_params["run_sims"]:
         # int is a floor round
-        num_parallel_runs = int(dataset_params["num_examples"] / sys_params["num_parallel_ifriits"])
+        num_parallel_runs = int((dataset_params["num_examples"] - dataset["num_evaluated"]) / sys_params["num_parallel_ifriits"])
         if num_parallel_runs > 0:
             for ir in range(num_parallel_runs):
                 min_parallel = max_parallel + 1

@@ -316,9 +316,7 @@ def main(argv):
     random_seed = int(argv[10])
     random_sampling = int(argv[9])
 
-    sub_dataset_filename = "mini_save.nc"
-    final_sim_dir = "run_"
-    num_parallel = 5
+    num_parallel = 1
     run_clean = False
 
     sys_params = tdg.define_system_params(output_dir)
@@ -331,7 +329,6 @@ def main(argv):
 
         dataset_params, facility_spec = tdg.define_dataset_params(num_examples, random_sampling=random_sampling, random_seed=random_seed)
         dataset_params["run_clean"] = run_clean
-        dataset_params["sim_dir"] = final_sim_dir
 
         dataset = tdg.define_dataset(dataset_params)
         dataset = tdg.populate_dataset_random_inputs(dataset_params, dataset)
@@ -394,8 +391,7 @@ def main(argv):
         opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
                                                      num_init_examples,
                                                      bo_n_iter, num_parallel,
-                                                     random_seed, facility_spec,
-                                                     sub_dataset_filename, final_sim_dir)
+                                                     random_seed, facility_spec)
         opt_params["run_clean"] = run_clean
 
         target = uopt.fitness_function(dataset, opt_params)

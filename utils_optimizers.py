@@ -17,8 +17,7 @@ def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
 
 def define_optimizer_parameters(run_dir, num_optimization_params,
                                 num_init_examples, n_iter, num_parallel,
-                                random_seed, facility_spec, sub_dataset_filename,
-                                final_sim_dir):
+                                random_seed, facility_spec):
     optimizer_params = {}
     optimizer_params["run_dir"] = run_dir
     optimizer_params["num_optimization_params"] = num_optimization_params

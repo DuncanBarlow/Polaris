@@ -67,19 +67,19 @@ def extract_run_parameters(iex, dataset_params, facility_spec, sys_params, deck_
 
     total_power = 0
     print_line = []
+    beam_count = 0
 
     for icone in range(facility_spec['num_cones']):
-        ind_cone_start = icone * dataset_params["num_variables_per_beam"]
         beams_per_cone = facility_spec['beams_per_cone'][icone]
 
-        ind = int(icone * beams_per_cone / facility_spec["beams_per_ifriit_beam"])
-        cone_theta_offset = deck_gen_params["theta_pointings"][iex,ind]
-        cone_phi_offset = deck_gen_params["phi_pointings"][iex,ind]
-        cone_defocus = deck_gen_params["defocus"][iex,ind]
-        cone_powers = deck_gen_params["p0"][iex,ind] / (
+        cone_theta_offset = deck_gen_params["theta_pointings"][iex,beam_count]
+        cone_phi_offset = deck_gen_params["phi_pointings"][iex,beam_count]
+        cone_defocus = deck_gen_params["defocus"][iex,beam_count]
+        cone_powers = deck_gen_params["p0"][iex,beam_count] / (
                       facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
 
         total_power += cone_powers * beams_per_cone
+        beam_count = beam_count + int(beams_per_cone / facility_spec["beams_per_ifriit_beam"])
 
         if icone < int(facility_spec['num_cones']/2):
             print_line.append("For cone " + str(icone+1) +

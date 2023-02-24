@@ -18,10 +18,7 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
 
     for iex in range(dataset["num_evaluated"], num_examples):
-        if num_examples>1:
-            ex_params = dataset["input_parameters"][iex,:]
-        else:
-            ex_params = dataset["input_parameters"]
+        ex_params = dataset["input_parameters"][iex,:]
         for icone in range(facility_spec['num_cones']):
             il = (icone*num_vars) % num_input_params
             iu = ((icone+1)*num_vars-1) % num_input_params + 1
