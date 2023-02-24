@@ -110,9 +110,11 @@ def expand_dict(big_dictionary, small_dictionary, old_size):
 
 #################################### Bayesian Optimization ################################################
 
-def define_bayesian_optimisation_params(target_set_undetermined):
+def define_bayesian_optimisation_params(target_set_undetermined, num_mutations):
     bo_params = {}
     bo_params["target_set_undetermined"] = target_set_undetermined
+    bo_params["num_mutations"] = num_mutations
+    bo_params["mutation_amplitude"] = 0.25
 
     return bo_params
 

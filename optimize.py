@@ -28,7 +28,10 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
         optimizer2 = copy.deepcopy(optimizer)
 
         X_new = np.zeros((opt_params["num_parallel"], opt_params["num_optimization_params"]))
+        old_max_eval = dataset["num_evaluated"]
+
         for npar in range(opt_params["num_parallel"]):
+            ieval = old_max_eval + npar
             next_point = optimizer2.suggest(utility)
             for ii in range(opt_params["num_optimization_params"]):
                 X_new[npar,ii] = next_point["x"+str(ii)]
@@ -36,7 +39,19 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
             try:
                 optimizer2.register(params=next_point, target=bo_params["target_set_undetermined"])
             except:
-                print("Broken input!", next_point, bo_params["target_set_undetermined"])
+                boolean_array = np.isclose(X_new[npar,0], dataset["input_parameters"][:,0], rtol=1.0e-5)
+                print("Broken input! Likely degererate, index: ", ieval)
+                print("First parameter degenerate with: ", np.where(boolean_array))
+
+                print("Trying random mutation:")
+                for_mutation = X_new[npar,:].reshape((1,opt_params["num_optimization_params"]))
+                print("old: ", for_mutation)
+                after_mutation = uopt.mutation(for_mutation, opt_params["random_generator"],
+                                           opt_params["pbounds"],
+                                           num_mutations=bo_params["num_mutations"],
+                                           mutation_amplitude=bo_params["mutation_amplitude"])
+                print("new: ", after_mutation)
+                X_new[npar,:] = after_mutation[0,:]
 
         old_max_eval = dataset["num_evaluated"]
         dataset = uopt.run_ifriit_input(opt_params["num_parallel"], X_new, opt_params)
@@ -56,13 +71,12 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
         if (it+1)%1 <= 0.0:
             toc = time.perf_counter()
             print("{:0.4f} seconds".format(toc - tic))
-            print(optimizer.max)
+            #print(optimizer.max)
 
             mindex = np.argmax(target)
             print(mindex)
             print(target[mindex])
             print(dataset["rms"][mindex,:])
-    print(next_point)
     return dataset
 
 
@@ -386,7 +400,8 @@ def main(argv):
 
         target = uopt.fitness_function(dataset, opt_params)
         target_set_undetermined = np.mean(target) / 2.0 # half mean for all undetermined BO values
-        bo_params = uopt.define_bayesian_optimisation_params(target_set_undetermined)
+        num_mutations = int(opt_params["num_optimization_params"] / 2)
+        bo_params = uopt.define_bayesian_optimisation_params(target_set_undetermined, num_mutations)
         dataset = wrapper_bayesian_optimisation(dataset, bo_params, opt_params)
         num_init_examples = dataset["num_evaluated"]
 
