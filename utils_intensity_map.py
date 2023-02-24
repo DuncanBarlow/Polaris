@@ -28,7 +28,7 @@ def angle2moll(theta, phi):
 
 
 
-def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0, file_location="."):
+def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0):
     n_beams = the_data['nbeams']
     total_TW = np.mean(intensity_map)*10**(-12) * 4.0 * np.pi
     mean_intensity = np.mean(intensity_map) / (the_data['target_radius'] / 10000.0)**2
@@ -37,27 +37,18 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0, file_lo
     intensity_map_normalised, avg_power = imap_norm(intensity_map)
     imap_pn = np.sign(intensity_map_normalised)
     intensity_map_rms = 100.0 * np.sqrt(np.mean(intensity_map_normalised**2))
-    intensity_map_rms_spatial = imap_pn * 100.0 * np.abs(intensity_map_normalised)
 
     print_line = []
-    print('')
     print_line.append('RMS is {:.4f}%, '.format(intensity_map_rms))
-    print_line.append('Number of beams ' + str(n_beams))
     print_line.append('Mean intensity is {:.2e}W/cm^2, '.format(mean_intensity))
+    print_line.append('Number of beams ' + str(n_beams))
     print_line.append('The total power deposited is {:.2f}TW, '.format(total_TW))
     print_line.append('The power per beam deposited is {:.4f}TW, '.format(total_TW / n_beams))
     if mean_power_fraction > 0.0:
         print_line.append('This is a drive efficiency of {:.2f}%, '.format(total_TW / (n_beams * the_data['default_power'] * mean_power_fraction) * 100.0))
         print_line.append('Mean power percentage {:.2f}%, '.format(mean_power_fraction * 100.0))
-    print('')
 
-    #file1 = open(file_location+"/stats.txt","a")
-    #for line in range(len(print_line)):
-    #    print(print_line[line])
-    #    file1.writelines(print_line[line]+"\n")
-    #file1.close()
-
-    return intensity_map_rms_spatial
+    return print_line
 
 
 
@@ -72,27 +63,22 @@ def heatsource_analysis(hs_and_modes):
 
 
 
-def extract_run_parameters(dataset_params, facility_spec, sys_params, file_location="."):
+def extract_run_parameters(iex, dataset_params, facility_spec, sys_params, deck_gen_params):
 
     total_power = 0
     print_line = []
 
     for icone in range(facility_spec['num_cones']):
         ind_cone_start = icone * dataset_params["num_variables_per_beam"]
-
-        cone_theta_offset = float(
-            dataset_params["sim_params"][ind_cone_start+dataset_params["theta_index"]])
-        cone_phi_offset = float(
-            dataset_params["sim_params"][ind_cone_start+dataset_params["phi_index"]])
-        if dataset_params["defocus_bool"]:
-            cone_defocus = float(
-                dataset_params["sim_params"][ind_cone_start+dataset_params["defocus_index"]])
-        else:
-            cone_defocus = dataset_params["defocus_default"]
-        cone_powers = float(
-            dataset_params["sim_params"][ind_cone_start+dataset_params["power_index"]])
-
         beams_per_cone = facility_spec['beams_per_cone'][icone]
+
+        ind = int(icone * beams_per_cone / facility_spec["beams_per_ifriit_beam"])
+        cone_theta_offset = deck_gen_params["theta_pointings"][iex,ind]
+        cone_phi_offset = deck_gen_params["phi_pointings"][iex,ind]
+        cone_defocus = deck_gen_params["defocus"][iex,ind]
+        cone_powers = deck_gen_params["p0"][iex,ind] / (
+                      facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
+
         total_power += cone_powers * beams_per_cone
 
         if icone < int(facility_spec['num_cones']/2):
@@ -103,15 +89,7 @@ def extract_run_parameters(dataset_params, facility_spec, sys_params, file_locat
                   "{:.2f}% power, ".format(cone_powers * 100))
     mean_power_fraction = total_power / facility_spec['nbeams']
 
-    if os.path.exists(file_location+"/stats.txt"):
-        os.remove(file_location+"/stats.txt")
-    file1 = open(file_location+"/stats.txt","a")
-    for line in range(len(print_line)):
-        print(print_line[line])
-        file1.writelines(print_line[line]+"\n")
-    file1.close()
-
-    return mean_power_fraction
+    return print_line, mean_power_fraction
 
 
 def alms2power_spectrum(alms, LMAX):
