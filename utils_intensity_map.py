@@ -51,11 +51,11 @@ def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0, file_lo
         print_line.append('Mean power percentage {:.2f}%, '.format(mean_power_fraction * 100.0))
     print('')
 
-    file1 = open(file_location+"/stats.txt","a")
-    for line in range(len(print_line)):
-        print(print_line[line])
-        file1.writelines(print_line[line]+"\n")
-    file1.close()
+    #file1 = open(file_location+"/stats.txt","a")
+    #for line in range(len(print_line)):
+    #    print(print_line[line])
+    #    file1.writelines(print_line[line]+"\n")
+    #file1.close()
 
     return intensity_map_rms_spatial
 
