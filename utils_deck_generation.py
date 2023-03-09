@@ -124,6 +124,7 @@ def import_nif_config():
     facility_spec['num_cones'] = 8
     facility_spec['default_power'] = 1.0 #TW per beam
 
+    facility_spec['cone_names'] = np.array((23.5, 30, 44.5, 50, 23.5, 30, 44.5, 50))
     # The order of these is important (top-to-equator, then bottom-to-equator)
     facility_spec['quad_from_each_cone'] = np.array(('Q15T', 'Q13T', 'Q14T', 'Q11T', 'Q15B', 'Q16B', 'Q14B', 'Q13B'), dtype='<U4')
     facility_spec["beams_per_ifriit_beam"] = 1 # fuse quads?
