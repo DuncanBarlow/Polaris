@@ -74,24 +74,44 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
 
 
 
-def wrapper_gradient_descent(dataset, gd_params, opt_params):
+def wrapper_gradient_ascent(dataset, gd_params, opt_params):
     learning_rate = 10.0**gd_params["learn_exp"]
     step_size = np.array([gd_params["learn_exp"] - 1.0, gd_params["learn_exp"] + 1.0])
-    stencil_size = opt_params["num_inputs"] * 2 + 1
+    stencil_size = opt_params["num_optimization_params"] * 2
 
-    X_old = np.zeros((opt_params["num_inputs"], 1))
-    Y_old = np.zeros((opt_params["num_modes"], 1))
-    avg_powers_old = np.array([0.0])
+    target = uopt.fitness_function(dataset, opt_params)
 
-    fitness_pop = -uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"],
-                                         opt_params)
-    mindex = np.argmin(fitness_pop)
-    X_old[:,0] = dataset["X_all"][:, mindex]
+    X_old = np.zeros((1, opt_params["num_optimization_params"]))
+    maxdex_new = np.argmax(target)
+    X_old[0,:] = dataset["input_parameters"][maxdex_new,:]
 
     tic = time.perf_counter()
     for ieval in range(opt_params["n_iter"]):
+        maxdex_old = maxdex_new
 
-        if (sum(abs(dataset["X_all"][:,-1] - dataset["X_all"][:,-2])) <= 0.0):
+        X_stencil = uopt.gradient_stencil(X_old, learning_rate, opt_params["pbounds"],
+                                     opt_params["num_optimization_params"], stencil_size)
+        dataset = uopt.run_ifriit_input(stencil_size, X_stencil, opt_params)
+
+        target = uopt.fitness_function(dataset, opt_params)
+        target_stencil = target[-stencil_size:]
+        uopt.printout_optimizer_iteration(tic, dataset, opt_params)
+
+        grad = uopt.determine_gradient(X_stencil, target_stencil, target[maxdex_old], learning_rate,
+                                  opt_params["pbounds"], opt_params["num_optimization_params"])
+        grad = grad / np.sum(np.abs(grad))
+        X_downhill = uopt.grad_ascent(X_old, grad, step_size, opt_params["pbounds"],
+                             opt_params["num_optimization_params"],
+                             gd_params["num_steps_per_iter"])
+        dataset = uopt.run_ifriit_input(gd_params["num_steps_per_iter"], X_downhill, opt_params)
+
+        target = uopt.fitness_function(dataset, opt_params)
+        uopt.printout_optimizer_iteration(tic, dataset, opt_params)
+
+        maxdex_new = np.argmax(target)
+        X_old[0,:] = dataset["input_parameters"][maxdex_new,:]
+
+        if (maxdex_new == maxdex_old):
             gd_params["learn_exp"] = gd_params["learn_exp"]-0.5
             learning_rate = 10.0**(gd_params["learn_exp"])
             step_size = step_size - 0.5
@@ -99,91 +119,10 @@ def wrapper_gradient_descent(dataset, gd_params, opt_params):
             if learning_rate < 1.0e-4:
                 print(str(ieval+1) + " Bayesian data points added, saving to .nc")
                 print("Early stopping due to repeated results")
-                filename_trainingdata = opt_params["run_dir"] + '/' + opt_params["trainingdata_filename"]
-                nrw.save_training_data(dataset["X_all"], dataset["Y_all"],
-                                       dataset["avg_powers_all"], filename_trainingdata)
                 break
 
-        X_stencil = uopt.gradient_stencil(X_old, learning_rate, opt_params["pbounds"],
-                                     opt_params["num_inputs"], stencil_size)
-        Y_stencil, avg_powers_stencil = tdg.run_ifriit_input(stencil_size, X_stencil,
-                                                             opt_params["run_dir"],
-                                                             opt_params["num_modes"],
-                                                             opt_params["num_parallel"],
-                                                             opt_params["hemisphere_symmetric"],
-                                                             opt_params["run_clean"])
-        target_stencil = -uopt.fitness_function(Y_stencil, avg_powers_stencil, opt_params)
-        mindex_stencil = np.argmin(target_stencil)
-        print("The minimum in the stencil", np.min(target_stencil), mindex_stencil)
-        print("The previous value was: ", target_stencil[0], 0)
-        print(X_stencil[:,0])
-        os.rename(opt_params["run_dir"]  + "/run_" + str(mindex_stencil),
-                  opt_params["run_dir"] + "/" + opt_params["iter_dir"] 
-                  + str(ieval+opt_params["num_init_examples"]))
-
-        grad = uopt.determine_gradient(X_stencil, target_stencil, learning_rate,
-                                  opt_params["pbounds"], opt_params["num_inputs"])
-        grad = grad / np.sum(np.abs(grad))
-        X_new = uopt.grad_descent(X_old, grad, step_size, opt_params["pbounds"],
-                             opt_params["num_inputs"],
-                             gd_params["num_steps_per_iter"])
-
-        Y_new, avg_powers_new = tdg.run_ifriit_input(gd_params["num_steps_per_iter"],
-                                                     X_new, opt_params["run_dir"],
-                                                     opt_params["num_modes"],
-                                                     opt_params["num_parallel"],
-                                                     opt_params["hemisphere_symmetric"],
-                                                     opt_params["run_clean"])
-        target_downhill = -uopt.fitness_function(Y_new, avg_powers_new, opt_params)
-        mindex_downhill = np.argmin(target_downhill)
-        print("The minimum downhill", np.min(target_downhill), mindex_downhill)
-
-        if target_downhill[mindex_downhill] < target_stencil[mindex_stencil]:
-            shutil.rmtree(opt_params["run_dir"] + "/" + opt_params["iter_dir"] 
-                          + str(ieval+opt_params["num_init_examples"]))
-            os.rename(opt_params["run_dir"] + "/run_" + str(mindex_downhill),
-                      opt_params["run_dir"] + "/" + opt_params["iter_dir"] 
-                      + str(ieval+opt_params["num_init_examples"]))
-            X_old[:,0] = X_new[:,mindex_downhill]
-            Y_old[:,0] = Y_new[:,mindex_downhill]
-            avg_powers_old = avg_powers_new[mindex_downhill]
-        else:
-            X_old[:,0] = X_stencil[:,mindex_stencil]
-            Y_old[:,0] = Y_stencil[:,mindex_stencil]
-            avg_powers_old = avg_powers_stencil[mindex_stencil]
-
-        dataset["X_all"] = np.hstack((dataset["X_all"], X_old))
-        dataset["Y_all"] = np.hstack((dataset["Y_all"], Y_old))
-        dataset["avg_powers_all"] = np.hstack((dataset["avg_powers_all"], avg_powers_old))
-
-        print("Iteration {} with learn rate {} value:{}".format(ieval, learning_rate, np.sqrt(np.sum(Y_old**2))))
-        print(X_old[:,0])
-
-        fit_func_all = -uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"],
-                                              opt_params)
-
-        if fit_func_all[-1] > fit_func_all[-2]:
-            print("Bug! Ascending slope!")
-            print(fit_func_all[-1], fit_func_all[-2])
-            break
-
-        if (ieval+1)%1 <= 0.0:
-            toc = time.perf_counter()
-            print("{:0.4f} seconds".format(toc - tic))
-            print(str(ieval+1) + " data points added, saving to .nc")
-            filename_trainingdata = opt_params["run_dir"] + '/' + opt_params["trainingdata_filename"]
-            nrw.save_training_data(dataset["X_all"], dataset["Y_all"],
-                                   dataset["avg_powers_all"], filename_trainingdata)
-            mindex = np.argmin(fit_func_all)
-            print(mindex)
-            print(np.sum(fit_func_all[mindex]))
-            print(np.sum(dataset["Y_all"][:,mindex]))
-            print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
-    for isten in range(stencil_size):
-        try:
-            shutil.rmtree(opt_params["run_dir"] + "/run_" + str(isten))
-        except:
-            print("File: " + opt_params["run_dir"] + "/run_" + str(isten) + ", already deleted.")
+        print("Iteration {} with learn rate {} value: {}".format(ieval, learning_rate, target[maxdex_new]))
+        print(X_old)
     return dataset
 
 
@@ -307,17 +246,17 @@ def main(argv):
         dataset = wrapper_bayesian_optimisation(dataset, bo_params, opt_params)
         num_init_examples = dataset["num_evaluated"]
 
-    use_gradient_descent = bool(int(argv[7]))
-    if use_gradient_descent: # Gradient descent
-        print("Using gradient descent!")
+    use_gradient_ascent = bool(int(argv[7]))
+    if use_gradient_ascent: # Gradient ascent
+        print("Using gradient ascent!")
         gd_n_iter = int(argv[8])
         opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
                                                      num_init_examples,
                                                      gd_n_iter, sys_params["num_parallel_ifriits"],
                                                      dataset_params["random_seed"], facility_spec)
 
-        gd_params = uopt.define_gradient_descent_params(num_parallel)
-        dataset = wrapper_gradient_descent(dataset, gd_params, opt_params)
+        gd_params = uopt.define_gradient_ascent_params(opt_params["num_parallel"])
+        dataset = wrapper_gradient_ascent(dataset, gd_params, opt_params)
         num_init_examples = dataset["num_evaluated"]
 
     return

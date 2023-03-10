@@ -159,7 +159,7 @@ def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs
 
 ######################################## Gradient Descent ############################################
 
-def define_gradient_descent_params(num_steps_per_iter):
+def define_gradient_ascent_params(num_steps_per_iter):
     gd_params = {}
     gd_params["learn_exp"] = -1.0
     gd_params["num_steps_per_iter"] = num_steps_per_iter
@@ -168,51 +168,48 @@ def define_gradient_descent_params(num_steps_per_iter):
 
 
 def gradient_stencil(X_new, learning_rate, pbounds, num_inputs, stencil_size):
-    X_stencil = np.zeros((num_inputs, stencil_size))
+    X_stencil = np.zeros((stencil_size, num_inputs))
 
     counter = 0
-    X_stencil[:, counter] = X_new[:,0]
-    counter += 1
     for ii in range(num_inputs):
-        X_stencil[:, counter] = X_new[:,0]
-        X_stencil[ii, counter] = X_new[ii,0] - learning_rate
-        if (X_stencil[ii,counter] < pbounds[ii,0]):
-            X_stencil[ii,counter] = pbounds[ii,0] # to avoid stencil leaving domain
+        X_stencil[counter,:] = X_new[0,:]
+        X_stencil[counter,ii] = X_new[0,ii] - learning_rate
+        if (X_stencil[counter,ii] < pbounds[ii,0]):
+            X_stencil[counter,ii] = pbounds[ii,0] # to avoid stencil leaving domain
         counter += 1
-        X_stencil[:, counter] = X_new[:,0]
-        X_stencil[ii, counter] = X_new[ii,0] + learning_rate
-        if (X_stencil[ii,counter] > pbounds[ii,1]):
-            X_stencil[ii,counter] = pbounds[ii,1] # to avoid stencil leaving domain
+        X_stencil[counter,:] = X_new[0,:]
+        X_stencil[counter,ii] = X_new[0,ii] + learning_rate
+        if (X_stencil[counter,ii] > pbounds[ii,1]):
+            X_stencil[counter,ii] = pbounds[ii,1] # to avoid stencil leaving domain
         counter += 1
 
     return X_stencil
 
 
 
-def determine_gradient(X_stencil, target, learning_rate, pbounds, num_inputs):
+def determine_gradient(X_stencil, target_stencil, target, learning_rate, pbounds, num_inputs):
 
     grad = np.zeros(num_inputs)
+    f_centre = target
     counter = 0
-    f_centre = target[counter]
-    counter += 1
     for ii in range(num_inputs):
 
         centred_diff = True
         forward_diff = False
         backward_diff = False
 
-        if (X_stencil[ii,counter] < pbounds[ii,0]):
+        if (X_stencil[counter,ii] < pbounds[ii,0]):
             centred_diff = False
             forward_diff = True
         else:
-            f_minus = target[counter]
+            f_minus = target_stencil[counter]
         counter += 1
 
-        if (X_stencil[ii,counter] > pbounds[ii,1]):
+        if (X_stencil[counter,ii] > pbounds[ii,1]):
             centred_diff = False
             backward_diff = True
         else:
-            f_plus = target[counter]
+            f_plus = target_stencil[counter]
         counter += 1
 
         if centred_diff:
@@ -229,18 +226,18 @@ def determine_gradient(X_stencil, target, learning_rate, pbounds, num_inputs):
 
 
 
-def grad_descent(X_old, grad, step_size, pbounds, num_inputs, num_steps_per_iter):
+def grad_ascent(X_old, grad, step_size, pbounds, num_inputs, num_steps_per_iter):
 
     learning_rates = np.logspace(step_size[0], step_size[1], num_steps_per_iter)
-    X_new = np.zeros((num_inputs, num_steps_per_iter))
+    X_new = np.zeros((num_steps_per_iter, num_inputs))
     for ieval in range(num_steps_per_iter):
-        X_new[:,ieval] = X_old[:,0]
+        X_new[ieval,:] = X_old[0,:]
         for ii in range(num_inputs):
-            X_new[ii,ieval] = X_old[ii,0] - learning_rates[ieval] * grad[ii]
-            if (X_new[ii,ieval] < pbounds[ii,0]):
-                X_new[ii,ieval] = pbounds[ii,0]
-            elif (X_new[ii,ieval] > pbounds[ii,1]):
-                X_new[ii,ieval] = pbounds[ii,1]
+            X_new[ieval,ii] = X_old[0,ii] + learning_rates[ieval] * grad[ii]
+            if (X_new[ieval,ii] < pbounds[ii,0]):
+                X_new[ieval,ii] = pbounds[ii,0]
+            elif (X_new[ieval,ii] > pbounds[ii,1]):
+                X_new[ieval,ii] = pbounds[ii,1]
 
     return X_new
 
