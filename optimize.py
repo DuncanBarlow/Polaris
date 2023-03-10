@@ -21,16 +21,16 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
                                                       target, pbounds,
                                                       opt_params["num_init_examples"],
                                                       opt_params["num_optimization_params"])
-    print(optimizer.max)
+    print("Starting Bayesian optimizer")
 
     tic = time.perf_counter()
     for it in range(opt_params["n_iter"]):
         optimizer2 = copy.deepcopy(optimizer)
 
-        X_new = np.zeros((opt_params["num_parallel"], opt_params["num_optimization_params"]))
+        X_new = np.zeros((bo_params["ifriit_runs_per_iteration"], opt_params["num_optimization_params"]))
         old_max_eval = dataset["num_evaluated"]
 
-        for npar in range(opt_params["num_parallel"]):
+        for npar in range(bo_params["ifriit_runs_per_iteration"]):
             ieval = old_max_eval + npar
             next_point = optimizer2.suggest(utility)
             for ii in range(opt_params["num_optimization_params"]):
@@ -54,10 +54,10 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
                 X_new[npar,:] = after_mutation[0,:]
 
         old_max_eval = dataset["num_evaluated"]
-        dataset = uopt.run_ifriit_input(opt_params["num_parallel"], X_new, opt_params)
+        dataset = uopt.run_ifriit_input(bo_params["ifriit_runs_per_iteration"], X_new, opt_params)
 
         target = uopt.fitness_function(dataset, opt_params)
-        for npar in range(opt_params["num_parallel"]):
+        for npar in range(bo_params["ifriit_runs_per_iteration"]):
             ieval = old_max_eval + npar
 
             for ii in range(opt_params["num_optimization_params"]):
@@ -68,15 +68,8 @@ def wrapper_bayesian_optimisation(dataset, bo_params, opt_params):
             except:
                 print("Broken input!", next_point, target[ieval])
 
-        if (it+1)%1 <= 0.0:
-            toc = time.perf_counter()
-            print("{:0.4f} seconds".format(toc - tic))
-            #print(optimizer.max)
-
-            mindex = np.argmax(target)
-            print(mindex)
-            print(target[mindex])
-            print(dataset["rms"][mindex,:])
+        if (it+1)%opt_params["printout_iteration_skip"] <= 0.0:
+            uopt.printout_optimizer_iteration(tic, dataset, opt_params)
     return dataset
 
 
@@ -313,30 +306,16 @@ def main(argv):
     input_dir = argv[11]
     output_dir = argv[1]
     num_examples = int(argv[2])
-    random_seed = int(argv[10])
-    random_sampling = int(argv[9])
-
-    num_parallel = 1
-    run_clean = False
+    #random_seed = int(argv[10])
+    #random_sampling = int(argv[9])
 
     sys_params = tdg.define_system_params(output_dir)
-    sys_params["run_clean"] = run_clean
-    sys_params["num_parallel_ifriits"] = num_parallel
 
     if data_init_type == 1: # Generate new initialization dataset
         print("Generating data!")
-        sys_params["root_dir"] = output_dir
 
-        dataset_params, facility_spec = tdg.define_dataset_params(num_examples, random_sampling=random_sampling, random_seed=random_seed)
-        dataset_params["run_clean"] = run_clean
-
-        dataset = tdg.define_dataset(dataset_params)
-        dataset = tdg.populate_dataset_random_inputs(dataset_params, dataset)
-
-        deck_gen_params = idg.define_deck_generation_params(dataset_params, facility_spec)
-        deck_gen_params = idg.create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
-        tdg.generate_training_data(dataset, dataset_params, sys_params, facility_spec)
-
+        dataset, dataset_params, sys_params, facility_spec = tdg.main((None, sys_params["root_dir"], num_examples))
+    
     elif data_init_type == 2: # Genetic algorithm
         print("Using a genetic algorithm!")
         ga_n_iter = int(argv[4])
@@ -364,6 +343,7 @@ def main(argv):
         dataset = uopt.define_optimizer_dataset(X_all, Y_all, avg_powers_all)
         ga_params = uopt.define_genetic_algorithm_params(init_points, num_parents_mating)
         dataset = wrapper_genetic_algorithm(dataset, ga_params, opt_params)
+
     elif data_init_type == 0:
         print("Importing pre-generated data!")
         # copy across dataset_params and facility_spec
@@ -390,14 +370,14 @@ def main(argv):
         bo_n_iter = int(argv[6])
         opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
                                                      num_init_examples,
-                                                     bo_n_iter, num_parallel,
-                                                     random_seed, facility_spec)
-        opt_params["run_clean"] = run_clean
+                                                     bo_n_iter, sys_params["num_parallel_ifriits"],
+                                                     dataset_params["random_seed"], facility_spec)
+        ifriit_runs_per_bo_iteration = sys_params["num_parallel_ifriits"]
 
         target = uopt.fitness_function(dataset, opt_params)
         target_set_undetermined = np.mean(target) / 2.0 # half mean for all undetermined BO values
         num_mutations = int(opt_params["num_optimization_params"] / 2)
-        bo_params = uopt.define_bayesian_optimisation_params(target_set_undetermined, num_mutations)
+        bo_params = uopt.define_bayesian_optimisation_params(ifriit_runs_per_bo_iteration, target_set_undetermined, num_mutations)
         dataset = wrapper_bayesian_optimisation(dataset, bo_params, opt_params)
         num_init_examples = dataset["num_evaluated"]
 
@@ -405,15 +385,14 @@ def main(argv):
     if use_gradient_descent: # Gradient descent
         print("Using gradient descent!")
         gd_n_iter = int(argv[8])
-        opt_params = uopt.define_optimizer_parameters(output_dir, num_inputs,
-                                                      num_modes, num_init_examples,
-                                                      gd_n_iter, num_parallel,
-                                                      random_seed, facility_spec)
-        opt_params["run_clean"] = run_clean
+        opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
+                                                     num_init_examples,
+                                                     gd_n_iter, sys_params["num_parallel_ifriits"],
+                                                     dataset_params["random_seed"], facility_spec)
 
         gd_params = uopt.define_gradient_descent_params(num_parallel)
         dataset = wrapper_gradient_descent(dataset, gd_params, opt_params)
-        num_init_examples = np.shape(dataset["X_all"])[1]
+        num_init_examples = dataset["num_evaluated"]
 
     return
 

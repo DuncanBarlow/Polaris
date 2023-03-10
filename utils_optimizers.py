@@ -4,6 +4,7 @@ import numpy as np
 import training_data_generation as tdg
 import netcdf_read_write as nrw
 import utils_deck_generation as idg
+import time
 
 
 def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
@@ -24,11 +25,12 @@ def define_optimizer_parameters(run_dir, num_optimization_params,
     optimizer_params["num_init_examples"] = num_init_examples
     optimizer_params["n_iter"] = n_iter
     optimizer_params["num_parallel"] = num_parallel
-    optimizer_params["run_clean"] = True
+    optimizer_params["run_clean"] = False
     optimizer_params["random_generator"] = np.random.default_rng(random_seed)
     optimizer_params["fitness_max_power_per_steradian"] = facility_spec['nbeams'] * facility_spec['default_power'] * 1.0e12 / (4.0 * np.pi)
     optimizer_params["fitness_desired_rms"] = 0.03
     optimizer_params["fitness_norm_factor"] = 10.0
+    optimizer_params["printout_iteration_skip"] = 1
 
     pbounds = np.zeros((optimizer_params["num_optimization_params"], 2))
     pbounds[:,1] = 1.0
@@ -106,14 +108,24 @@ def expand_dict(big_dictionary, small_dictionary, old_size):
 
 
 
+def printout_optimizer_iteration(tic, dataset, opt_params):
+    toc = time.perf_counter()
+    print("{:0.4f} seconds".format(toc - tic))
 
-#################################### Bayesian Optimization ################################################
+    target = fitness_function(dataset, opt_params)
+    maxdex = np.argmax(target)
+    print(maxdex)
+    print(target[maxdex])
+    print(dataset["rms"][maxdex,:])
 
-def define_bayesian_optimisation_params(target_set_undetermined, num_mutations):
+#################################### Bayesian Optimization #############################################
+
+def define_bayesian_optimisation_params(ifriit_runs_per_iteration, target_set_undetermined, num_mutations):
     bo_params = {}
     bo_params["target_set_undetermined"] = target_set_undetermined
     bo_params["num_mutations"] = num_mutations
     bo_params["mutation_amplitude"] = 0.25
+    bo_params["ifriit_runs_per_iteration"] = ifriit_runs_per_iteration
 
     return bo_params
 
@@ -141,6 +153,7 @@ def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs
             print("Broken input!", input_data[ieval, :])
         if ieval%100 <= 0.0:
             print(str(ieval) + " initialization data points added")
+    print(str(ieval) + " initialization data points added")
 
     return optimizer, utility
 
