@@ -189,59 +189,22 @@ def wrapper_gradient_descent(dataset, gd_params, opt_params):
 
 
 def wrapper_genetic_algorithm(dataset, ga_params, opt_params):
-    #Creating the initial population.
-    X_pop = opt_params["random_generator"].random((opt_params["num_inputs"], ga_params["initial_pop_size"]))
+    X_pop = dataset["input_parameters"]
 
-    best_outputs = []
     generation = -1
     tic = time.perf_counter()
     for generation in range(opt_params["n_iter"]-1):
         print("Generation : ", generation)
-        # Measuring the fitness of each chromosome in the population.
-        Y_pop, avg_powers_pop = tdg.run_ifriit_input(ga_params["initial_pop_size"] , X_pop,
-                                                     opt_params["run_dir"],
-                                                     opt_params["num_modes"],
-                                                     opt_params["num_parallel"],
-                                                     opt_params["hemisphere_symmetric"],
-                                                     opt_params["run_clean"])
-        dataset["X_all"] = np.hstack((dataset["X_all"], X_pop))
-        dataset["Y_all"] = np.hstack((dataset["Y_all"], Y_pop))
-        dataset["avg_powers_all"] = np.hstack((dataset["avg_powers_all"], avg_powers_pop))
-        for irun in range(ga_params["initial_pop_size"] ):
-            os.rename(opt_params["run_dir"] + "/run_" + str(irun), opt_params["run_dir"]
-                      + "/" + opt_params["iter_dir"] + str(irun+ga_params["initial_pop_size"] *generation))
-
-        fitness_pop = uopt.fitness_function(Y_pop, avg_powers_pop, opt_params)
-        mindex_pop = np.argmax(fitness_pop)
-
-        if (generation+1)%1 <= 0.0:
-            toc = time.perf_counter()
-            print("{:0.4f} seconds".format(toc - tic))
-            print(str((generation+1) * ga_params["initial_pop_size"]) + " data points added, saving to .nc")
-            filename_trainingdata = opt_params["run_dir"] + '/' + opt_params["trainingdata_filename"]
-            nrw.save_training_data(dataset["X_all"], dataset["Y_all"],
-                                   dataset["avg_powers_all"], filename_trainingdata)
-
-            fit_func_all = uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"],
-                                                 opt_params)
-            mindex = np.argmax(fit_func_all)
-            print(mindex)
-            print(np.sum(fit_func_all[mindex]))
-            print(np.sum(dataset["Y_all"][:,mindex]))
-            print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
-
-        best_outputs.append(np.max(fitness_pop))
-        # The best result in the current iteration.
-        print("Best result : ", best_outputs[generation])
+        target = uopt.fitness_function(dataset, opt_params)
 
         # Selecting the best parents in the population for mating.
-        parents = uopt.select_mating_pool(X_pop.T, fitness_pop, ga_params["num_parents_mating"])
+        parents = uopt.select_mating_pool(X_pop, target, ga_params["num_parents_mating"])
 
         # Generating next generation using crossover.
         offspring_crossover = uopt.crossover(parents,
                                              offspring_size=(ga_params["initial_pop_size"]
                                                              - ga_params["num_parents_mating"],
-                                                             opt_params["num_inputs"]))
+                                                             opt_params["num_optimization_params"]))
 
         # Adding some variations to the offspring using mutation.
         offspring_mutation = uopt.mutation(offspring_crossover, opt_params["random_generator"],
@@ -250,45 +213,14 @@ def wrapper_genetic_algorithm(dataset, ga_params, opt_params):
                                            mutation_amplitude=ga_params["mutation_amplitude"])
 
         # Creating the new population based on the parents and offspring.
-        X_pop[:,0:ga_params["num_parents_mating"]] = parents.T
-        X_pop[:,ga_params["num_parents_mating"]:] = offspring_mutation.T
-    print("Generation : ", generation+1)
-    # Getting the best solution after iterating finishing all generations.
-    #At first, the fitness is calculated for each solution in the final generation.
-    Y_pop, avg_powers_pop = tdg.run_ifriit_input(ga_params["initial_pop_size"], X_pop,
-                                                 opt_params["run_dir"],
-                                                 opt_params["num_modes"],
-                                                 opt_params["num_parallel"],
-                                                 opt_params["hemisphere_symmetric"],
-                                                 opt_params["run_clean"])
-    dataset["X_all"] = np.hstack((dataset["X_all"], X_pop))
-    dataset["Y_all"] = np.hstack((dataset["Y_all"], Y_pop))
-    dataset["avg_powers_all"] = np.hstack((dataset["avg_powers_all"], avg_powers_pop))
-    for irun in range(ga_params["initial_pop_size"] ):
-        os.rename(opt_params["run_dir"] + "/run_" + str(irun),
-                  opt_params["run_dir"] + "/" + opt_params["iter_dir"]
-                  + str(irun+ga_params["initial_pop_size"] *(generation+1)))
+        X_pop[0:ga_params["num_parents_mating"],:] = parents
+        X_pop[ga_params["num_parents_mating"]:,:] = offspring_mutation
 
-    # Then return the index of that solution corresponding to the best fitness.
-    fitness_pop = uopt.fitness_function(Y_pop, avg_powers_pop, opt_params)
-    mindex_pop = np.argmax(fitness_pop)
+        dataset = uopt.run_ifriit_input(ga_params["initial_pop_size"], X_pop, opt_params)
 
-    print("Best solution : ", X_pop[:, mindex_pop])
-    print("Best solution fitness : ", fitness_pop[mindex_pop])
-
-    toc = time.perf_counter()
-    print("{:0.4f} seconds".format(toc - tic))
-    print(str(generation+1) + " genetic algorithm data points added, saving to .nc")
-    filename_trainingdata = opt_params["run_dir"] + '/' + opt_params["trainingdata_filename"]
-    nrw.save_training_data(dataset["X_all"], dataset["Y_all"],
-                           dataset["avg_powers_all"], filename_trainingdata)
-    fit_func_all = uopt.fitness_function(dataset["Y_all"], dataset["avg_powers_all"],
-                                         opt_params)
-    mindex = np.argmax(fit_func_all)
-    print(mindex)
-    print(np.sum(fit_func_all[mindex]))
-    print(np.sum(dataset["Y_all"][:,mindex]))
-    print(np.sqrt(np.sum(dataset["Y_all"][:,mindex]**2)))
+        if (generation+1)%opt_params["printout_iteration_skip"] <= 0.0:
+            print(str((generation+1) * ga_params["initial_pop_size"]) + " data points added")
+            uopt.printout_optimizer_iteration(tic, dataset, opt_params)
     
     return dataset
 
@@ -315,33 +247,27 @@ def main(argv):
         print("Generating data!")
 
         dataset, dataset_params, sys_params, facility_spec = tdg.main((None, sys_params["root_dir"], num_examples))
-    
+
     elif data_init_type == 2: # Genetic algorithm
         print("Using a genetic algorithm!")
         ga_n_iter = int(argv[4])
-        init_points = num_examples
-        dataset_params, facility_spec = tdg.define_dataset_params(num_examples, random_sampling=random_sampling, random_seed=random_seed)
-        num_inputs = dataset_params["num_output"]
-        nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
-        nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
+        initial_pop_size = num_examples
+        dataset, dataset_params, sys_params, facility_spec = tdg.main((None, sys_params["root_dir"], initial_pop_size))
 
-        num_parents_mating = int(init_points / 10.0)
+        num_parents_mating = int(initial_pop_size / 10.0)
         if (num_parents_mating % 2) != 0:
             num_parents_mating -=1
         if num_parents_mating < 2:
             num_parents_mating = 2
-        num_init_examples = 0 # genetic algorithm generates it's own intial data
-        X_all = np.array([], dtype=np.int64).reshape(num_inputs,0)
-        Y_all= np.array([], dtype=np.int64).reshape(num_modes,0)
-        avg_powers_all = np.array([], dtype=np.int64)
+        num_init_examples = 0 # genetic algorithm generates its own initial data
 
-        opt_params = uopt.define_optimizer_parameters(output_dir, num_inputs,
-                                                      num_modes, num_init_examples,
-                                                      ga_n_iter, num_parallel,
-                                                      random_seed, facility_spec)
-        opt_params["run_clean"] = run_clean
-        dataset = uopt.define_optimizer_dataset(X_all, Y_all, avg_powers_all)
-        ga_params = uopt.define_genetic_algorithm_params(init_points, num_parents_mating)
+        opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
+                                                     num_init_examples,
+                                                     ga_n_iter, sys_params["num_parallel_ifriits"],
+                                                     dataset_params["random_seed"], facility_spec)
+        num_mutations = int(opt_params["num_optimization_params"] / 2)
+
+        ga_params = uopt.define_genetic_algorithm_params(initial_pop_size, num_parents_mating, num_mutations)
         dataset = wrapper_genetic_algorithm(dataset, ga_params, opt_params)
 
     elif data_init_type == 0:

@@ -248,11 +248,11 @@ def grad_descent(X_old, grad, step_size, pbounds, num_inputs, num_steps_per_iter
 # Taken from https://github.com/ahmedfgad/GeneticAlgorithmPython/blob/master/Tutorial%20Project/Example_GeneticAlgorithm.py
 # https://towardsdatascience.com/genetic-algorithm-implementation-in-python-5ab67bb124a6
 
-def define_genetic_algorithm_params(init_points, num_parents_mating):
+def define_genetic_algorithm_params(init_points, num_parents_mating, num_mutations):
     ga_params = {}
     ga_params["num_parents_mating"] = num_parents_mating
     ga_params["initial_pop_size"] = init_points
-    ga_params["num_mutations"] = 8
+    ga_params["num_mutations"] = num_mutations
     ga_params["mutation_amplitude"] = 0.25 # multiplier for standard normal distribution
     return ga_params
 
