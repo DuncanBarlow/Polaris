@@ -172,8 +172,7 @@ def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_para
 
 def main(argv):
     sys_params = define_system_params(argv[1])
-    dataset_params, facility_spec = define_dataset_params(int(argv[2]), random_sampling=int(argv[4]), random_seed=int(argv[5]))
-    dataset_params["hemisphere_symmetric"] = bool(int(argv[3]))
+    dataset_params, facility_spec = define_dataset_params(int(argv[2]))
 
     dataset = define_dataset(dataset_params)
     dataset = populate_dataset_random_inputs(dataset_params, dataset)
@@ -183,8 +182,8 @@ def main(argv):
 
     generate_training_data(dataset, dataset_params, sys_params, facility_spec)
 
-    return dataset_params, sys_params, facility_spec
+    return dataset, dataset_params, sys_params, facility_spec
 
 
 if __name__ == "__main__":
-    _, _, _ = main(sys.argv)
+    _, _, _, _ = main(sys.argv)
