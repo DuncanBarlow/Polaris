@@ -3,6 +3,9 @@ from bayes_opt import BayesianOptimization, UtilityFunction
 import numpy as np
 import training_data_generation as tdg
 import netcdf_read_write as nrw
+import utils_deck_generation as idg
+import time
+
 
 
 def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
@@ -14,42 +17,117 @@ def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
 
 
 
-def define_optimizer_parameters(run_dir, num_inputs, num_modes,
-                                num_init_examples, n_iter, num_parallel, random_seed):
+def define_optimizer_parameters(run_dir, num_optimization_params,
+                                num_init_examples, n_iter,
+                                random_seed, facility_spec):
     optimizer_params = {}
     optimizer_params["run_dir"] = run_dir
-    optimizer_params["num_inputs"] = num_inputs
-    optimizer_params["num_modes"] = num_modes
+    optimizer_params["num_optimization_params"] = num_optimization_params
     optimizer_params["num_init_examples"] = num_init_examples
     optimizer_params["n_iter"] = n_iter
-    optimizer_params["num_parallel"] = num_parallel
-    optimizer_params["iter_dir"] = "iter_"
-    optimizer_params["trainingdata_filename"] = "flipped_training_data_and_labels.nc"
-    optimizer_params["hemisphere_symmetric"] = True
-    optimizer_params["run_clean"] = True
+    optimizer_params["run_clean"] = False
     optimizer_params["random_generator"] = np.random.default_rng(random_seed)
+    optimizer_params["fitness_max_power_per_steradian"] = facility_spec['nbeams'] * facility_spec['default_power'] * 1.0e12 / (4.0 * np.pi)
+    optimizer_params["fitness_desired_rms"] = 0.03
+    optimizer_params["fitness_norm_factor"] = 10.0
+    optimizer_params["printout_iteration_skip"] = 1
 
-    pbounds = np.zeros((optimizer_params["num_inputs"], 2))
+    pbounds = np.zeros((optimizer_params["num_optimization_params"], 2))
     pbounds[:,1] = 1.0
     optimizer_params["pbounds"] = pbounds
     return optimizer_params
 
-#################################### Bayesian Optimization ################################################
-
-def define_bayesian_optimisation_params(target_set_undetermined, initial_mean_power):
-    bo_params = {}
-    bo_params["target_set_undetermined"] = bayesian_change_min2max(target_set_undetermined,
-                                                                   initial_mean_power,
-                                                                   initial_mean_power)
-    bo_params["initial_mean_power"] = initial_mean_power
-    return bo_params
 
 
+def fitness_function(dataset, opt_params):
+    target_rms = opt_params["fitness_desired_rms"]
+    target_flux = opt_params["fitness_max_power_per_steradian"]
+    norm_factor = opt_params["fitness_norm_factor"]
 
-def bayesian_change_min2max(Y, avg_power, initial_mean_power):
-    maxi_func = np.exp(-Y/0.03) * avg_power/initial_mean_power
+    rms = dataset["rms"][:,0]
+    avg_flux = dataset["avg_flux"][:,0]
+
+    maxi_func = np.exp(-rms/target_rms) * (avg_flux/target_flux)**2 * norm_factor
     return maxi_func
 
+
+
+def run_ifriit_input(num_new_examples, X_all, opt_params):
+    sys_params = tdg.define_system_params(opt_params["run_dir"])
+    sys_params["num_parallel_ifriits"] = opt_params["num_parallel"]
+    sys_params["run_clean"] = opt_params["run_clean"] # Create new run files
+
+    dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
+    facility_spec = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
+    dataset = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
+    deck_gen_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
+    dataset_params["num_examples"] = dataset["num_evaluated"] + num_new_examples
+
+    num_evaluated = dataset["num_evaluated"]
+    dataset = expand_dataset(dataset, dataset_params, num_evaluated)
+    deck_gen_params = expand_deck_gen_params(deck_gen_params, dataset_params, facility_spec, num_evaluated)
+    dataset["input_parameters"][dataset["num_evaluated"]:,:] = X_all
+
+    deck_gen_params = idg.create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
+
+    tdg.generate_training_data(dataset, dataset_params, sys_params, facility_spec)
+    return dataset
+
+
+
+def expand_dataset(dataset_small, dataset_params, num_evaluated):
+    dataset_big = tdg.define_dataset(dataset_params)
+    dataset_big = expand_dict(dataset_big, dataset_small, num_evaluated)
+    return dataset_big
+
+
+
+def expand_deck_gen_params(deck_gen_params_small, dataset_params, facility_spec, num_evaluated):
+    deck_gen_params_big = idg.define_deck_generation_params(dataset_params, facility_spec)
+    deck_gen_params_big = expand_dict(deck_gen_params_big, deck_gen_params_small, num_evaluated)
+    return deck_gen_params_big
+
+
+
+def expand_dict(big_dictionary, small_dictionary, old_size):
+    prohibited_list = small_dictionary["non_expand_keys"]
+    for key, item in big_dictionary.items():
+        dims = np.shape(item)
+        total_dims = np.shape(dims)[0]
+        if any(x in key for x in prohibited_list):#(key == "num_evaluated"):
+            big_dictionary[key] = small_dictionary[key]
+        else:
+            if total_dims == 3:
+                big_dictionary[key][:old_size,:,:] = small_dictionary[key][:,:,:]
+            if total_dims == 2:
+                big_dictionary[key][:old_size,:] = small_dictionary[key][:,:]
+            if total_dims == 1:
+                big_dictionary[key][:old_size] = small_dictionary[key][:]
+    small_dictionary.clear()
+    return big_dictionary
+
+
+
+def printout_optimizer_iteration(tic, dataset, opt_params):
+    toc = time.perf_counter()
+    print("{:0.4f} seconds".format(toc - tic))
+
+    target = fitness_function(dataset, opt_params)
+    maxdex = np.argmax(target)
+    print(maxdex)
+    print(target[maxdex])
+    print(dataset["rms"][maxdex,:])
+
+#################################### Bayesian Optimization #############################################
+
+def define_bayesian_optimisation_params(ifriit_runs_per_iteration, target_set_undetermined, num_mutations):
+    bo_params = {}
+    bo_params["target_set_undetermined"] = target_set_undetermined
+    bo_params["num_mutations"] = num_mutations
+    bo_params["mutation_amplitude"] = 0.25
+    bo_params["ifriit_runs_per_iteration"] = ifriit_runs_per_iteration
+
+    return bo_params
 
 
 def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs):
@@ -67,20 +145,21 @@ def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs
     for ieval in range(init_points):
         # put data in dict
         for ii in range(num_inputs):
-            params["x"+str(ii)] = input_data[ii, ieval]
+            params["x"+str(ii)] = input_data[ieval, ii]
         # add to optimizer
         try:
             optimizer.register(params = params, target = target[ieval])
         except:
-            print("Broken input!", input_data[:, ieval])
+            print("Broken input!", input_data[ieval, :])
         if ieval%100 <= 0.0:
             print(str(ieval) + " initialization data points added")
+    print(str(ieval) + " initialization data points added")
 
     return optimizer, utility
 
 ######################################## Gradient Descent ############################################
 
-def define_gradient_descent_params(num_steps_per_iter):
+def define_gradient_ascent_params(num_steps_per_iter):
     gd_params = {}
     gd_params["learn_exp"] = -1.0
     gd_params["num_steps_per_iter"] = num_steps_per_iter
@@ -89,51 +168,48 @@ def define_gradient_descent_params(num_steps_per_iter):
 
 
 def gradient_stencil(X_new, learning_rate, pbounds, num_inputs, stencil_size):
-    X_stencil = np.zeros((num_inputs, stencil_size))
+    X_stencil = np.zeros((stencil_size, num_inputs))
 
     counter = 0
-    X_stencil[:, counter] = X_new[:,0]
-    counter += 1
     for ii in range(num_inputs):
-        X_stencil[:, counter] = X_new[:,0]
-        X_stencil[ii, counter] = X_new[ii,0] - learning_rate
-        if (X_stencil[ii,counter] < pbounds[ii,0]):
-            X_stencil[ii,counter] = pbounds[ii,0] # to avoid stencil leaving domain
+        X_stencil[counter,:] = X_new[0,:]
+        X_stencil[counter,ii] = X_new[0,ii] - learning_rate
+        if (X_stencil[counter,ii] < pbounds[ii,0]):
+            X_stencil[counter,ii] = pbounds[ii,0] # to avoid stencil leaving domain
         counter += 1
-        X_stencil[:, counter] = X_new[:,0]
-        X_stencil[ii, counter] = X_new[ii,0] + learning_rate
-        if (X_stencil[ii,counter] > pbounds[ii,1]):
-            X_stencil[ii,counter] = pbounds[ii,1] # to avoid stencil leaving domain
+        X_stencil[counter,:] = X_new[0,:]
+        X_stencil[counter,ii] = X_new[0,ii] + learning_rate
+        if (X_stencil[counter,ii] > pbounds[ii,1]):
+            X_stencil[counter,ii] = pbounds[ii,1] # to avoid stencil leaving domain
         counter += 1
 
     return X_stencil
 
 
 
-def determine_gradient(X_stencil, target, learning_rate, pbounds, num_inputs):
+def determine_gradient(X_stencil, target_stencil, target, learning_rate, pbounds, num_inputs):
 
     grad = np.zeros(num_inputs)
+    f_centre = target
     counter = 0
-    f_centre = target[counter]
-    counter += 1
     for ii in range(num_inputs):
 
         centred_diff = True
         forward_diff = False
         backward_diff = False
 
-        if (X_stencil[ii,counter] < pbounds[ii,0]):
+        if (X_stencil[counter,ii] < pbounds[ii,0]):
             centred_diff = False
             forward_diff = True
         else:
-            f_minus = target[counter]
+            f_minus = target_stencil[counter]
         counter += 1
 
-        if (X_stencil[ii,counter] > pbounds[ii,1]):
+        if (X_stencil[counter,ii] > pbounds[ii,1]):
             centred_diff = False
             backward_diff = True
         else:
-            f_plus = target[counter]
+            f_plus = target_stencil[counter]
         counter += 1
 
         if centred_diff:
@@ -150,18 +226,18 @@ def determine_gradient(X_stencil, target, learning_rate, pbounds, num_inputs):
 
 
 
-def grad_descent(X_old, grad, step_size, pbounds, num_inputs, num_steps_per_iter):
+def grad_ascent(X_old, grad, step_size, pbounds, num_inputs, num_steps_per_iter):
 
     learning_rates = np.logspace(step_size[0], step_size[1], num_steps_per_iter)
-    X_new = np.zeros((num_inputs, num_steps_per_iter))
+    X_new = np.zeros((num_steps_per_iter, num_inputs))
     for ieval in range(num_steps_per_iter):
-        X_new[:,ieval] = X_old[:,0]
+        X_new[ieval,:] = X_old[0,:]
         for ii in range(num_inputs):
-            X_new[ii,ieval] = X_old[ii,0] - learning_rates[ieval] * grad[ii]
-            if (X_new[ii,ieval] < pbounds[ii,0]):
-                X_new[ii,ieval] = pbounds[ii,0]
-            elif (X_new[ii,ieval] > pbounds[ii,1]):
-                X_new[ii,ieval] = pbounds[ii,1]
+            X_new[ieval,ii] = X_old[0,ii] + learning_rates[ieval] * grad[ii]
+            if (X_new[ieval,ii] < pbounds[ii,0]):
+                X_new[ieval,ii] = pbounds[ii,0]
+            elif (X_new[ieval,ii] > pbounds[ii,1]):
+                X_new[ieval,ii] = pbounds[ii,1]
 
     return X_new
 
@@ -169,11 +245,11 @@ def grad_descent(X_old, grad, step_size, pbounds, num_inputs, num_steps_per_iter
 # Taken from https://github.com/ahmedfgad/GeneticAlgorithmPython/blob/master/Tutorial%20Project/Example_GeneticAlgorithm.py
 # https://towardsdatascience.com/genetic-algorithm-implementation-in-python-5ab67bb124a6
 
-def define_genetic_algorithm_params(init_points, num_parents_mating):
+def define_genetic_algorithm_params(init_points, num_parents_mating, num_mutations):
     ga_params = {}
     ga_params["num_parents_mating"] = num_parents_mating
     ga_params["initial_pop_size"] = init_points
-    ga_params["num_mutations"] = 8
+    ga_params["num_mutations"] = num_mutations
     ga_params["mutation_amplitude"] = 0.25 # multiplier for standard normal distribution
     return ga_params
 

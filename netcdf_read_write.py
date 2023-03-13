@@ -1,11 +1,9 @@
 from netCDF4 import Dataset
 import numpy as np
-from os import path
 import os
 import glob
 from healpy_pointings import rot_mat
 import utils_intensity_map as uim
-
 
 
 def read_nn_weights(filename_nn_weights):
@@ -27,7 +25,7 @@ def read_nn_weights(filename_nn_weights):
 def read_general_netcdf(filename):
     parameters = {}
 
-    rootgrp = Dataset(filename + ".nc")
+    rootgrp = Dataset(filename)
     keys = list(rootgrp.variables.keys())
     for key in keys:
         if np.shape(np.shape(rootgrp[key]))[0] == 3:
@@ -36,28 +34,118 @@ def read_general_netcdf(filename):
             parameters[key] = rootgrp[key][:,:]
         if np.shape(np.shape(rootgrp[key]))[0] == 1:
             parameters[key] = rootgrp[key][:]
+        #print(key, parameters[key])
+
+    keys = list(rootgrp.__dict__.keys())
+    for key in keys:
+        parameters[key] = getattr(rootgrp, key)
+
     rootgrp.close()
 
     return parameters
 
 
 
-def retrieve_xtrain_and_delete(iex, dataset_params, sys_params, target_radius_microns):
-    run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
-    if sys_params["run_compression"]:
-        parameters = read_general_netcdf(run_location + "/" + sys_params["ifriit_ouput_name"])
-        intensity_map = parameters["intensity"] * (target_radius_microns / 10000.0)**2
-        X_train1, avg_power1 = uim.create_xtrain(intensity_map, dataset_params["LMAX"])
+def save_general_netcdf(parameters, filename):
+    if os.path.exists(filename):
+        os.remove(filename)
 
-    if sys_params["run_clean"]:
-        os.remove(run_location + '/main')
-        os.remove(run_location + "/" + sys_params["ifriit_ouput_name"] + ".nc")
-    return X_train1, avg_power1
+    rootgrp = Dataset(filename, 'w')
+    for key, item in parameters.items():
+        dims = np.shape(item)
+        total_dims = np.shape(dims)[0]
+        #print(key, type(item))
+        if isinstance(item, tuple):
+            var_type = 'f4'
+        if isinstance(item, np.ndarray):
+            #print(item.dtype)
+            if item.dtype == "i":
+                var_type = 'i4'
+            if "float" in str(item.dtype):# == "float64":
+                var_type = 'f4'
+            if "<U" in str(item.dtype):
+                # this is designed to catch strings use np.array(my_array, dtype='<U*')
+                str_length = len(item[0])
+                item = np.array(item, dtype='S'+str(str_length))
+                var_type = 'S1'
+                dims = dims + (str_length,)
+                total_dims += 1
+        if isinstance(item, list):
+            var_type = 'S1'
+            try: # if string
+                str_length = len(item[0])
+            except:
+                str_length = 10 # this is definitely not robust
+            item = np.array(item, dtype='S'+str(str_length))
+            dims = dims + (str_length,)
+            total_dims += 1
+        if total_dims == 3:
+            rootgrp.createDimension(key+'_'+'item_dim1', dims[0])
+            rootgrp.createDimension(key+'_'+'item_dim2', dims[1])
+            rootgrp.createDimension(key+'_'+'item_dim3', dims[2])
+            variable = rootgrp.createVariable(key, var_type,
+                                            (key+'_'+'item_dim1',
+                                             key+'_'+'item_dim2',
+                                             key+'_'+'item_dim3'))
+            variable._Encoding = 'ascii' # this enables automatic conversion of strings
+            variable[:,:,:] = item
+        if total_dims == 2:
+            rootgrp.createDimension(key+'_'+'item_dim1', dims[0])
+            rootgrp.createDimension(key+'_'+'item_dim2', dims[1])
+            variable = rootgrp.createVariable(key, var_type,
+                                            (key+'_'+'item_dim1',
+                                             key+'_'+'item_dim2'))
+            variable._Encoding = 'ascii' # this enables automatic conversion
+            variable[:,:] = item
+        if total_dims == 1:
+            rootgrp.createDimension(key+'_'+'item_dim1', dims[0])
+            variable = rootgrp.createVariable(key, var_type,
+                                            (key+'_'+'item_dim1'))
+            variable._Encoding = 'ascii' # this enables automatic conversion
+            variable[:] = item
+        if total_dims == 0:
+            if item == True:
+                item = 1
+            if item == False:
+                item = 0
+            setattr(rootgrp, key, item)
+    rootgrp.close()
+
+
+
+def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec):
+
+    for iex in range(min_parallel, max_parallel+1):
+        run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
+
+        parameters = read_general_netcdf(run_location + "/" + sys_params["ifriit_ouput_name"])
+        intensity_map = parameters["intensity"] * (facility_spec["target_radius"] / 10000.0)**2
+
+        dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:], dataset["avg_flux"][iex, 0] = uim.extract_modes_and_flux(intensity_map, dataset_params["LMAX"])
+        dataset["rms"][iex,0] = uim.alms2rms(dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:], dataset_params["LMAX"])
+
+        print("Without density profiles:")
+        print('Intensity per steradian, {:.2e}W/sr^-1'.format(dataset["avg_flux"][iex, 0]))
+        print("The LLE quoted rms cumulative over all modes is: ", dataset["rms"][iex,0]*100.0, "%")
+
+        if dataset_params["run_plasma_profile"]:
+            hs_and_modes = read_general_netcdf(run_location+"/"+sys_params["heat_source_nc"])
+            dataset["real_modes"][iex,1,:], dataset["imag_modes"][iex,1,:], dataset["avg_flux"][iex,1] = uim.heatsource_analysis(hs_and_modes)
+            dataset["rms"][iex,1] = uim.alms2rms(dataset["real_modes"][iex,1,:], dataset["imag_modes"][iex,1,:], dataset_params["LMAX"])
+
+            print("With density profiles:")
+            print('Intensity per steradian, {:.2e}W/sr^-1'.format(dataset["avg_flux"][iex, 1]))
+            print("The LLE quoted rms cumulative over all modes is: ", dataset["rms"][iex,1]*100.0, "%")
+
+        if sys_params["run_clean"]:
+            os.remove(run_location + "/" + sys_params["ifriit_binary_filename"])
+            os.remove(run_location + "/" + sys_params["ifriit_ouput_name"])
+    return dataset
 
 
 
 def save_nn_weights(parameters, filename_nn_weights):
-    if path.exists(filename_nn_weights + '.nc'):
+    if os.path.exists(filename_nn_weights + '.nc'):
         os.remove(filename_nn_weights + '.nc')
 
     rootgrp = Dataset(filename_nn_weights + '.nc', 'w')
@@ -72,7 +160,7 @@ def save_nn_weights(parameters, filename_nn_weights):
                                             (key+'_'+'item_dim1',
                                              key+'_'+'item_dim2',
                                              key+'_'+'item_dim3'))
-            variable[:,:] = item
+            variable[:,:,:] = item
         if np.shape(dims)[0] == 2:
             parms.createDimension(key+'_'+'item_dim1', dims[0])
             parms.createDimension(key+'_'+'item_dim2', dims[1])
@@ -148,7 +236,7 @@ def save_training_data(X_train, Y_train, avg_powers, filename_trainingdata):
     num_inputs = np.shape(X_train)[0]
     num_output = np.shape(Y_train)[0]
 
-    if path.exists(filename_trainingdata):
+    if os.path.exists(filename_trainingdata):
         os.remove(filename_trainingdata)
     rootgrp = Dataset(filename_trainingdata, "w", format="NETCDF4")
     rootgrp.createDimension('num_examples', num_examples)
