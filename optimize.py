@@ -130,14 +130,13 @@ def wrapper_gradient_ascent(dataset, gd_params, opt_params):
 def wrapper_genetic_algorithm(dataset, ga_params, opt_params):
     X_pop = dataset["input_parameters"]
 
-    generation = -1
     tic = time.perf_counter()
     for generation in range(opt_params["n_iter"]-1):
-        print("Generation : ", generation)
+        print("Generation : ", generation+1)
         target = uopt.fitness_function(dataset, opt_params)
 
         # Selecting the best parents in the population for mating.
-        parents = uopt.select_mating_pool(X_pop, target, ga_params["num_parents_mating"])
+        parents = uopt.select_mating_pool(X_pop, target[-ga_params["initial_pop_size"]:], ga_params["num_parents_mating"])
 
         # Generating next generation using crossover.
         offspring_crossover = uopt.crossover(parents,
