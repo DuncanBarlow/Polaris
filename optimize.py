@@ -200,8 +200,7 @@ def main(argv):
         num_init_examples = 0 # genetic algorithm generates its own initial data
 
         opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
-                                                     num_init_examples,
-                                                     ga_n_iter, sys_params["num_parallel_ifriits"],
+                                                     num_init_examples, ga_n_iter,
                                                      dataset_params["random_seed"], facility_spec)
         num_mutations = int(opt_params["num_optimization_params"] / 2)
 
@@ -233,8 +232,7 @@ def main(argv):
     if use_bayesian_optimization: # Bayesian optimization
         bo_n_iter = int(argv[6])
         opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
-                                                     num_init_examples,
-                                                     bo_n_iter, sys_params["num_parallel_ifriits"],
+                                                     num_init_examples, bo_n_iter,
                                                      dataset_params["random_seed"], facility_spec)
         ifriit_runs_per_bo_iteration = sys_params["num_parallel_ifriits"]
 
@@ -249,12 +247,12 @@ def main(argv):
     if use_gradient_ascent: # Gradient ascent
         print("Using gradient ascent!")
         gd_n_iter = int(argv[8])
+        line_search_evaluations = sys_params["num_parallel_ifriits"]
         opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
-                                                     num_init_examples,
-                                                     gd_n_iter, sys_params["num_parallel_ifriits"],
+                                                     num_init_examples, gd_n_iter,
                                                      dataset_params["random_seed"], facility_spec)
 
-        gd_params = uopt.define_gradient_ascent_params(opt_params["num_parallel"])
+        gd_params = uopt.define_gradient_ascent_params(line_search_evaluations)
         dataset = wrapper_gradient_ascent(dataset, gd_params, opt_params)
         num_init_examples = dataset["num_evaluated"]
 
