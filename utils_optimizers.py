@@ -1,10 +1,11 @@
 # code copied from https://github.com/fmfn/BayesianOptimization edited by Duncan Barlow
-from bayes_opt import BayesianOptimization, UtilityFunction
+#from bayes_opt import BayesianOptimization, UtilityFunction
 import numpy as np
 import training_data_generation as tdg
 import netcdf_read_write as nrw
 import utils_deck_generation as idg
 import time
+import sys
 
 
 
@@ -131,13 +132,9 @@ def define_bayesian_optimisation_params(ifriit_runs_per_iteration, target_set_un
 
 def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs):
 
-    optimizer = BayesianOptimization(
-      f=None,
-      pbounds=pbounds,
-      random_state=1,
-    )
-
-    utility = UtilityFunction(kind = "ucb", kappa = 2.5, xi = 0.0)
+    sys.exit("Bayesian optimization intentionally removed! Find this line to re-add")
+    optimizer = {}#BayesianOptimization(f=None,pbounds=pbounds,random_state=1)
+    utility = {}#UtilityFunction(kind = "ucb", kappa = 2.5, xi = 0.0)
 
     # initial data points
     params = {}
