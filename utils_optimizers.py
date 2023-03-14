@@ -54,7 +54,6 @@ def fitness_function(dataset, opt_params):
 
 def run_ifriit_input(num_new_examples, X_all, opt_params):
     sys_params = tdg.define_system_params(opt_params["run_dir"])
-    sys_params["num_parallel_ifriits"] = opt_params["num_parallel"]
     sys_params["run_clean"] = opt_params["run_clean"] # Create new run files
 
     dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
