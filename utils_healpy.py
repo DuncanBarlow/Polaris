@@ -1,16 +1,16 @@
 import numpy as np
 import healpy as hp
 import os
-
+import utils_intensity_map as uim
 
 
 def power_spectrum(intensity_map, LMAX, verbose=True):
-    intensity_map_normalized, avg_power = imap_norm(intensity_map)
+    intensity_map_normalized, avg_power = uim.imap_norm(intensity_map)
     alms = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
     power_spectrum = alms2power_spectrum(alms, LMAX)
 
     if verbose:
-        print("The LLE quoted rms cumulative over all modes is: ", np.sqrt(np.sum(power_spectrum))*100.0, "%")
+        print("The rms is: ", np.sqrt(np.sum(power_spectrum))*100.0, "%")
     sqrt_power_spectrum = np.sqrt(power_spectrum)
 
     return sqrt_power_spectrum
@@ -61,8 +61,6 @@ def change_number_modes(Y_train, avg_powers_all, LMAX):
     num_coeff = int(((LMAX + 2) * (LMAX + 1))/2.0)
     np_complex = np.vectorize(complex)
     for ie in range(num_examples):
-        # weighting to allow NN to adjust for mean flux
-        #Y_train_real = np.squeeze(Y_train[:,ie] / avg_powers_all[ie])
         Y_train_complex = np_complex(Y_train_real[:num_coeff], Y_train_real[num_coeff:])
 
         power_spectrum = alms2power_spectrum(Y_train_complex, LMAX)
@@ -74,7 +72,7 @@ def change_number_modes(Y_train, avg_powers_all, LMAX):
 
 def extract_modes_and_flux(intensity_map, LMAX):
 
-    intensity_map_normalized, avg_flux = imap_norm(intensity_map)
+    intensity_map_normalized, avg_flux = uim.imap_norm(intensity_map)
     real_modes, imag_modes = imap2modes(intensity_map_normalized, LMAX, avg_flux)
 
     return real_modes, imag_modes, avg_flux
