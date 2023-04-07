@@ -57,10 +57,7 @@ def run_ifriit_input(num_new_examples, X_all, opt_params):
     sys_params = tdg.define_system_params(opt_params["run_dir"])
     sys_params["run_clean"] = opt_params["run_clean"] # Create new run files
 
-    dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
-    facility_spec = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
-    dataset = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
-    deck_gen_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
+    dataset, dataset_params, deck_gen_params, facility_spec = idg.load_data_dicts_from_file(sys_params)
     dataset_params["num_examples"] = dataset["num_evaluated"] + num_new_examples
 
     num_evaluated = dataset["num_evaluated"]

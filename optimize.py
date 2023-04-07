@@ -184,13 +184,13 @@ def main(argv):
     if data_init_type == 1: # Generate new initialization dataset
         print("Generating data!")
 
-        dataset, dataset_params, sys_params, facility_spec = tdg.main((None, sys_params["root_dir"], num_examples))
+        dataset, dataset_params, sys_params, facility_spec = tdg.main((None, sys_params["root_dir"], num_examples, run_type=full))
 
     elif data_init_type == 2: # Genetic algorithm
         print("Using a genetic algorithm!")
         ga_n_iter = int(argv[4])
         initial_pop_size = num_examples
-        dataset, dataset_params, sys_params, facility_spec = tdg.main((None, sys_params["root_dir"], initial_pop_size))
+        dataset, dataset_params, sys_params, facility_spec = tdg.main((None, sys_params["root_dir"], initial_pop_size, run_type=full))
 
         num_parents_mating = int(initial_pop_size / 10.0)
         if (num_parents_mating % 2) != 0:
