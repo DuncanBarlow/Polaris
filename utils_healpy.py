@@ -36,7 +36,7 @@ def alms2power_spectrum(alms, LMAX):
 
 
 
-def imap2modes(intensity_map_normalized, LMAX, avg_power):
+def imap2modes(intensity_map_normalized, LMAX):
 
     modes_complex = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
 

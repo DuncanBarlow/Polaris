@@ -4,6 +4,7 @@ import os
 import glob
 from healpy_pointings import rot_mat
 import utils_intensity_map as uim
+import utils_healpy as uhp
 
 
 def read_nn_weights(filename_nn_weights):
@@ -122,7 +123,8 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
         intensity_map = parameters["intensity"] * (facility_spec["target_radius"] / 10000.0)**2
 
         intensity_map_normalized, dataset["avg_flux"][iex,0] = uim.imap_norm(intensity_map)
-        dataset["rms"][iex,0] = uim.extract_rms(intensity_map_normalized)
+        dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:] = uhp.imap2modes(intensity_map_normalized, dataset_params["LMAX"])
+        dataset["rms"][iex,0] = uim.alms2rms(dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:], dataset_params["LMAX"])
 
         print("Without density profiles:")
         print('Intensity per steradian, {:.2e}W/sr^-1'.format(dataset["avg_flux"][iex, 0]))
