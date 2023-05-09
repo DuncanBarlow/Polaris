@@ -270,6 +270,9 @@ def generate_input_deck(dataset_params, facility_spec, sys_params, run_location)
                     new_file.write("    NBEAMS                      = " + str(num_ifriit_beams) + ",\n")
                 elif "DIAGNOSE_INPUT_BEAMS_RADIUS_UM" in line:
                     new_file.write("    DIAGNOSE_INPUT_BEAMS_RADIUS_UM = " + str(facility_spec['target_radius']) + "d0,\n")
+                elif "CBET = .FALSE.," in line:
+                    if dataset_params["run_with_cbet"]:
+                        new_file.write("    CBET = .TRUE.,\n")
                 else:
                     new_file.write(line)
 

@@ -50,6 +50,7 @@ def define_dataset_params(num_examples,
     dataset_params["hemisphere_symmetric"] = True
     dataset_params["imap_nside"] = 256
     dataset_params["run_plasma_profile"] = False
+    dataset_params["run_with_cbet"] = False
     if dataset_params["run_plasma_profile"]:
         dataset_params["num_profiles"] = 2 # change this
     else:
