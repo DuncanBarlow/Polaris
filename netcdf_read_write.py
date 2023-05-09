@@ -119,21 +119,29 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
     for iex in range(min_parallel, max_parallel+1):
         run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
 
-        parameters = read_general_netcdf(run_location + "/" + sys_params["ifriit_ouput_name"])
-        intensity_map = parameters["intensity"] * (facility_spec["target_radius"] / 10000.0)**2
+        dir_illumination = run_location + "/" + sys_params["ifriit_ouput_name"]
+        if os.path.exists(dir_illumination):
+            parameters = read_general_netcdf(dir_illumination)
+            intensity_map = parameters["intensity"] * (facility_spec["target_radius"] / 10000.0)**2
 
-        intensity_map_normalized, dataset["avg_flux"][iex,0] = uim.imap_norm(intensity_map)
-        dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:] = uhp.imap2modes(intensity_map_normalized, dataset_params["LMAX"])
-        dataset["rms"][iex,0] = uim.alms2rms(dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:], dataset_params["LMAX"])
+            intensity_map_normalized, dataset["avg_flux"][iex,0] = uim.imap_norm(intensity_map)
+            dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:] = uhp.imap2modes(intensity_map_normalized, dataset_params["LMAX"])
+            dataset["rms"][iex,0] = uim.alms2rms(dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:], dataset_params["LMAX"])
+        else:
+            print("Broken solid sphere! Probably due to CBET convergence?")
 
         print("Without density profiles:")
         print('Intensity per steradian, {:.2e}W/sr^-1'.format(dataset["avg_flux"][iex, 0]))
         print("The rms is: ", dataset["rms"][iex,0]*100.0, "%")
 
         if dataset_params["run_plasma_profile"]:
-            hs_and_modes = read_general_netcdf(run_location+"/"+sys_params["heat_source_nc"])
-            dataset["real_modes"][iex,1,:], dataset["imag_modes"][iex,1,:], dataset["avg_flux"][iex,1] = uim.heatsource_analysis(hs_and_modes)
-            dataset["rms"][iex,1] = uim.alms2rms(dataset["real_modes"][iex,1,:], dataset["imag_modes"][iex,1,:], dataset_params["LMAX"])
+            dir_illumination = run_location+"/"+sys_params["heat_source_nc"]
+            if os.path.exists(dir_illumination):
+                hs_and_modes = read_general_netcdf(dir_illumination)
+                dataset["real_modes"][iex,1,:], dataset["imag_modes"][iex,1,:], dataset["avg_flux"][iex,1] = uim.heatsource_analysis(hs_and_modes)
+                dataset["rms"][iex,1] = uim.alms2rms(dataset["real_modes"][iex,1,:], dataset["imag_modes"][iex,1,:], dataset_params["LMAX"])
+            else:
+                print("Broken with profiles! Probably due to CBET convergence?")
 
             print("With density profiles:")
             print('Intensity per steradian, {:.2e}W/sr^-1'.format(dataset["avg_flux"][iex, 1]))
