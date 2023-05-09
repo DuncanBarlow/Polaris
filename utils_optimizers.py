@@ -102,11 +102,11 @@ def expand_dict(big_dictionary, small_dictionary, old_size):
             big_dictionary[key] = small_dictionary[key]
         else:
             if total_dims == 3:
-                big_dictionary[key][:old_size,:,:] = small_dictionary[key][:,:,:]
+                big_dictionary[key][:old_size,:,:] = small_dictionary[key][:old_size,:,:]
             if total_dims == 2:
-                big_dictionary[key][:old_size,:] = small_dictionary[key][:,:]
+                big_dictionary[key][:old_size,:] = small_dictionary[key][:old_size,:]
             if total_dims == 1:
-                big_dictionary[key][:old_size] = small_dictionary[key][:]
+                big_dictionary[key][:old_size] = small_dictionary[key][:old_size]
     small_dictionary.clear()
     return big_dictionary
 
