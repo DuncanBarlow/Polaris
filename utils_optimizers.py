@@ -20,13 +20,13 @@ def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
 
 def define_optimizer_parameters(run_dir, num_optimization_params,
                                 num_init_examples, n_iter,
-                                random_seed, facility_spec):
+                                random_seed, facility_spec, run_clean):
     optimizer_params = {}
     optimizer_params["run_dir"] = run_dir
     optimizer_params["num_optimization_params"] = num_optimization_params
     optimizer_params["num_init_examples"] = num_init_examples
     optimizer_params["n_iter"] = n_iter
-    optimizer_params["run_clean"] = False
+    optimizer_params["run_clean"] = run_clean
     optimizer_params["random_generator"] = np.random.default_rng(random_seed)
     optimizer_params["fitness_desired_power_per_steradian"] = facility_spec['nbeams'] \
         * facility_spec['default_power'] * 1.0e12 / (4.0 * np.pi)

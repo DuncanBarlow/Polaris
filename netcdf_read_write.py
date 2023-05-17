@@ -148,8 +148,12 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
             print("The rms is: ", dataset["rms"][iex,1]*100.0, "%")
 
         if sys_params["run_clean"]:
-            os.remove(run_location + "/" + sys_params["ifriit_binary_filename"])
-            os.remove(run_location + "/" + sys_params["ifriit_ouput_name"])
+            #os.remove(run_location + "/" + sys_params["ifriit_binary_filename"])
+            #os.remove(run_location + "/" + sys_params["ifriit_ouput_name"])
+            for filename in glob.glob(run_location + "/fort.*"):
+                os.remove(filename)
+            for filename in glob.glob(run_location + "/abs_beam_*"):
+                os.remove(filename)
     return dataset
 
 

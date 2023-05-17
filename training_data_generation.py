@@ -18,7 +18,7 @@ def define_system_params(root_dir):
     sys_params["run_gen_deck"] = True
     sys_params["run_sims"] = True
     sys_params["run_checkpoint"] = True
-    sys_params["run_clean"] = False
+    sys_params["run_clean"] = True
 
     sys_params["root_dir"] = root_dir
     sys_params["sim_dir"] = "run_"
