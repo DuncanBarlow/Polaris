@@ -46,9 +46,9 @@ def define_optimizer_parameters(run_dir, num_optimization_params,
 def fitness_function(dataset, opt_params):
     target_rms = opt_params["fitness_desired_rms"]
     if opt_params["profile_for_fitness"] == 0:
-      target_flux = opt_params["fitness_desired_power_per_steradian"]
+        target_flux = opt_params["fitness_desired_power_per_steradian"]
     else:
-      target_flux = opt_params["fitness_desired_pressure_mbar"]
+        target_flux = opt_params["fitness_desired_pressure_mbar"]
     norm_factor = opt_params["fitness_norm_factor"]
     profile_for_fitness = opt_params["profile_for_fitness"]
 

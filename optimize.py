@@ -84,6 +84,9 @@ def wrapper_gradient_ascent(dataset, gd_params, opt_params):
     X_old = np.zeros((1, opt_params["num_optimization_params"]))
     maxdex_new = np.argmax(target)
     X_old[0,:] = dataset["input_parameters"][maxdex_new,:]
+    print("The index with the max fitness was: ", str(maxdex_new))
+    print("It had intial rms: {:.2f} %".format(dataset["rms"][maxdex_new, 0]*100.0), " and mean intensity: {:.2e}W/sr".format(dataset["avg_flux"][maxdex_new, 0]))
+    print("It had ablation pressure rms: {:.2f} %".format(dataset["rms"][maxdex_new, 1]*100.0), " and mean intensity: {:.2f}Mbar".format(dataset["avg_flux"][maxdex_new, 1]))
 
     tic = time.perf_counter()
     for ieval in range(opt_params["n_iter"]):
