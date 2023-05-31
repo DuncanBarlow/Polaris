@@ -52,7 +52,7 @@ def fitness_function(dataset, opt_params):
     norm_factor = opt_params["fitness_norm_factor"]
     profile_for_fitness = opt_params["profile_for_fitness"]
 
-    rms = dataset["rms"][:,profile_for_fitness]
+    rms = (dataset["rms"][:,0] + 2.0 * dataset["rms"][:,1]) / 3.0
     avg_flux = dataset["avg_flux"][:,profile_for_fitness]
 
     maxi_func = np.exp(-rms/target_rms) * (avg_flux/target_flux)**2 * norm_factor
