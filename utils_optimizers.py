@@ -30,9 +30,9 @@ def define_optimizer_parameters(run_dir, num_optimization_params,
     optimizer_params["random_generator"] = np.random.default_rng(random_seed)
     optimizer_params["fitness_desired_power_per_steradian"] = facility_spec['nbeams'] \
         * facility_spec['default_power'] * 1.0e12 / (4.0 * np.pi)
-    optimizer_params["fitness_desired_pressure_mbar"] = 50.0
+    optimizer_params["fitness_desired_pressure_mbar"] = 60.0
     optimizer_params["fitness_desired_rms"] = 0.03
-    optimizer_params["fitness_norm_factor"] = 2.0
+    optimizer_params["fitness_norm_factor"] = 5.0
     optimizer_params["printout_iteration_skip"] = 1
     optimizer_params["profile_for_fitness"] = 0
 
@@ -52,7 +52,7 @@ def fitness_function(dataset, opt_params):
     norm_factor = opt_params["fitness_norm_factor"]
     profile_for_fitness = opt_params["profile_for_fitness"]
 
-    rms = np.sqrt(dataset["rms"][:,0]**2 + dataset["rms"][:,1]**2 / 2.0)
+    rms = np.sqrt((dataset["rms"][:,0]**2 + dataset["rms"][:,1]**2) / 2.0)
     avg_flux = dataset["avg_flux"][:,profile_for_fitness]
 
     maxi_func = np.exp(-rms/target_rms + (avg_flux / target_flux)**6) * norm_factor
