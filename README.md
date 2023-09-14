@@ -32,7 +32,7 @@ conda activate <write_environment_name_here>
 conda install -c conda-forge healpy bayesian-optimization
 
 ### To run data generation you will need:
-Ifriit (Univeriste de Bordeaux, inverse ray tracing module) will need to be installed. Requests to arnaud.colaitis@u-bordeaux.fr.
+Ifriit (Univeriste de Bordeaux, inverse ray tracing module) will need to be installed. Requests to duncan.barlow@u-bordeaux.fr.
 You will need the python modules: healpy and netcdf4
 These can be installed via conda using:
 
