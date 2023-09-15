@@ -159,9 +159,9 @@ def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs
 
 ######################################## Gradient Descent ############################################
 
-def define_gradient_ascent_params(num_steps_per_iter):
+def define_gradient_ascent_params(num_steps_per_iter, num_optimization_params):
     gd_params = {}
-    gd_params["learn_exp"] = -1.0
+    gd_params["learn_exp"] = np.log10(np.sqrt(num_optimization_params)/40.0)
     gd_params["num_steps_per_iter"] = num_steps_per_iter
     return gd_params
 

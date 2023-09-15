@@ -84,9 +84,13 @@ def wrapper_gradient_ascent(dataset, gd_params, opt_params):
     X_old = np.zeros((1, opt_params["num_optimization_params"]))
     maxdex_new = np.argmax(target)
     X_old[0,:] = dataset["input_parameters"][maxdex_new,:]
+
     print("The index with the max fitness was: ", str(maxdex_new))
     print("It had intial rms: {:.2f} %".format(dataset["rms"][maxdex_new, 0]*100.0), " and mean intensity: {:.2e}W/sr".format(dataset["avg_flux"][maxdex_new, 0]))
-    print("It had ablation pressure rms: {:.2f} %".format(dataset["rms"][maxdex_new, 1]*100.0), " and mean pressure: {:.2f}Mbar".format(dataset["avg_flux"][maxdex_new, 1]))
+
+    number_of_snapshots = np.shape(dataset["rms"][:,:])[1]
+    if number_of_snapshots != 1:
+        print("It had ablation pressure rms: {:.2f} %".format(dataset["rms"][maxdex_new, 1]*100.0), " and mean pressure: {:.2f}Mbar".format(dataset["avg_flux"][maxdex_new, 1]))
 
     tic = time.perf_counter()
     for ieval in range(opt_params["n_iter"]):
@@ -255,7 +259,7 @@ def main(argv):
                                                      num_init_examples, gd_n_iter,
                                                      dataset_params["random_seed"], facility_spec, sys_params["run_clean"])
 
-        gd_params = uopt.define_gradient_ascent_params(line_search_evaluations)
+        gd_params = uopt.define_gradient_ascent_params(line_search_evaluations, dataset_params["num_input_params"])
         dataset = wrapper_gradient_ascent(dataset, gd_params, opt_params)
         num_init_examples = dataset["num_evaluated"]
 
