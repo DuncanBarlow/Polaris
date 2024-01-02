@@ -6,7 +6,7 @@ Code written by Duncan Barlow at Universite de Bordeaux. Some code taken from ot
 
 use command:
 
-git clone https://github.com/DuncanBarlow/PDDOptimisation.git
+     git clone https://github.com/DuncanBarlow/PDDOptimisation.git
 
 via https.
 
@@ -21,27 +21,27 @@ To run the optimisation suite use:
      python optimize.py Data_output 100 2 10 1 10 1 10 0 12345 Data_input
 
 A brief guide to the meaning is given in the table below but the feature is still underdevelopment so read the source code for a more accurate understanding.
-    #                   dir         iex  init_type  bayes_opt grad_descent random_sampler random_seed  dir
-    #python optimize.py Data_output 100   0-2 10     0-1 10     0-1  10        0           12345      Data_input
+     #                   dir         iex  init_type  bayes_opt grad_descent random_sampler random_seed  dir
+     #python optimize.py Data_output 100   0-2 10     0-1 10     0-1  10        0           12345      Data_input
 
 ## Additional Install
 
-conda create -n <write_environment_name_here> "scipy>=1.9.1" jupyterlab netcdf4 numpy
-conda activate <write_environment_name_here>
-conda install -c conda-forge healpy bayesian-optimization
+     conda create -n <write_environment_name_here> "scipy>=1.9.1" jupyterlab netcdf4 numpy
+     conda activate <write_environment_name_here>
+     conda install -c conda-forge healpy bayesian-optimization
 
 ### To run data generation you will need:
-Ifriit (Univeriste de Bordeaux, inverse ray tracing module) will need to be installed. Requests to duncan.barlow@u-bordeaux.fr.
+Ifriit (University of Rochester, inverse ray tracing module) will need to be installed. Requests to acol@lle.rochester.edu.
 You will need the python modules: healpy and netcdf4
 These can be installed via conda using:
 
-conda config --add channels conda-forge
-conda install netcdf4 healpy
+     conda config --add channels conda-forge
+     conda install netcdf4 healpy
 
 ### To run the optimizers you will need:
 You will need python modules: bayesian-optimization
 
-conda install -c conda-forge bayesian-optimization
+     conda install -c conda-forge bayesian-optimization
 
 ### To run the neural network you will need:
 To generate 1 neural network run for 10 epochs from the training data in file "Data":
@@ -51,7 +51,7 @@ To generate 1 neural network run for 10 epochs from the training data in file "D
 You will need the python module: tensorflow.
 These can be installed via conda using:
 
-conda install tensorflow
+     conda install tensorflow
 
 # License
 
