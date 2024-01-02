@@ -84,7 +84,6 @@ def heatsource_analysis(hs_and_modes):
 
 
 
-
 def extract_run_parameters(iex, power_deposited, dataset_params, facility_spec, sys_params, deck_gen_params, use_ablation_pressure=0):
 
     total_power = 0
@@ -95,8 +94,11 @@ def extract_run_parameters(iex, power_deposited, dataset_params, facility_spec, 
     for icone in range(facility_spec['num_cones']):
         beams_per_cone = facility_spec['beams_per_cone'][icone]
 
-        cone_theta_offset = deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["theta_index"]]
-        cone_phi_offset = deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["phi_index"]]
+        pointing_theta = deck_gen_params["theta_pointings"][iex,beam_count]
+        pointing_phi = deck_gen_params["phi_pointings"][iex,beam_count]%(2.0 * np.pi)
+
+        cone_phi_offset = (pointing_phi-deck_gen_params["port_centre_phi"][beam_count])
+
         cone_defocus = deck_gen_params["defocus"][iex,beam_count]
         cone_powers = deck_gen_params["p0"][iex,beam_count] / (
                       facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
@@ -106,7 +108,7 @@ def extract_run_parameters(iex, power_deposited, dataset_params, facility_spec, 
 
         if icone < int(facility_spec['num_cones']/2):
             print_line.append("For cone " + str(icone+1) +
-                  ": {:.2f}\N{DEGREE SIGN}, ".format(np.degrees(cone_theta_offset)) +
+                  ": {:.2f}\N{DEGREE SIGN}, ".format(np.degrees(pointing_theta)) +
                   "{:.2f}\N{DEGREE SIGN}, ".format(np.degrees(cone_phi_offset)) +
                   "{:.2f}mm, ".format(cone_defocus) +
                   "{:.2f}% power, ".format(cone_powers * 100))
@@ -119,7 +121,6 @@ def extract_run_parameters(iex, power_deposited, dataset_params, facility_spec, 
         print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * facility_spec['default_power'] * mean_power_fraction) * 100.0))
 
     return print_line
-
 
 
 def alms2rms(real_modes, imag_modes, lmax):
