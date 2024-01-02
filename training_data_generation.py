@@ -18,7 +18,7 @@ def define_system_params(root_dir):
     sys_params["run_gen_deck"] = True
     sys_params["run_sims"] = True
     sys_params["run_checkpoint"] = True
-    sys_params["run_clean"] = False
+    sys_params["run_clean"] = True
 
     sys_params["root_dir"] = root_dir
     sys_params["sim_dir"] = "run_"
@@ -50,6 +50,7 @@ def define_dataset_params(num_examples,
     dataset_params["hemisphere_symmetric"] = True
     dataset_params["imap_nside"] = 256
     dataset_params["run_plasma_profile"] = False
+    dataset_params["run_with_cbet"] = False
     if dataset_params["run_plasma_profile"]:
         dataset_params["num_profiles"] = 2 # change this
     else:
@@ -172,17 +173,26 @@ def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_para
 
 def main(argv):
     sys_params = define_system_params(argv[1])
-    dataset_params, facility_spec = define_dataset_params(int(argv[2]))
 
-    dataset = define_dataset(dataset_params)
-    dataset = populate_dataset_random_inputs(dataset_params, dataset)
+    print(argv[3])
+    run_type = str(argv[3]).split("=")[1]
 
-    deck_gen_params = idg.define_deck_generation_params(dataset_params, facility_spec)
-    deck_gen_params = idg.create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
+    if (run_type=="init") or (run_type=="full"):
+        dataset_params, facility_spec = define_dataset_params(int(argv[2]))
 
-    generate_training_data(dataset, dataset_params, sys_params, facility_spec)
+        dataset = define_dataset(dataset_params)
+        dataset = populate_dataset_random_inputs(dataset_params, dataset)
+
+        deck_gen_params = idg.define_deck_generation_params(dataset_params, facility_spec)
+        deck_gen_params = idg.create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
+        idg.save_data_dicts_to_file(sys_params, dataset, dataset_params, deck_gen_params, facility_spec)
+
+    if (run_type=="restart") or (run_type=="full"):
+        dataset, dataset_params, deck_gen_params, facility_spec = idg.load_data_dicts_from_file(sys_params)
+        generate_training_data(dataset, dataset_params, sys_params, facility_spec)
 
     return dataset, dataset_params, sys_params, facility_spec
+
 
 
 if __name__ == "__main__":

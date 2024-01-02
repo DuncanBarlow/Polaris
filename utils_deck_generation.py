@@ -92,6 +92,30 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
 
 
 
+def load_data_dicts_from_file(sys_params):
+
+    root_dir = sys_params["root_dir"]
+    dataset_params = nrw.read_general_netcdf(root_dir + "/" + sys_params["dataset_params_filename"])
+    facility_spec = nrw.read_general_netcdf(root_dir + "/" + sys_params["facility_spec_filename"])
+    dataset = nrw.read_general_netcdf(root_dir + "/" + sys_params["trainingdata_filename"])
+    deck_gen_params = nrw.read_general_netcdf(root_dir + "/" + sys_params["deck_gen_params_filename"])
+
+    return dataset, dataset_params, deck_gen_params, facility_spec
+
+
+
+def save_data_dicts_to_file(sys_params, dataset, dataset_params, deck_gen_params, facility_spec):
+
+    root_dir = sys_params["root_dir"]
+    nrw.save_general_netcdf(dataset, root_dir + "/" + sys_params["trainingdata_filename"])
+    nrw.save_general_netcdf(dataset_params, root_dir + "/" + sys_params["dataset_params_filename"])
+    nrw.save_general_netcdf(facility_spec, root_dir + "/" + sys_params["facility_spec_filename"])
+    nrw.save_general_netcdf(deck_gen_params, root_dir + "/" + sys_params["deck_gen_params_filename"])
+
+    return
+
+
+
 def define_deck_generation_params(dataset_params, facility_spec):
     num_examples = dataset_params["num_examples"]
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
@@ -246,6 +270,9 @@ def generate_input_deck(dataset_params, facility_spec, sys_params, run_location)
                     new_file.write("    NBEAMS                      = " + str(num_ifriit_beams) + ",\n")
                 elif "DIAGNOSE_INPUT_BEAMS_RADIUS_UM" in line:
                     new_file.write("    DIAGNOSE_INPUT_BEAMS_RADIUS_UM = " + str(facility_spec['target_radius']) + "d0,\n")
+                elif "CBET = .FALSE.," in line:
+                    if dataset_params["run_with_cbet"]:
+                        new_file.write("    CBET = .TRUE.,\n")
                 else:
                     new_file.write(line)
 

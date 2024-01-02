@@ -1,5 +1,4 @@
 import numpy as np
-import healpy as hp
 import os
 
 
@@ -28,27 +27,50 @@ def angle2moll(theta, phi):
 
 
 
-def readout_intensity(the_data, intensity_map, mean_power_fraction=-1.0):
-    n_beams = the_data['nbeams']
+def extract_rms(intensity_map_normalized):
+
+    rms = np.sqrt(np.mean(intensity_map_normalized**2))
+
+    return rms
+
+
+
+def print_save_readout(print_list, stats_filename):
+    if os.path.exists(stats_filename):
+        os.remove(stats_filename)
+    file1 = open(stats_filename,"a")
+    for line in range(len(print_list)):
+        print(print_list[line])
+        file1.writelines(print_list[line]+"\n")
+    file1.close()
+
+
+
+def readout_intensity(facility_spec, intensity_map, use_ablation_pressure=0):
+    n_beams = facility_spec['nbeams']
     total_TW = np.mean(intensity_map)*10**(-12) * 4.0 * np.pi
-    mean_intensity = np.mean(intensity_map) / (the_data['target_radius'] / 10000.0)**2
+    mean_intensity_cm = np.mean(intensity_map) / (facility_spec['target_radius'] / 10000.0)**2
 
     #rms
-    intensity_map_normalised, avg_power = imap_norm(intensity_map)
+    intensity_map_normalised, avg_flux = imap_norm(intensity_map)
     imap_pn = np.sign(intensity_map_normalised)
     intensity_map_rms = 100.0 * np.sqrt(np.mean(intensity_map_normalised**2))
 
     print_line = []
-    print_line.append('RMS is {:.4f}%, '.format(intensity_map_rms))
-    print_line.append('Mean intensity is {:.2e}W/cm^2, '.format(mean_intensity))
     print_line.append('Number of beams ' + str(n_beams))
-    print_line.append('The total power deposited is {:.2f}TW, '.format(total_TW))
-    print_line.append('The power per beam deposited is {:.4f}TW, '.format(total_TW / n_beams))
-    if mean_power_fraction > 0.0:
-        print_line.append('This is a drive efficiency of {:.2f}%, '.format(total_TW / (n_beams * the_data['default_power'] * mean_power_fraction) * 100.0))
-        print_line.append('Mean power percentage {:.2f}%, '.format(mean_power_fraction * 100.0))
+    #print_line.append('Max power per beam {:.2f}TW, '.format(facility_spec['default_power']))
+    print_line.append('Target radius {:.2f}um, '.format(facility_spec['target_radius']))
 
-    return print_line
+    print_line.append('RMS is {:.4f}%, '.format(intensity_map_rms))
+    if use_ablation_pressure == 0:
+        print_line.append('Mean intensity, {:.2e}W/cm2'.format(mean_intensity_cm))
+        print_line.append('Mean intensity per steradian, {:.2e}W/sr'.format(avg_flux))
+        print_line.append('The power per beam deposited is {:.4f}TW, '.format(total_TW / n_beams))
+        print_line.append('The total power deposited is {:.2f}TW, '.format(total_TW))
+    else:
+        print_line.append('Mean ablation pressure: {:.2f}Mbar, '.format(avg_flux))
+
+    return print_line, total_TW
 
 
 
@@ -63,17 +85,18 @@ def heatsource_analysis(hs_and_modes):
 
 
 
-def extract_run_parameters(iex, dataset_params, facility_spec, sys_params, deck_gen_params):
+def extract_run_parameters(iex, power_deposited, dataset_params, facility_spec, sys_params, deck_gen_params, use_ablation_pressure=0):
 
     total_power = 0
     print_line = []
     beam_count = 0
+    num_vars = dataset_params["num_variables_per_beam"]
 
     for icone in range(facility_spec['num_cones']):
         beams_per_cone = facility_spec['beams_per_cone'][icone]
 
-        cone_theta_offset = deck_gen_params["theta_pointings"][iex,beam_count]
-        cone_phi_offset = deck_gen_params["phi_pointings"][iex,beam_count]
+        cone_theta_offset = deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["theta_index"]]
+        cone_phi_offset = deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["phi_index"]]
         cone_defocus = deck_gen_params["defocus"][iex,beam_count]
         cone_powers = deck_gen_params["p0"][iex,beam_count] / (
                       facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
@@ -87,27 +110,15 @@ def extract_run_parameters(iex, dataset_params, facility_spec, sys_params, deck_
                   "{:.2f}\N{DEGREE SIGN}, ".format(np.degrees(cone_phi_offset)) +
                   "{:.2f}mm, ".format(cone_defocus) +
                   "{:.2f}% power, ".format(cone_powers * 100))
+
     mean_power_fraction = total_power / facility_spec['nbeams']
+    print_line.append('The optimization selected a mean power percentage, {:.2f}%, '.format(mean_power_fraction * 100.0))
 
-    return print_line, mean_power_fraction
+    print_line.append('Total power emitted {:.2f}TW, '.format(total_power))
+    if use_ablation_pressure == 0:
+        print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * facility_spec['default_power'] * mean_power_fraction) * 100.0))
 
-
-def alms2power_spectrum(alms, LMAX):
-
-    the_modes = np.zeros(LMAX)
-    the_modes_full = np.zeros((LMAX,LMAX+1))
-    for l in range(LMAX):
-        for m in range(l+1):
-            the_modes_full[l,m] = np.real(alms[hp.sphtfunc.Alm.getidx(LMAX, l, m)]*
-                np.conjugate(alms[hp.sphtfunc.Alm.getidx(LMAX, l, m)]))
-            if (m>0):
-                the_modes[l] = the_modes[l] + 2.*the_modes_full[l,m]
-            else:          
-                the_modes[l] = the_modes[l] + the_modes_full[l,m]
-
-    the_modes = the_modes / (4.*np.pi)
-
-    return the_modes
+    return print_line
 
 
 
@@ -123,19 +134,6 @@ def alms2rms(real_modes, imag_modes, lmax):
 
 
 
-def power_spectrum(intensity_map, LMAX, verbose=True):
-    intensity_map_normalized, avg_power = imap_norm(intensity_map)
-    alms = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
-    power_spectrum = alms2power_spectrum(alms, LMAX)
-
-    if verbose:
-        print("The LLE quoted rms cumulative over all modes is: ", np.sqrt(np.sum(power_spectrum))*100.0, "%")
-    sqrt_power_spectrum = np.sqrt(power_spectrum)
-
-    return sqrt_power_spectrum
-
-
-
 def create_ytrain(pointing_per_cone, pointing_nside, defocus_per_cone, num_defocus, power_per_cone, num_powers):
 
     Y_train = np.hstack((np.array(pointing_per_cone)/(pointing_nside-1), np.array(defocus_per_cone)/(num_defocus-1)))
@@ -146,54 +144,9 @@ def create_ytrain(pointing_per_cone, pointing_nside, defocus_per_cone, num_defoc
 
 
 
-def extract_modes_and_flux(intensity_map, LMAX):
-
-    intensity_map_normalized, avg_flux = imap_norm(intensity_map)
-    real_modes, imag_modes = imap2modes(intensity_map_normalized, LMAX, avg_flux)
-
-    return real_modes, imag_modes, avg_flux
-
-
-
-def imap2modes(intensity_map_normalized, LMAX, avg_power):
-
-    modes_complex = hp.sphtfunc.map2alm(intensity_map_normalized, lmax=LMAX)
-
-    return modes_complex.real, modes_complex.imag
-
-
-
-def modes2imap(real_modes, imag_modes, imap_nside):
-
-    np_complex = np.vectorize(complex)
-    modes_complex = np_complex(real_modes, imag_modes)
-    intensity_map_normalized = hp.alm2map(modes_complex, imap_nside)
-
-    return intensity_map_normalized
-
-
-
 def imap_norm(intensity_map):
 
     avg_flux = np.mean(intensity_map) # average power per steradian (i.e. a flux)
     intensity_map_normalized = intensity_map / avg_flux - 1.0
 
     return intensity_map_normalized, avg_flux
-
-
-
-def change_number_modes(Y_train, avg_powers_all, LMAX):
-
-    num_examples = np.shape(Y_train)[1]
-    Y_train2 = np.zeros((LMAX, num_examples))
-    num_coeff = int(((LMAX + 2) * (LMAX + 1))/2.0)
-    np_complex = np.vectorize(complex)
-    for ie in range(num_examples):
-        # weighting to allow NN to adjust for mean flux
-        #Y_train_real = np.squeeze(Y_train[:,ie] / avg_powers_all[ie])
-        Y_train_complex = np_complex(Y_train_real[:num_coeff], Y_train_real[num_coeff:])
-
-        power_spectrum = alms2power_spectrum(Y_train_complex, LMAX)
-        Y_train2[:,ie] = np.sqrt(power_spectrum)
-
-    return Y_train2

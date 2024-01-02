@@ -85,6 +85,13 @@ def wrapper_gradient_ascent(dataset, gd_params, opt_params):
     maxdex_new = np.argmax(target)
     X_old[0,:] = dataset["input_parameters"][maxdex_new,:]
 
+    print("The index with the max fitness was: ", str(maxdex_new))
+    print("It had intial rms: {:.2f} %".format(dataset["rms"][maxdex_new, 0]*100.0), " and mean intensity: {:.2e}W/sr".format(dataset["avg_flux"][maxdex_new, 0]))
+
+    number_of_snapshots = np.shape(dataset["rms"][:,:])[1]
+    if number_of_snapshots != 1:
+        print("It had ablation pressure rms: {:.2f} %".format(dataset["rms"][maxdex_new, 1]*100.0), " and mean pressure: {:.2f}Mbar".format(dataset["avg_flux"][maxdex_new, 1]))
+
     tic = time.perf_counter()
     for ieval in range(opt_params["n_iter"]):
         maxdex_old = maxdex_new
@@ -184,13 +191,13 @@ def main(argv):
     if data_init_type == 1: # Generate new initialization dataset
         print("Generating data!")
 
-        dataset, dataset_params, sys_params, facility_spec = tdg.main((None, sys_params["root_dir"], num_examples))
+        dataset, dataset_params, sys_params, facility_spec = tdg.main((None, sys_params["root_dir"], num_examples, "run_type=full"))
 
     elif data_init_type == 2: # Genetic algorithm
         print("Using a genetic algorithm!")
         ga_n_iter = int(argv[4])
         initial_pop_size = num_examples
-        dataset, dataset_params, sys_params, facility_spec = tdg.main((None, sys_params["root_dir"], initial_pop_size))
+        dataset, dataset_params, sys_params, facility_spec = tdg.main((None, sys_params["root_dir"], initial_pop_size, "run_type=full"))
 
         num_parents_mating = int(initial_pop_size / 10.0)
         if (num_parents_mating % 2) != 0:
@@ -200,8 +207,8 @@ def main(argv):
         num_init_examples = 0 # genetic algorithm generates its own initial data
 
         opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
-                                                     num_init_examples, ga_n_iter,
-                                                     dataset_params["random_seed"], facility_spec)
+                                                     num_init_examples, ga_n_iter, dataset_params["random_seed"],
+                                                     facility_spec, sys_params["run_clean"])
         num_mutations = int(opt_params["num_optimization_params"] / 2)
 
         ga_params = uopt.define_genetic_algorithm_params(initial_pop_size, num_parents_mating, num_mutations)
@@ -233,7 +240,7 @@ def main(argv):
         bo_n_iter = int(argv[6])
         opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
                                                      num_init_examples, bo_n_iter,
-                                                     dataset_params["random_seed"], facility_spec)
+                                                     dataset_params["random_seed"], facility_spec, sys_params["run_clean"])
         ifriit_runs_per_bo_iteration = sys_params["num_parallel_ifriits"]
 
         target = uopt.fitness_function(dataset, opt_params)
@@ -250,9 +257,9 @@ def main(argv):
         line_search_evaluations = sys_params["num_parallel_ifriits"]
         opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
                                                      num_init_examples, gd_n_iter,
-                                                     dataset_params["random_seed"], facility_spec)
+                                                     dataset_params["random_seed"], facility_spec, sys_params["run_clean"])
 
-        gd_params = uopt.define_gradient_ascent_params(line_search_evaluations)
+        gd_params = uopt.define_gradient_ascent_params(line_search_evaluations, dataset_params["num_input_params"])
         dataset = wrapper_gradient_ascent(dataset, gd_params, opt_params)
         num_init_examples = dataset["num_evaluated"]
 

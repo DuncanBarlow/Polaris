@@ -1,10 +1,11 @@
 # code copied from https://github.com/fmfn/BayesianOptimization edited by Duncan Barlow
-from bayes_opt import BayesianOptimization, UtilityFunction
+#from bayes_opt import BayesianOptimization, UtilityFunction
 import numpy as np
 import training_data_generation as tdg
 import netcdf_read_write as nrw
 import utils_deck_generation as idg
 import time
+import sys
 
 
 
@@ -19,17 +20,19 @@ def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
 
 def define_optimizer_parameters(run_dir, num_optimization_params,
                                 num_init_examples, n_iter,
-                                random_seed, facility_spec):
+                                random_seed, facility_spec, run_clean):
     optimizer_params = {}
     optimizer_params["run_dir"] = run_dir
     optimizer_params["num_optimization_params"] = num_optimization_params
     optimizer_params["num_init_examples"] = num_init_examples
     optimizer_params["n_iter"] = n_iter
-    optimizer_params["run_clean"] = False
+    optimizer_params["run_clean"] = run_clean
     optimizer_params["random_generator"] = np.random.default_rng(random_seed)
-    optimizer_params["fitness_max_power_per_steradian"] = facility_spec['nbeams'] * facility_spec['default_power'] * 1.0e12 / (4.0 * np.pi)
-    optimizer_params["fitness_desired_rms"] = 0.03
-    optimizer_params["fitness_norm_factor"] = 10.0
+    optimizer_params["fitness_desired_power_per_steradian"] = facility_spec['nbeams'] \
+        * facility_spec['default_power'] * 1.0e12 / (4.0 * np.pi)
+    optimizer_params["fitness_desired_pressure_mbar"] = 65.0
+    optimizer_params["fitness_desired_rms"] = 0.05
+    optimizer_params["fitness_norm_factor"] = 0.5
     optimizer_params["printout_iteration_skip"] = 1
 
     pbounds = np.zeros((optimizer_params["num_optimization_params"], 2))
@@ -41,13 +44,19 @@ def define_optimizer_parameters(run_dir, num_optimization_params,
 
 def fitness_function(dataset, opt_params):
     target_rms = opt_params["fitness_desired_rms"]
-    target_flux = opt_params["fitness_max_power_per_steradian"]
     norm_factor = opt_params["fitness_norm_factor"]
+    number_of_timesteps = np.shape(dataset["rms"][:,:])[1]
 
-    rms = dataset["rms"][:,0]
-    avg_flux = dataset["avg_flux"][:,0]
+    if number_of_timesteps == 1:
+        target_flux = opt_params["fitness_desired_power_per_steradian"]
+        rms = dataset["rms"][:,0]
+        avg_flux = dataset["avg_flux"][:,0]
+    else:
+        target_flux = opt_params["fitness_desired_pressure_mbar"]
+        rms = np.sqrt(np.sum(dataset["rms"][:,:]**2, axis=1) / float(number_of_timesteps))
+        avg_flux = dataset["avg_flux"][:,1]
 
-    maxi_func = np.exp(-rms/target_rms) * (avg_flux/target_flux)**2 * norm_factor
+    maxi_func = np.exp(-(rms/target_rms)**(0.25) + (avg_flux / target_flux)**4) * norm_factor
     return maxi_func
 
 
@@ -56,10 +65,7 @@ def run_ifriit_input(num_new_examples, X_all, opt_params):
     sys_params = tdg.define_system_params(opt_params["run_dir"])
     sys_params["run_clean"] = opt_params["run_clean"] # Create new run files
 
-    dataset_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
-    facility_spec = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
-    dataset = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
-    deck_gen_params = nrw.read_general_netcdf(sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
+    dataset, dataset_params, deck_gen_params, facility_spec = idg.load_data_dicts_from_file(sys_params)
     dataset_params["num_examples"] = dataset["num_evaluated"] + num_new_examples
 
     num_evaluated = dataset["num_evaluated"]
@@ -97,11 +103,11 @@ def expand_dict(big_dictionary, small_dictionary, old_size):
             big_dictionary[key] = small_dictionary[key]
         else:
             if total_dims == 3:
-                big_dictionary[key][:old_size,:,:] = small_dictionary[key][:,:,:]
+                big_dictionary[key][:old_size,:,:] = small_dictionary[key][:old_size,:,:]
             if total_dims == 2:
-                big_dictionary[key][:old_size,:] = small_dictionary[key][:,:]
+                big_dictionary[key][:old_size,:] = small_dictionary[key][:old_size,:]
             if total_dims == 1:
-                big_dictionary[key][:old_size] = small_dictionary[key][:]
+                big_dictionary[key][:old_size] = small_dictionary[key][:old_size]
     small_dictionary.clear()
     return big_dictionary
 
@@ -131,13 +137,9 @@ def define_bayesian_optimisation_params(ifriit_runs_per_iteration, target_set_un
 
 def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs):
 
-    optimizer = BayesianOptimization(
-      f=None,
-      pbounds=pbounds,
-      random_state=1,
-    )
-
-    utility = UtilityFunction(kind = "ucb", kappa = 2.5, xi = 0.0)
+    sys.exit("Bayesian optimization intentionally removed! Find this line to re-add")
+    optimizer = {}#BayesianOptimization(f=None,pbounds=pbounds,random_state=1)
+    utility = {}#UtilityFunction(kind = "ucb", kappa = 2.5, xi = 0.0)
 
     # initial data points
     params = {}
@@ -158,9 +160,9 @@ def initialize_unknown_func(input_data, target, pbounds, init_points, num_inputs
 
 ######################################## Gradient Descent ############################################
 
-def define_gradient_ascent_params(num_steps_per_iter):
+def define_gradient_ascent_params(num_steps_per_iter, num_optimization_params):
     gd_params = {}
-    gd_params["learn_exp"] = -1.0
+    gd_params["learn_exp"] = np.log10(np.sqrt(num_optimization_params)/40.0)
     gd_params["num_steps_per_iter"] = num_steps_per_iter
     return gd_params
 
