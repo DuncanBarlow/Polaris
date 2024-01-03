@@ -47,14 +47,13 @@
 /
 
 &CBET_MODEL
-    CBET_IAW_FLUID_DMP=0.1d0,
     CBET_DNN_KINETIC=.TRUE.,
     CBET_LANGDON=.FALSE.,
-    CBET_POLARIZED=.TRUE.,
+    CBET_POLARIZED=.FALSE.,
     CBET_KSPREAD=.FALSE.,
-    CBET_LANGDON_ZPDATA = "/mnt/local/acolaitis/codes/aster/src/ifriit/zprime_nonmax.nc"    
     CBET_DNDT = .FALSE.
     CBET_DNN_CLAMP      = 0.02
+    MAX_UNPOLARIZED_FIELD_GAIN = 20.0,
 /
 
 &SPHERICAL_MESH
