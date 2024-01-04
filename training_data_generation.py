@@ -162,14 +162,14 @@ def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_para
     for tind in range(dataset_params["num_profiles_per_config"]):
         sim_dir = "/" + sys_params["sim_dir"] + str(tind)
 
-        if dataset_params["run_plasma_profile"]:
+        if dataset_params["run_plasma_profile"] and tind!=0: # this ensures the first run will be a solid sphere
             num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
         else:
             num_mpi_parallel = 1
 
         subprocess.check_call(["./bash_parallel_ifriit", config_location, sim_dir, str(min_parallel), str(max_parallel), str(num_mpi_parallel), str(sys_params["num_openmp_parallel"])])
 
-        dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
+    dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
     return dataset
 
 
