@@ -131,7 +131,7 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
             print("Broken solid sphere! Probably due to CBET convergence?")
 
         print("Without density profiles:")
-        print('Intensity per steradian, {:.2e}W/sr^-1'.format(dataset["avg_flux"][iex, 0]))
+        print('Intensity per steradian, {:.2e}W/sr'.format(dataset["avg_flux"][iex, 0]))
         print("The rms is: ", dataset["rms"][iex,0]*100.0, "%")
 
         if dataset_params["run_plasma_profile"]:
@@ -144,7 +144,7 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
                 print("Broken with profiles! Probably due to CBET convergence?")
 
             print("With density profiles:")
-            print('Intensity per steradian, {:.2e}W/sr^-1'.format(dataset["avg_flux"][iex, 1]))
+            print('Ablation pressure, {:.2f}Mbar'.format(dataset["avg_flux"][iex, 1]))
             print("The rms is: ", dataset["rms"][iex,1]*100.0, "%")
 
         if sys_params["run_clean"]:
