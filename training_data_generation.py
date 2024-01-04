@@ -21,7 +21,8 @@ def define_system_params(root_dir):
     sys_params["run_clean"] = True
 
     sys_params["root_dir"] = root_dir
-    sys_params["sim_dir"] = "run_"
+    sys_params["config_dir"] = "config_"
+    sys_params["sim_dir"] = "time_"
     sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
     sys_params["ifriit_ouput_name"] = "p_in_z1z2_beam_all.nc"
     sys_params["figure_location"] = "plots"
@@ -51,10 +52,7 @@ def define_dataset_params(num_examples,
     dataset_params["imap_nside"] = 256
     dataset_params["run_plasma_profile"] = False
     dataset_params["run_with_cbet"] = False
-    if dataset_params["run_plasma_profile"]:
-        dataset_params["num_profiles"] = 2 # change this
-    else:
-        dataset_params["num_profiles"] = 1 # leave this
+    dataset_params["num_profiles_per_config"] = 1
 
     num_variables_per_beam = 0
     # pointings
@@ -70,12 +68,16 @@ def define_dataset_params(num_examples,
     if dataset_params["defocus_bool"]:
         dataset_params["defocus_index"] = num_variables_per_beam
         num_variables_per_beam += 1
-    #power
+    # power (time-varying?)
     dataset_params["min_power"] = 0.5 # fraction of full power
     dataset_params["power_index"] = num_variables_per_beam
-    num_variables_per_beam += 1
-    dataset_params["num_variables_per_beam"] = num_variables_per_beam
+    dataset_params["time_varying_pulse"] = False
+    if dataset_params["time_varying_pulse"]:
+        num_variables_per_beam += dataset_params["num_profiles_per_config"]
+    else:
+        num_variables_per_beam += 1
 
+    dataset_params["num_variables_per_beam"] = num_variables_per_beam
     dataset_params["run_type"] = "lmj" #"test" #"lmj" #"nif"
     if dataset_params["run_type"] == "nif":
         facility_spec = idg.import_nif_config()
@@ -112,10 +114,10 @@ def define_dataset(dataset_params):
     dataset["num_evaluated"] = 0
 
     dataset["input_parameters"] = np.zeros((dataset_params["num_examples"], dataset_params["num_input_params"]))
-    dataset["real_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles"], dataset_params["num_coeff"]))
-    dataset["imag_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles"], dataset_params["num_coeff"]))
-    dataset["avg_flux"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles"]))
-    dataset["rms"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles"]))
+    dataset["real_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"], dataset_params["num_coeff"]))
+    dataset["imag_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"], dataset_params["num_coeff"]))
+    dataset["avg_flux"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"]))
+    dataset["rms"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"]))
     return dataset
 
 
@@ -127,7 +129,6 @@ def generate_training_data(dataset, dataset_params, sys_params, facility_spec):
 
     max_parallel = dataset["num_evaluated"]-1
     chkp_marker = 1.0
-    run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"]
     filename_trainingdata = sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"]
     if sys_params["run_sims"]:
         # int is a floor round
@@ -157,16 +158,18 @@ def generate_training_data(dataset, dataset_params, sys_params, facility_spec):
 
 
 def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec):
-    run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"]
+    config_location = sys_params["root_dir"] + "/" + sys_params["config_dir"]
+    for tind in range(dataset_params["num_profiles_per_config"]):
+        sim_dir = "/" + sys_params["sim_dir"] + str(tind)
 
-    if dataset_params["run_plasma_profile"]:
-        num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
-    else:
-        num_mpi_parallel = 1
+        if dataset_params["run_plasma_profile"]:
+            num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
+        else:
+            num_mpi_parallel = 1
 
-    subprocess.check_call(["./bash_parallel_ifriit", run_location, str(min_parallel), str(max_parallel), str(num_mpi_parallel), str(sys_params["num_openmp_parallel"])])
+        subprocess.check_call(["./bash_parallel_ifriit", config_location, sim_dir, str(min_parallel), str(max_parallel), str(num_mpi_parallel), str(sys_params["num_openmp_parallel"])])
 
-    dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
+        dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
     return dataset
 
 

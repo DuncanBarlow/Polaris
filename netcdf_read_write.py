@@ -117,7 +117,9 @@ def save_general_netcdf(parameters, filename):
 def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec):
 
     for iex in range(min_parallel, max_parallel+1):
-        run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
+        config_location = sys_params["root_dir"] + "/" + sys_params["config_dir"] + str(iex)
+        # temporary hack for testing
+        run_location = config_location + "/" + sys_params["sim_dir"] + str(0)
 
         dir_illumination = run_location + "/" + sys_params["ifriit_ouput_name"]
         if os.path.exists(dir_illumination):

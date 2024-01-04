@@ -83,9 +83,15 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
                     deck_gen_params["p0"][iex,quad_slice] = facility_spec['default_power'] * cone_power  * facility_spec['beams_per_ifriit_beam']
 
         if sys_params["run_gen_deck"]:
-            run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
-            generate_input_deck(dataset_params, facility_spec, sys_params, run_location)
-            generate_input_pointing_and_pulses(iex, facility_spec, deck_gen_params, run_location, dataset_params["run_type"])
+            config_location = sys_params["root_dir"] + "/" + sys_params["config_dir"] + str(iex)
+            file_exists = os.path.exists(config_location)
+            if not file_exists:
+                os.makedirs(config_location)
+
+            for tind in range(dataset_params["num_profiles_per_config"]):
+                run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+                generate_input_deck(dataset_params, facility_spec, sys_params, run_location)
+                generate_input_pointing_and_pulses(iex, facility_spec, deck_gen_params, run_location, dataset_params["run_type"])
 
     nrw.save_general_netcdf(deck_gen_params, sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
     return deck_gen_params
