@@ -11,8 +11,8 @@ from scipy.stats import qmc
 
 def define_system_params(root_dir):
     sys_params = {}
-    sys_params["num_parallel_ifriits"] = 1
-    sys_params["num_openmp_parallel"] = 4
+    sys_params["num_parallel_ifriits"] = 5
+    sys_params["num_openmp_parallel"] = 32
     sys_params["num_ex_checkpoint"] = 1
 
     sys_params["run_gen_deck"] = True
@@ -49,8 +49,8 @@ def define_dataset_params(num_examples,
     dataset_params["random_sampling"] = random_sampling
     dataset_params["hemisphere_symmetric"] = True
     dataset_params["imap_nside"] = 256
-    dataset_params["run_plasma_profile"] = False
-    dataset_params["run_with_cbet"] = False
+    dataset_params["run_plasma_profile"] = True
+    dataset_params["run_with_cbet"] = True
     if dataset_params["run_plasma_profile"]:
         dataset_params["num_profiles"] = 2 # change this
     else:
@@ -65,8 +65,8 @@ def define_dataset_params(num_examples,
     num_variables_per_beam += 1
     # defocus
     dataset_params["defocus_default"] = 0.0
-    dataset_params["defocus_range"] = 20.0 # mm
-    dataset_params["defocus_bool"] = False
+    dataset_params["defocus_range"] = 10.0 # mm
+    dataset_params["defocus_bool"] = True
     if dataset_params["defocus_bool"]:
         dataset_params["defocus_index"] = num_variables_per_beam
         num_variables_per_beam += 1
@@ -76,7 +76,7 @@ def define_dataset_params(num_examples,
     num_variables_per_beam += 1
     dataset_params["num_variables_per_beam"] = num_variables_per_beam
 
-    dataset_params["run_type"] = "lmj" #"test" #"lmj" #"nif"
+    dataset_params["run_type"] = "nif" #"test" #"lmj" #"nif"
     if dataset_params["run_type"] == "nif":
         facility_spec = idg.import_nif_config()
     elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
