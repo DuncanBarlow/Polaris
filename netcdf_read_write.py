@@ -126,9 +126,10 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
                 dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:], dataset["avg_flux"][iex,tind] = uim.heatsource_analysis(hs_and_modes)
                 dataset["rms"][iex,tind] = uim.alms2rms(dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:], dataset_params["LMAX"])
 
+                print(dir_illumination)
                 print("With density profiles:")
                 print('Mean ablation pressure: {:.2f}Mbar'.format(dataset["avg_flux"][iex, tind]))
-                print("The rms is: {:.2f} %".format(dataset["rms"][iex,0]*100.0))
+                print("The rms is: {:.2f} %".format(dataset["rms"][iex,tind]*100.0))
 
             else:
                 dir_illumination = run_location + "/" + sys_params["ifriit_ouput_name"]
@@ -140,9 +141,10 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
                     dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:] = uhp.imap2modes(intensity_map_normalized, dataset_params["LMAX"])
                     dataset["rms"][iex,tind] = uim.alms2rms(dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:], dataset_params["LMAX"])
 
+                    print(dir_illumination)
                     print("Without density profiles:")
-                    print('Intensity per steradian, {:.2e}W/sr'.format(dataset["avg_flux"][iex, 0]))
-                    print("The rms is: {:.2f} %".format(dataset["rms"][iex,0]*100.0))
+                    print('Intensity per steradian, {:.2e}W/sr'.format(dataset["avg_flux"][iex, tind]))
+                    print("The rms is: {:.2f} %".format(dataset["rms"][iex,tind]*100.0))
                 else:
                     print("Broken illumination! Probably due to CBET convergence?")
 

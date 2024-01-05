@@ -43,9 +43,11 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
             else:
                 cone_defocus = dataset_params["defocus_default"]
 
-            cone_power = (cone_params[dataset_params["power_index"]] * (1.0 - dataset_params["min_power"])
-                          + dataset_params["min_power"])
-            deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["power_index"]] = cone_power
+            cone_power = np.zeros((dataset_params["num_powers_per_cone"]))
+            for tind in range(dataset_params["num_powers_per_cone"]):
+                pind = dataset_params["power_index"] + tind
+                cone_power[tind] = (cone_params[pind] * (1.0 - dataset_params["min_power"]) + dataset_params["min_power"])
+                deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["power_index"] + tind] = cone_power[tind]
 
             quad_name = facility_spec['quad_from_each_cone'][icone]
             quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
@@ -80,7 +82,8 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
 
                     deck_gen_params['pointings'][iex,quad_slice] = np.array(coord_n)
                     deck_gen_params["defocus"][iex,quad_slice] = cone_defocus
-                    deck_gen_params["p0"][iex,quad_slice] = facility_spec['default_power'] * cone_power  * facility_spec['beams_per_ifriit_beam']
+                    for tind in range(dataset_params["num_powers_per_cone"]):
+                        deck_gen_params["p0"][iex,quad_slice,tind] = facility_spec['default_power'] * cone_power[tind] * facility_spec['beams_per_ifriit_beam']
 
         if sys_params["run_gen_deck"]:
             config_location = sys_params["root_dir"] + "/" + sys_params["config_dir"] + str(iex)
@@ -89,9 +92,13 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
                 os.makedirs(config_location)
 
             for tind in range(dataset_params["num_profiles_per_config"]):
+                if dataset_params["time_varying_pulse"]:
+                    pwr_ind = tind
+                else:
+                    pwr_ind = 0
                 run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
                 generate_input_deck(dataset_params, facility_spec, sys_params, run_location)
-                generate_input_pointing_and_pulses(iex, facility_spec, deck_gen_params, run_location, dataset_params["run_type"])
+                generate_input_pointing_and_pulses(iex, pwr_ind, facility_spec, deck_gen_params, run_location, dataset_params["run_type"])
 
     nrw.save_general_netcdf(deck_gen_params, sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
     return deck_gen_params
@@ -137,7 +144,7 @@ def define_deck_generation_params(dataset_params, facility_spec):
     deck_gen_params["theta_pointings"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["phi_pointings"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["defocus"] = np.zeros((num_examples, num_ifriit_beams))
-    deck_gen_params["p0"] = np.zeros((num_examples, num_ifriit_beams))
+    deck_gen_params["p0"] = np.zeros((num_examples, num_ifriit_beams, dataset_params["num_powers_per_cone"]))
     deck_gen_params["sim_params"] = np.zeros((num_examples, dataset_params["num_input_params"]*2))
 
     return deck_gen_params
@@ -284,7 +291,7 @@ def generate_input_deck(dataset_params, facility_spec, sys_params, run_location)
 
 
 
-def generate_input_pointing_and_pulses(iex, facility_spec, deck_gen_params, run_location, run_type):
+def generate_input_pointing_and_pulses(iex, tind, facility_spec, deck_gen_params, run_location, run_type):
     if (facility_spec['facility'] == "NIF"):
         j = 0
         with open(run_location+'/ifriit_inputs.txt','a') as f:
@@ -309,7 +316,7 @@ def generate_input_pointing_and_pulses(iex, facility_spec, deck_gen_params, run_
                     f.write('    POWER_PROFILE_FILE_TW_NS = "pulse_'+beam+'.txt"\n')
                     f.write('    T_0_NS              = {:.10f}d0,\n'.format(deck_gen_params['t0']))
                 else:
-                    f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iex,j]))
+                    f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iex,j,tind]))
                 if (run_type == "nif"):
                     f.write('    PREDEF_FACILITY     = "NIF"\n')
                     f.write('    PREDEF_BEAM         = "'+beam+'",\n')
@@ -351,7 +358,7 @@ def generate_input_pointing_and_pulses(iex, facility_spec, deck_gen_params, run_
                     f.write('    POWER_PROFILE_FILE_TW_NS = "pulse_'+beam+'.txt"\n')
                     f.write('    T_0_NS              = {:.10f}d0,\n'.format(deck_gen_params['t0']))
                 else:
-                    f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iex,j]))
+                    f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iex,j,tind]))
                 if (run_type == "lmj"):
                     f.write('    PREDEF_FACILITY     = "'+facility_spec['facility']+'"\n')
                     f.write('    PREDEF_BEAM         = "'+beam+'",\n')

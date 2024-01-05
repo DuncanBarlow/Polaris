@@ -73,8 +73,10 @@ def define_dataset_params(num_examples,
     dataset_params["power_index"] = num_variables_per_beam
     dataset_params["time_varying_pulse"] = False
     if dataset_params["time_varying_pulse"]:
+        dataset_params["num_powers_per_cone"] = dataset_params["num_profiles_per_config"]
         num_variables_per_beam += dataset_params["num_profiles_per_config"]
     else:
+        dataset_params["num_powers_per_cone"] = 1
         num_variables_per_beam += 1
 
     dataset_params["num_variables_per_beam"] = num_variables_per_beam
