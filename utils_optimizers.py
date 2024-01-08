@@ -56,7 +56,7 @@ def fitness_function(dataset, opt_params):
         rms = np.sqrt(np.sum(dataset["rms"][:,:]**2, axis=1) / float(number_of_timesteps))
         avg_flux = dataset["avg_flux"][:,1]
 
-    maxi_func = np.exp(-(rms/target_rms)**(0.25) + (avg_flux / target_flux)**4) * norm_factor
+    maxi_func = np.exp(-(rms/target_rms)**(0.25) + (avg_flux / target_flux)**4) * (avg_flux / target_flux) * norm_factor
     return maxi_func
 
 
