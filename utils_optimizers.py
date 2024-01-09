@@ -30,7 +30,8 @@ def define_optimizer_parameters(run_dir, num_optimization_params,
     optimizer_params["random_generator"] = np.random.default_rng(random_seed)
     optimizer_params["fitness_desired_power_per_steradian"] = facility_spec['nbeams'] \
         * facility_spec['default_power'] * 1.0e12 / (4.0 * np.pi)
-    optimizer_params["fitness_desired_pressure_mbar"] = 65.0
+    optimizer_params["fitness_desired_pressure_mbar"] = 70.0
+    optimizer_params["fitness_limit_broken_pressure_mbar"] = 100.0
     optimizer_params["fitness_desired_rms"] = 0.05
     optimizer_params["fitness_norm_factor"] = 0.5
     optimizer_params["printout_iteration_skip"] = 1
@@ -55,8 +56,11 @@ def fitness_function(dataset, opt_params):
         target_flux = opt_params["fitness_desired_pressure_mbar"]
         rms = np.sqrt(np.sum(dataset["rms"][:,:]**2, axis=1) / float(number_of_timesteps))
         avg_flux = dataset["avg_flux"][:,1]
+        indices = np.where(np.array(avg_flux) > opt_params["fitness_limit_broken_pressure_mbar"])[0]
+        print("Fitness function detects broken runs: ", indices)
+        avg_flux[indices] = 0.0
 
-    maxi_func = np.exp(-(rms/target_rms)**(0.25) + (avg_flux / target_flux)**4) * (avg_flux / target_flux) * norm_factor
+    maxi_func = np.exp(-(rms/target_rms) + (avg_flux / target_flux)) * (avg_flux / target_flux) * norm_factor
     return maxi_func
 
 
