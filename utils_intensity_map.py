@@ -84,7 +84,7 @@ def heatsource_analysis(hs_and_modes):
 
 
 
-def extract_run_parameters(iex, power_deposited, dataset_params, facility_spec, sys_params, deck_gen_params, use_ablation_pressure=0):
+def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, facility_spec, sys_params, deck_gen_params, use_ablation_pressure=0):
 
     total_power = 0
     print_line = []
@@ -100,7 +100,7 @@ def extract_run_parameters(iex, power_deposited, dataset_params, facility_spec, 
         cone_phi_offset = (pointing_phi-deck_gen_params["port_centre_phi"][beam_count])
 
         cone_defocus = deck_gen_params["defocus"][iex,beam_count]
-        cone_powers = deck_gen_params["p0"][iex,beam_count] / (
+        cone_powers = deck_gen_params["p0"][iex,beam_count,ind_profile] / (
                       facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
 
         total_power += cone_powers * beams_per_cone

@@ -117,43 +117,44 @@ def save_general_netcdf(parameters, filename):
 def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec):
 
     for iex in range(min_parallel, max_parallel+1):
-        run_location = sys_params["root_dir"] + "/" + sys_params["sim_dir"] + str(iex)
-
-        dir_illumination = run_location + "/" + sys_params["ifriit_ouput_name"]
-        if os.path.exists(dir_illumination):
-            parameters = read_general_netcdf(dir_illumination)
-            intensity_map = parameters["intensity"] * (facility_spec["target_radius"] / 10000.0)**2
-
-            intensity_map_normalized, dataset["avg_flux"][iex,0] = uim.imap_norm(intensity_map)
-            dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:] = uhp.imap2modes(intensity_map_normalized, dataset_params["LMAX"])
-            dataset["rms"][iex,0] = uim.alms2rms(dataset["real_modes"][iex,0,:], dataset["imag_modes"][iex,0,:], dataset_params["LMAX"])
-        else:
-            print("Broken solid sphere! Probably due to CBET convergence?")
-
-        print("Without density profiles:")
-        print('Intensity per steradian, {:.2e}W/sr^-1'.format(dataset["avg_flux"][iex, 0]))
-        print("The rms is: ", dataset["rms"][iex,0]*100.0, "%")
-
-        if dataset_params["run_plasma_profile"]:
+        config_location = sys_params["root_dir"] + "/" + sys_params["config_dir"] + str(iex)
+        for tind in range(dataset_params["num_profiles_per_config"]):
+            run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
             dir_illumination = run_location+"/"+sys_params["heat_source_nc"]
             if os.path.exists(dir_illumination):
                 hs_and_modes = read_general_netcdf(dir_illumination)
-                dataset["real_modes"][iex,1,:], dataset["imag_modes"][iex,1,:], dataset["avg_flux"][iex,1] = uim.heatsource_analysis(hs_and_modes)
-                dataset["rms"][iex,1] = uim.alms2rms(dataset["real_modes"][iex,1,:], dataset["imag_modes"][iex,1,:], dataset_params["LMAX"])
+                dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:], dataset["avg_flux"][iex,tind] = uim.heatsource_analysis(hs_and_modes)
+                dataset["rms"][iex,tind] = uim.alms2rms(dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:], dataset_params["LMAX"])
+
+                print(dir_illumination)
+                print("With density profiles:")
+                print('Mean ablation pressure: {:.2f}Mbar'.format(dataset["avg_flux"][iex, tind]))
+                print("The rms is: {:.2f} %".format(dataset["rms"][iex,tind]*100.0))
+
             else:
-                print("Broken with profiles! Probably due to CBET convergence?")
+                dir_illumination = run_location + "/" + sys_params["ifriit_ouput_name"]
+                if os.path.exists(dir_illumination):
+                    parameters = read_general_netcdf(dir_illumination)
+                    intensity_map = parameters["intensity"] * (facility_spec["target_radius"] / 10000.0)**2
 
-            print("With density profiles:")
-            print('Intensity per steradian, {:.2e}W/sr^-1'.format(dataset["avg_flux"][iex, 1]))
-            print("The rms is: ", dataset["rms"][iex,1]*100.0, "%")
+                    intensity_map_normalized, dataset["avg_flux"][iex,tind] = uim.imap_norm(intensity_map)
+                    dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:] = uhp.imap2modes(intensity_map_normalized, dataset_params["LMAX"])
+                    dataset["rms"][iex,tind] = uim.alms2rms(dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:], dataset_params["LMAX"])
 
-        if sys_params["run_clean"]:
-            #os.remove(run_location + "/" + sys_params["ifriit_binary_filename"])
-            #os.remove(run_location + "/" + sys_params["ifriit_ouput_name"])
-            for filename in glob.glob(run_location + "/fort.*"):
-                os.remove(filename)
-            for filename in glob.glob(run_location + "/abs_beam_*"):
-                os.remove(filename)
+                    print(dir_illumination)
+                    print("Without density profiles:")
+                    print('Intensity per steradian, {:.2e}W/sr'.format(dataset["avg_flux"][iex, tind]))
+                    print("The rms is: {:.2f} %".format(dataset["rms"][iex,tind]*100.0))
+                else:
+                    print("Broken illumination! Probably due to CBET convergence?")
+
+            if sys_params["run_clean"]:
+                #os.remove(run_location + "/" + sys_params["ifriit_binary_filename"])
+                #os.remove(run_location + "/" + sys_params["ifriit_ouput_name"])
+                for filename in glob.glob(run_location + "/fort.*"):
+                    os.remove(filename)
+                for filename in glob.glob(run_location + "/abs_beam_*"):
+                    os.remove(filename)
     return dataset
 
 
