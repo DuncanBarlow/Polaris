@@ -1,4 +1,5 @@
-# code copied from https://github.com/fmfn/BayesianOptimization edited by Duncan Barlow
+#some code copied from https://github.com/fmfn/BayesianOptimization edited by Duncan Barlow
+#some code copied from https://github.com/ahmedfgad/GeneticAlgorithmPython/tree/master/Tutorial%20Project edited by Duncan Barlow
 #from bayes_opt import BayesianOptimization, UtilityFunction
 import numpy as np
 import training_data_generation as tdg

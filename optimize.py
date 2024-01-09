@@ -1,3 +1,5 @@
+#some code copied from https://github.com/fmfn/BayesianOptimization edited by Duncan Barlow
+#some code copied from https://github.com/ahmedfgad/GeneticAlgorithmPython/tree/master/Tutorial%20Project edited by Duncan Barlow
 import training_data_generation as tdg
 import netcdf_read_write as nrw
 import utils_optimizers as uopt
