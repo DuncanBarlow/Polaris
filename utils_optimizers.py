@@ -55,13 +55,13 @@ def fitness_function(dataset, opt_params):
         avg_flux = dataset["avg_flux"][:,0]
     else:
         target_flux = opt_params["fitness_desired_pressure_mbar"]
-        rms = np.sqrt(np.sum(dataset["rms"][:,:]**2, axis=1) / float(number_of_timesteps))
+        rms = np.sqrt((dataset["rms"][:,0]**2 + dataset["rms"][:,1]**2 / 2.0) / float(number_of_timesteps))
         avg_flux = dataset["avg_flux"][:,1]
         indices = np.where(np.array(avg_flux) > opt_params["fitness_limit_broken_pressure_mbar"])[0]
         print("Fitness function detects broken runs: ", indices)
         avg_flux[indices] = 0.0
 
-    maxi_func = np.exp(-(rms/target_rms) + (avg_flux / target_flux)) * (avg_flux / target_flux) * norm_factor
+    maxi_func = np.exp(-(rms/target_rms) + (avg_flux / target_flux) ** 0.25) * (avg_flux / target_flux) * norm_factor
     return maxi_func
 
 
