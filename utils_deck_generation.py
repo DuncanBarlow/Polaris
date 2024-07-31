@@ -97,7 +97,7 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
                 else:
                     pwr_ind = 0
                 run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
-                generate_input_deck(dataset_params, facility_spec, sys_params, run_location)
+                generate_run_files(dataset_params, facility_spec, sys_params, run_location)
                 generate_input_pointing_and_pulses(iex, pwr_ind, facility_spec, deck_gen_params, run_location, dataset_params["run_type"])
 
     nrw.save_general_netcdf(deck_gen_params, sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
@@ -258,7 +258,7 @@ def config_formatting(facility_spec):
 
 
 
-def generate_input_deck(dataset_params, facility_spec, sys_params, run_location):
+def generate_run_files(dataset_params, facility_spec, sys_params, run_location):
 
     isExist = os.path.exists(run_location)
 
@@ -274,6 +274,12 @@ def generate_input_deck(dataset_params, facility_spec, sys_params, run_location)
                         run_location + "/" + sys_params["plasma_profile_nc"])
     else:
         base_input_txt_loc = ("ifriit_inputs_base.txt")
+
+    generate_input_deck(run_location, base_input_txt_loc, dataset_params["run_with_cbet"], facility_spec)
+
+
+
+def generate_input_deck(run_location, base_input_txt_loc, run_with_cbet, facility_spec):
 
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
     with open(base_input_txt_loc) as old_file:
