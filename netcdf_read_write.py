@@ -47,7 +47,7 @@ def read_general_netcdf(filename):
 
 
 
-def save_general_netcdf(parameters, filename):
+def save_general_netcdf(parameters, filename, extra_dimension={}):
     if os.path.exists(filename):
         os.remove(filename)
 
@@ -110,6 +110,10 @@ def save_general_netcdf(parameters, filename):
             if item == False:
                 item = 0
             setattr(rootgrp, key, item)
+
+    for key, item in extra_dimension.items():
+        print("Saving extra dimensions: ",key, item)
+        rootgrp.createDimension(key, int(item))
     rootgrp.close()
 
 
