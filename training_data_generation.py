@@ -56,18 +56,25 @@ def define_dataset_params(num_examples,
 
     num_variables_per_beam = 0
     # pointings
-    dataset_params["surface_cover_radians"] = np.radians(45.0)
+    dataset_params["surface_cover_radians"] = np.radians(30.0)
     dataset_params["theta_index"] = num_variables_per_beam
     num_variables_per_beam += 1
     dataset_params["phi_index"] = num_variables_per_beam
     num_variables_per_beam += 1
     # defocus
     dataset_params["defocus_default"] = 0.0
-    dataset_params["defocus_range"] = 20.0 # mm
-    dataset_params["defocus_bool"] = False
+    dataset_params["defocus_range"] = 35.0 # mm
+    dataset_params["defocus_bool"] = True
     if dataset_params["defocus_bool"]:
         dataset_params["defocus_index"] = num_variables_per_beam
         num_variables_per_beam += 1
+    # quad splitting
+    dataset_params["quad_split_default"] = 0.0
+    dataset_params["quad_split_range"] = np.radians(30.0) # mm
+    dataset_params["quad_split_bool"] = True
+    if dataset_params["quad_split_bool"]:
+        dataset_params["quad_split_index"] = num_variables_per_beam
+        num_variables_per_beam += 2
     # power (time-varying?)
     dataset_params["min_power"] = 0.5 # fraction of full power
     dataset_params["power_index"] = num_variables_per_beam
@@ -84,6 +91,8 @@ def define_dataset_params(num_examples,
     if dataset_params["run_type"] == "nif":
         facility_spec = idg.import_nif_config()
     elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
+        if dataset_params["quad_split_bool"]:
+            print("LMJ not designed to work with quad splitting yet!")
         facility_spec = idg.import_lmj_config()
 
     dataset_params["LMAX"] = 30

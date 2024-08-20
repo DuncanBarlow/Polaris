@@ -43,6 +43,12 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
             else:
                 cone_defocus = dataset_params["defocus_default"]
 
+            if dataset_params["quad_split_bool"]:
+                quad_split_theta = cone_params[dataset_params["quad_split_index"]] * dataset_params["quad_split_range"]
+                deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_index"]] = quad_split_theta
+            else:
+                cone_quad_split = dataset_params["quad_split_default"]
+
             cone_power = np.zeros((dataset_params["num_powers_per_cone"]))
             for tind in range(dataset_params["num_powers_per_cone"]):
                 pind = dataset_params["power_index"] + tind
@@ -54,36 +60,47 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
             quad_start_ind = quad_slice[0]
 
             cone_name = facility_spec['Cone'][quad_start_ind]
-            cone_slice = (np.where(np.array(facility_spec['Cone']) == cone_name)[0])
+            if icone > int(facility_spec['num_cones']/2.0-1):
+                nearest_pole = np.pi
+            else:
+                nearest_pole = 0.0
+            cone_slice = np.where(np.array(np.abs(facility_spec["Theta"]
+                - np.abs(nearest_pole - np.radians(float(facility_spec["Cone"][quad_start_ind])))) < np.radians(3.0)))[0]
             quad_list_in_cone = np.array(facility_spec["Quad"])[cone_slice]
 
+            quad_num = 0
             for quad_name in quad_list_in_cone:
+                if quad_num == 4:
+                    quad_num = 0
                 quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
-                ind = quad_slice[0]
-                # remove beams in symmetric cone, 5.0 degrees is used as a small number to contain
-                # only the beams in a single cone (not any quads from the symmtric cone)
-                if np.abs(facility_spec["Theta"][ind] - facility_spec["Theta"][quad_start_ind]) < np.radians(5.0):
-                    beam_names = facility_spec['Beam'][quad_slice]
+                ind = quad_slice[quad_num]
+                beam_names = facility_spec['Beam'][quad_slice]
 
-                    deck_gen_params["port_centre_theta"][quad_slice] = np.mean(facility_spec["Theta"][quad_slice])
-                    deck_gen_params["port_centre_phi"][quad_slice] = np.mean(facility_spec["Phi"][quad_slice])
-                    port_theta = deck_gen_params["port_centre_theta"][ind]
-                    port_phi = deck_gen_params["port_centre_phi"][ind]
+                deck_gen_params["port_centre_theta"][quad_slice] = np.mean(facility_spec["Theta"][quad_slice])
+                deck_gen_params["port_centre_phi"][quad_slice] = np.mean(facility_spec["Phi"][quad_slice])
+                port_theta = deck_gen_params["port_centre_theta"][ind]
+                port_phi = deck_gen_params["port_centre_phi"][ind]
+                small_num = 0.0001 # bug with rotation matrix at multiples of pi
+                quad_split_phi = np.pi / 2.0 * quad_num -  np.pi / 2 - small_num - np.pi / 2 * cone_params[dataset_params["quad_split_index"]+1]
+                deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_index"]+1] = quad_split_phi
 
-                    rotation_matrix = np.matmul(np.matmul(hpoint.rot_mat(port_phi, "z"),
-                                                          hpoint.rot_mat(port_theta, "y")),
-                                      np.matmul(hpoint.rot_mat(offset_phi, "z"),
-                                                hpoint.rot_mat(offset_theta, "y")))
+                rotation_matrix = np.matmul(np.matmul(hpoint.rot_mat(port_phi, "z"),
+                                                      hpoint.rot_mat(port_theta, "y")),
+                                  np.matmul(np.matmul(hpoint.rot_mat(offset_phi, "z"),
+                                                      hpoint.rot_mat(offset_theta, "y")),
+                                  np.matmul(hpoint.rot_mat(quad_split_phi, "z"),
+                                            hpoint.rot_mat(quad_split_theta, "y"))))
 
-                    coord_n = np.matmul(rotation_matrix, coord_o)
+                coord_n = np.matmul(rotation_matrix, coord_o)
 
-                    deck_gen_params["theta_pointings"][iex,quad_slice] = np.arccos(coord_n[2] / facility_spec['target_radius'])
-                    deck_gen_params["phi_pointings"][iex,quad_slice] = np.arctan2(coord_n[1], coord_n[0])
+                deck_gen_params["theta_pointings"][iex,ind] = np.arccos(coord_n[2] / facility_spec['target_radius'])
+                deck_gen_params["phi_pointings"][iex,ind] = np.arctan2(coord_n[1], coord_n[0])
 
-                    deck_gen_params['pointings'][iex,quad_slice] = np.array(coord_n)
-                    deck_gen_params["defocus"][iex,quad_slice] = cone_defocus
-                    for tind in range(dataset_params["num_powers_per_cone"]):
-                        deck_gen_params["p0"][iex,quad_slice,tind] = facility_spec['default_power'] * cone_power[tind] * facility_spec['beams_per_ifriit_beam']
+                deck_gen_params['pointings'][iex,ind] = np.array(coord_n)
+                deck_gen_params["defocus"][iex,ind] = cone_defocus
+                for tind in range(dataset_params["num_powers_per_cone"]):
+                    deck_gen_params["p0"][iex,ind,tind] = facility_spec['default_power'] * cone_power[tind] * facility_spec['beams_per_ifriit_beam']
+                quad_num += 1
 
         if sys_params["run_gen_deck"]:
             config_location = sys_params["root_dir"] + "/" + sys_params["config_dir"] + str(iex)
