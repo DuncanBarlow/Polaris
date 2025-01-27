@@ -69,9 +69,8 @@ def define_dataset_params(num_examples,
         dataset_params["defocus_index"] = num_variables_per_beam
         num_variables_per_beam += 1
     # quad splitting
-    dataset_params["quad_split_default"] = 0.0
-    dataset_params["quad_split_range"] = np.radians(30.0) # mm
-    dataset_params["quad_split_bool"] = True
+    dataset_params["quad_split_range"] = 3.0 # multiples of beam seperation within port
+    dataset_params["quad_split_bool"] = False
     if dataset_params["quad_split_bool"]:
         dataset_params["quad_split_index"] = num_variables_per_beam
         num_variables_per_beam += 2
