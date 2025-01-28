@@ -69,11 +69,15 @@ def define_dataset_params(num_examples,
         dataset_params["defocus_index"] = num_variables_per_beam
         num_variables_per_beam += 1
     # quad splitting
-    dataset_params["quad_split_range"] = 3.0 # multiples of beam seperation within port
-    dataset_params["quad_split_bool"] = False
+    dataset_params["quad_split_range"] = 3.0 # multiples of angular beam seperation within port
+    dataset_params["quad_split_bool"] = True
+    dataset_params["quad_split_skew_bool"] = True
     if dataset_params["quad_split_bool"]:
         dataset_params["quad_split_index"] = num_variables_per_beam
-        num_variables_per_beam += 2
+        num_variables_per_beam += 1
+        if dataset_params["quad_split_skew_bool"]:
+            dataset_params["quad_split_skew_index"] = num_variables_per_beam
+            num_variables_per_beam += 1
     # power (time-varying?)
     dataset_params["min_power"] = 0.5 # fraction of full power
     dataset_params["power_index"] = num_variables_per_beam

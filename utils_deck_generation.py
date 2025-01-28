@@ -28,6 +28,17 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
             iu = ((icone+1)*num_vars-1) % num_input_params + 1
             cone_params = ex_params[il:iu]
 
+            quad_name = facility_spec['quad_from_each_cone'][icone]
+            quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
+            quad_start_ind = quad_slice[0]
+            cone_name = facility_spec['Cone'][quad_start_ind]
+            cone_slice = np.where(facility_spec['Cone'] == cone_name)[0]
+            if bottom_hemisphere:
+                quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "B" in t]
+            else:
+                quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "T" in t]
+            quad_list_in_cone = list(set(quad_list_in_cone))
+
             x = cone_params[dataset_params["theta_index"]] * 2.0 - 1.0
             y = cone_params[dataset_params["phi_index"]] * 2.0 - 1.0
             r, offset_phi = hpoint.square2disk(x, y)
@@ -46,52 +57,44 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
                 deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["defocus_index"]] = cone_defocus
             else:
                 cone_defocus = dataset_params["defocus_default"]
+            deck_gen_params["defocus"][iex,cone_slice] = cone_defocus
 
             cone_power = np.zeros((dataset_params["num_powers_per_cone"]))
             for tind in range(dataset_params["num_powers_per_cone"]):
                 pind = dataset_params["power_index"] + tind
                 cone_power[tind] = (cone_params[pind] * (1.0 - dataset_params["min_power"]) + dataset_params["min_power"])
                 deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["power_index"] + tind] = cone_power[tind]
+                deck_gen_params["p0"][iex,cone_slice,tind] = facility_spec['default_power'] * cone_power[tind] * facility_spec['beams_per_ifriit_beam']
 
-            quad_name = facility_spec['quad_from_each_cone'][icone]
-            quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
-            quad_start_ind = quad_slice[0]
-            cone_name = facility_spec['Cone'][quad_start_ind]
-            cone_slice = np.where(facility_spec['Cone'] == cone_name)[0]
-
-            if bottom_hemisphere:
-                quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "B" in t]
-            else:
-                quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "T" in t]
-            quad_list_in_cone = list(set(quad_list_in_cone))
-
-            for quad_name in quad_list_in_cone:#select_quad:
+            for quad_name in quad_list_in_cone:
                 quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
                 beam_names = facility_spec['Beam'][quad_slice]
 
-                deck_gen_params["defocus"][iex,quad_slice] = cone_defocus
-                for tind in range(dataset_params["num_powers_per_cone"]):
-                    deck_gen_params["p0"][iex,quad_slice,tind] = facility_spec['default_power'] * cone_power[tind] * facility_spec['beams_per_ifriit_beam']
-
                 deck_gen_params["port_centre_theta"][quad_slice] = np.mean(facility_spec["Theta"][quad_slice])
                 deck_gen_params["port_centre_phi"][quad_slice] = np.mean(facility_spec["Phi"][quad_slice])
-                quad_split_default = np.sqrt((np.var(facility_spec["Phi"][quad_slice]) + np.var(facility_spec["Theta"][quad_slice])) / 2.0) * 3.0
+
+                if dataset_params["quad_split_bool"]:
+                    quad_split_default = (np.sqrt(np.var(facility_spec["Phi"][quad_slice])) + np.sqrt(np.var(facility_spec["Theta"][quad_slice])))
+                    quad_split_magnitude = cone_params[dataset_params["quad_split_index"]] * dataset_params["quad_split_range"] * quad_split_default
+                    deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_index"]] = quad_split_magnitude
+                    if dataset_params["quad_split_skew_bool"]:
+                        skew_factor = np.pi / 4.0 - np.pi / 2.0 * cone_params[dataset_params["quad_split_skew_index"]]
+                        deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_skew_index"]] = skew_factor
+                    else:
+                        skew_factor = 0.0
 
                 for ind in quad_slice:
                     port_theta = deck_gen_params["port_centre_theta"][ind]
                     port_phi = deck_gen_params["port_centre_phi"][ind]
 
                     if dataset_params["quad_split_bool"]:
-                        skew_factor = np.pi / 4.0 - np.pi / 2.0 * cone_params[dataset_params["quad_split_index"]+1]
-
                         theta_split = facility_spec["Theta"][ind] - port_theta
                         phi_split = facility_spec["Phi"][ind] - port_phi
 
-                        angle = np.arctan2(theta_split, phi_split) + skew_factor
-                        magnitude = quad_split_default * cone_params[dataset_params["quad_split_index"]] * dataset_params["quad_split_range"]
+                        quad_skew_angle = np.arctan2(theta_split, phi_split) + skew_factor
 
-                        beam_theta = port_theta + magnitude * np.sin(angle)
-                        beam_phi = port_phi + magnitude * np.cos(angle)
+                        beam_theta = port_theta + quad_split_magnitude * np.sin(quad_skew_angle)
+                        beam_phi = port_phi + quad_split_magnitude * np.cos(quad_skew_angle)
                     else:
                         beam_theta = port_theta
                         beam_phi = port_phi
