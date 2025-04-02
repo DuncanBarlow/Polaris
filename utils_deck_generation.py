@@ -180,7 +180,7 @@ def import_nif_config():
     facility_spec = dict()
 
     facility_spec['nbeams'] = 192
-    facility_spec['target_radius'] = 1100.0
+    facility_spec['target_radius'] = 0.0 #place holder
     facility_spec['facility'] = "NIF"
     facility_spec['num_quads'] = 48
     facility_spec['num_cones'] = 8
@@ -204,7 +204,7 @@ def import_lmj_config():
     facility_spec = dict()
 
     facility_spec['nbeams'] = 80
-    facility_spec['target_radius'] = 1100.0 # 1000.0
+    facility_spec['target_radius'] = 0.0 #place holder
     facility_spec['facility'] = "LMJ"
     facility_spec['num_quads'] = 20
     facility_spec['num_cones'] = 4
