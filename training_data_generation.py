@@ -97,7 +97,7 @@ def define_dataset_params(num_examples,
     elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
         if dataset_params["quad_split_bool"]:
             print("LMJ not designed to work with quad splitting yet!")
-        facility_spec = idg.import_lmj_config()
+        facility_spec = idg.import_lmj_config(dataset_params["quad_split_bool"])
     facility_spec['target_radius'] = target_radius
 
     dataset_params["LMAX"] = 30

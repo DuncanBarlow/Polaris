@@ -200,7 +200,7 @@ def import_nif_config():
 
 
 
-def import_lmj_config():
+def import_lmj_config(quad_split_bool):
     facility_spec = dict()
 
     facility_spec['nbeams'] = 80
@@ -217,6 +217,20 @@ def import_lmj_config():
     filename1 = "LMJ_UpperBeams.txt"
     filename2 = "LMJ_LowerBeams.txt"
     facility_spec = config_read_csv(facility_spec, filename1, filename2)
+
+    if quad_split_bool:
+        facility_spec["beams_per_ifriit_beam"] = 1
+        list_beam_keys = ["Beam", "Quad", "Cone", "Theta", "Phi", "PR"]
+        for key in list_beam_keys:
+            if key == "Theta":
+                facility_spec[key] = np.array(facility_spec[key])
+                facility_spec[key] = np.concatenate((facility_spec[key]+2.26, facility_spec[key]+2.26, facility_spec[key]-2.26, facility_spec[key]-2.26))
+            elif key == "Phi":
+                facility_spec[key] = np.array(facility_spec[key])
+                facility_spec[key] = np.concatenate((facility_spec[key]-1.769, facility_spec[key]+1.769, facility_spec[key]-1.769, facility_spec[key]+1.769))
+            else:
+                facility_spec[key] = np.concatenate((facility_spec[key], facility_spec[key], facility_spec[key], facility_spec[key]))
+
     facility_spec = config_formatting(facility_spec)
 
     return facility_spec
