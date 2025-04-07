@@ -100,8 +100,12 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
         cone_phi_offset = (pointing_phi-deck_gen_params["port_centre_phi"][beam_count])
 
         cone_defocus = deck_gen_params["defocus"][iex,beam_count]
-        cone_powers = deck_gen_params["p0"][iex,beam_count,ind_profile] / (
-                      facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
+        if dataset_params["time_varying_pulse"]:
+            cone_powers = deck_gen_params["p0"][iex,beam_count,ind_profile] / (
+                          facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
+        else:
+            cone_powers = deck_gen_params["p0"][iex,beam_count,0] / (
+                          facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
 
         total_power += cone_powers * beams_per_cone
         beam_count = beam_count + int(beams_per_cone / facility_spec["beams_per_ifriit_beam"])
