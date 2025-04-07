@@ -34,9 +34,9 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
             cone_name = facility_spec['Cone'][quad_start_ind]
             cone_slice = np.where(facility_spec['Cone'] == cone_name)[0]
             if bottom_hemisphere:
-                quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "B" in t]
+                quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "B" in t or "L" in t]
             else:
-                quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "T" in t]
+                quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "T" in t or "U" in t]
             quad_list_in_cone = list(set(quad_list_in_cone))
 
             x = cone_params[dataset_params["theta_index"]] * 2.0 - 1.0
