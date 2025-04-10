@@ -44,7 +44,9 @@ def define_dataset_params(num_examples,
                           random_sampling=0,
                           random_seed=12345):
     dataset_params = {}
-    # Number of samples, size of NN training set
+    target_radius = 1100.0
+    default_power_per_beam_TW = 1.0
+
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
     dataset_params["random_sampling"] = random_sampling
@@ -56,18 +58,28 @@ def define_dataset_params(num_examples,
 
     num_variables_per_beam = 0
     # pointings
-    dataset_params["surface_cover_radians"] = np.radians(45.0)
+    dataset_params["surface_cover_radians"] = np.radians(30.0)
     dataset_params["theta_index"] = num_variables_per_beam
     num_variables_per_beam += 1
     dataset_params["phi_index"] = num_variables_per_beam
     num_variables_per_beam += 1
     # defocus
     dataset_params["defocus_default"] = 0.0
-    dataset_params["defocus_range"] = 20.0 # mm
-    dataset_params["defocus_bool"] = False
+    dataset_params["defocus_range"] = 35.0 # mm
+    dataset_params["defocus_bool"] = True
     if dataset_params["defocus_bool"]:
         dataset_params["defocus_index"] = num_variables_per_beam
         num_variables_per_beam += 1
+    # quad splitting
+    dataset_params["quad_split_range"] = 3.0 # multiples of angular beam seperation within port
+    dataset_params["quad_split_bool"] = True
+    dataset_params["quad_split_skew_bool"] = True
+    if dataset_params["quad_split_bool"]:
+        dataset_params["quad_split_index"] = num_variables_per_beam
+        num_variables_per_beam += 1
+        if dataset_params["quad_split_skew_bool"]:
+            dataset_params["quad_split_skew_index"] = num_variables_per_beam
+            num_variables_per_beam += 1
     # power (time-varying?)
     dataset_params["min_power"] = 0.5 # fraction of full power
     dataset_params["power_index"] = num_variables_per_beam
@@ -84,7 +96,9 @@ def define_dataset_params(num_examples,
     if dataset_params["run_type"] == "nif":
         facility_spec = idg.import_nif_config()
     elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
-        facility_spec = idg.import_lmj_config()
+        facility_spec = idg.import_lmj_config(dataset_params["quad_split_bool"])
+    facility_spec['target_radius'] = target_radius
+    facility_spec['default_power'] = default_power_per_beam_TW
 
     dataset_params["LMAX"] = 30
     dataset_params["num_coeff"] = int(((dataset_params["LMAX"] + 2) * (dataset_params["LMAX"] + 1))/2.0)
