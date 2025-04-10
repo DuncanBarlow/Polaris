@@ -106,7 +106,6 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
         phi_pointings_quad = np.arctan2(quad_centre[1], quad_centre[0])
 
         cone_phi_offset[quad_slice] = phi_pointings_quad%(2*np.pi)-deck_gen_params["port_centre_phi"][quad_slice[0]]
-
     for icone in range(facility_spec['num_cones']):
         quad_name = facility_spec['quad_from_each_cone'][icone]
         quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
