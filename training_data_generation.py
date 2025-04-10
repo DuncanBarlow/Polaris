@@ -44,7 +44,8 @@ def define_dataset_params(num_examples,
                           random_sampling=0,
                           random_seed=12345):
     dataset_params = {}
-    target_radius = 850.0
+    target_radius = 1100.0
+    default_power_per_beam_TW = 1.0
 
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
@@ -95,10 +96,9 @@ def define_dataset_params(num_examples,
     if dataset_params["run_type"] == "nif":
         facility_spec = idg.import_nif_config()
     elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
-        if dataset_params["quad_split_bool"]:
-            print("LMJ not designed to work with quad splitting yet!")
         facility_spec = idg.import_lmj_config(dataset_params["quad_split_bool"])
     facility_spec['target_radius'] = target_radius
+    facility_spec['default_power'] = default_power_per_beam_TW
 
     dataset_params["LMAX"] = 30
     dataset_params["num_coeff"] = int(((dataset_params["LMAX"] + 2) * (dataset_params["LMAX"] + 1))/2.0)

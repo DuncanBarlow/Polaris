@@ -108,11 +108,18 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
         cone_phi_offset[quad_slice] = phi_pointings_quad%(2*np.pi)-deck_gen_params["port_centre_phi"][quad_slice[0]]
 
     for icone in range(facility_spec['num_cones']):
+        quad_name = facility_spec['quad_from_each_cone'][icone]
+        quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
+        quad_start_ind = quad_slice[0]
         beams_per_cone = facility_spec['beams_per_cone'][icone]
 
-        cone_defocus = deck_gen_params["defocus"][iex,beam_count]
-        cone_powers = deck_gen_params["p0"][iex,beam_count,ind_profile] / (
-                      facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
+        cone_defocus = deck_gen_params["defocus"][iex,quad_start_ind]
+        if dataset_params["time_varying_pulse"]:
+            cone_powers = deck_gen_params["p0"][iex,quad_start_ind,ind_profile] / (
+                          facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
+        else:
+            cone_powers = deck_gen_params["p0"][iex,quad_start_ind,0] / (
+                          facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
 
         if ("quad_split_bool" in dataset_params.keys()) and dataset_params["quad_split_bool"]:
             quad_split_radius = 2. * facility_spec['target_radius'] / 1000 * np.sin(deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_index"]]/2.0)
@@ -126,15 +133,14 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
 
         if icone < int(facility_spec['num_cones']/2):
             print_line.append("For cone " + str(icone+1) +
-                  ": {:.2f}\N{DEGREE SIGN}, ".format(np.degrees(theta_pointings_quad[beam_count])) +
-                  "{:.2f}\N{DEGREE SIGN}, ".format(np.degrees(cone_phi_offset[beam_count])) +
+                  ": {:.2f}\N{DEGREE SIGN}, ".format(np.degrees(theta_pointings_quad[quad_start_ind])) +
+                  "{:.2f}\N{DEGREE SIGN}, ".format(np.degrees(cone_phi_offset[quad_start_ind])) +
                   "{:.2f}mm, ".format(cone_defocus) +
                   "{:.2f}% power, ".format(cone_powers * 100) +
                   "{:.2f}mm qsplit,".format(quad_split_radius) +
                   "{:.2f}\N{DEGREE SIGN} qsplit".format(np.degrees(quad_split_skew)))
 
         total_power += cone_powers * beams_per_cone
-        beam_count = beam_count + int(beams_per_cone / facility_spec["beams_per_ifriit_beam"])
 
     mean_power_fraction = total_power / facility_spec['nbeams']
     print_line.append('The optimization selected a mean power percentage, {:.2f}%, '.format(mean_power_fraction * 100.0))
