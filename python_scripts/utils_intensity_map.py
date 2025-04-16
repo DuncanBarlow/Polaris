@@ -46,7 +46,7 @@ def print_save_readout(print_list, stats_filename):
 
 
 
-def readout_intensity(facility_spec, intensity_map, use_ablation_pressure=0):
+def readout_intensity(facility_spec, intensity_map, run_plasma_profile, ind_profile):
     n_beams = facility_spec['nbeams']
 
     #rms
@@ -57,20 +57,20 @@ def readout_intensity(facility_spec, intensity_map, use_ablation_pressure=0):
     print_line = []
     print_line.append('Number of beams ' + str(n_beams))
     #print_line.append('Max power per beam {:.2f}TW, '.format(facility_spec['default_power']))
-    print_line.append('Target radius {:.2f}um, '.format(facility_spec['target_radius']))
+    print_line.append('Evaluation radius {:.2f}um, '.format(facility_spec['target_radius'][ind_profile]))
 
     print_line.append('RMS is {:.4f}%, '.format(intensity_map_rms))
     total_TW = None
-    if use_ablation_pressure == 0:
+    if run_plasma_profile:
+        print_line.append('Mean ablation pressure: {:.2f}Mbar, '.format(avg_flux))
+    else:
         total_TW = avg_flux*10**(-12) * 4.0 * np.pi
-        mean_intensity_cm = avg_flux / (facility_spec['target_radius'] / 10000.0)**2
+        mean_intensity_cm = avg_flux / (facility_spec['target_radius'][ind_profile] / 10000.0)**2
 
         print_line.append('Mean intensity, {:.2e}W/cm2'.format(mean_intensity_cm))
         print_line.append('Mean intensity per steradian, {:.2e}W/sr'.format(avg_flux))
         print_line.append('The power per beam deposited is {:.4f}TW, '.format(total_TW / n_beams))
         print_line.append('The total power deposited is {:.2f}TW, '.format(total_TW))
-    else:
-        print_line.append('Mean ablation pressure: {:.2f}Mbar, '.format(avg_flux))
 
     return print_line, total_TW
 
@@ -121,7 +121,7 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
                           facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
 
         if ("quad_split_bool" in dataset_params.keys()) and dataset_params["quad_split_bool"]:
-            quad_split_radius = 2. * facility_spec['target_radius'] / 1000 * np.sin(deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_index"]]/2.0)
+            quad_split_radius = 2. * facility_spec['target_radius'][0] / 1000 * np.sin(deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_index"]]/2.0)
             if dataset_params["quad_split_skew_bool"]:
                 quad_split_skew = deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_skew_index"]]
             else:

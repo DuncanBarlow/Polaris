@@ -48,17 +48,21 @@ def define_dataset_params(num_examples, sys_params,
                           random_sampling=0,
                           random_seed=12345):
     dataset_params = {}
+
     target_radius = 1100.0
     default_power_per_beam_TW = 1.0
+
+    dataset_params["run_plasma_profile"] = False
+    dataset_params["num_profiles_per_config"] = 1
+    # if run_plasma_profilesize=False, len(illumination_evaluation_radii)>=num_profiles_per_config
+    illumination_evaluation_radii = np.array([target_radius, 800.0])
 
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
     dataset_params["random_sampling"] = random_sampling
     dataset_params["hemisphere_symmetric"] = False
     dataset_params["imap_nside"] = 256
-    dataset_params["run_plasma_profile"] = False
     dataset_params["run_with_cbet"] = False
-    dataset_params["num_profiles_per_config"] = 1
 
     num_variables_per_beam = 0
     # pointings
@@ -101,7 +105,7 @@ def define_dataset_params(num_examples, sys_params,
         facility_spec = idg.import_nif_config(sys_params)
     elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
         facility_spec = idg.import_lmj_config(sys_params, dataset_params["quad_split_bool"])
-    facility_spec['target_radius'] = target_radius
+    facility_spec['target_radius'] = illumination_evaluation_radii
     facility_spec['default_power'] = default_power_per_beam_TW
 
     dataset_params["LMAX"] = 30

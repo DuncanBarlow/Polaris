@@ -13,7 +13,7 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
     num_vars = dataset_params["num_variables_per_beam"]
 
     coord_o = np.zeros(3)
-    coord_o[2] = facility_spec['target_radius']
+    coord_o[2] = facility_spec['target_radius'][0]
 
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
 
@@ -105,7 +105,7 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
                                                           hpoint.rot_mat(offset_theta, "y")))
                     coord_n = np.matmul(rotation_matrix, coord_o)
 
-                    deck_gen_params["theta_pointings"][iex,ind] = np.arccos(coord_n[2] / facility_spec['target_radius'])
+                    deck_gen_params["theta_pointings"][iex,ind] = np.arccos(coord_n[2] / coord_o[2])
                     phi_p = np.arctan2(coord_n[1], coord_n[0])
                     deck_gen_params["phi_pointings"][iex,ind] = np.where(phi_p < 0.0,  2 * np.pi + phi_p, phi_p)
                     deck_gen_params['pointings'][iex,ind] = np.array(coord_n)
@@ -122,7 +122,7 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
                 else:
                     pwr_ind = 0
                 run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
-                generate_run_files(dataset_params, facility_spec, sys_params, run_location)
+                generate_run_files(tind, dataset_params, facility_spec, sys_params, run_location)
                 generate_input_pointing_and_pulses(iex, pwr_ind, facility_spec, deck_gen_params, run_location, dataset_params["run_type"])
 
     nrw.save_general_netcdf(deck_gen_params, sys_params["data_dir"] + "/" + sys_params["deck_gen_params_filename"])
@@ -180,7 +180,7 @@ def import_nif_config(sys_params):
     facility_spec = dict()
 
     facility_spec['nbeams'] = 192
-    facility_spec['target_radius'] = 0.0 #place holder
+    facility_spec['target_radius'] = [0.0] #place holder
     facility_spec['facility'] = "NIF"
     facility_spec['num_quads'] = 48
     facility_spec['num_cones'] = 8
@@ -204,7 +204,7 @@ def import_lmj_config(sys_params, quad_split_bool):
     facility_spec = dict()
 
     facility_spec['nbeams'] = 80
-    facility_spec['target_radius'] = 0.0 #place holder
+    facility_spec['target_radius'] = [0.0] #place holder
     facility_spec['facility'] = "LMJ"
     facility_spec['num_quads'] = 20
     facility_spec['num_cones'] = 4
@@ -297,7 +297,7 @@ def config_formatting(facility_spec):
 
 
 
-def generate_run_files(dataset_params, facility_spec, sys_params, run_location):
+def generate_run_files(tind, dataset_params, facility_spec, sys_params, run_location):
 
     isExist = os.path.exists(run_location)
 
@@ -314,11 +314,11 @@ def generate_run_files(dataset_params, facility_spec, sys_params, run_location):
                         run_location + "/" + sys_params["plasma_profile_nc"])
 
     base_input_txt_loc = loc_ifriit_runfiles + "/" + sys_params["ifriit_input_name"]
-    generate_input_deck(run_location, base_input_txt_loc, dataset_params["run_with_cbet"], facility_spec)
+    generate_input_deck(tind, run_location, base_input_txt_loc, dataset_params["run_with_cbet"], facility_spec)
 
 
 
-def generate_input_deck(run_location, base_input_txt_loc, run_with_cbet, facility_spec):
+def generate_input_deck(tind, run_location, base_input_txt_loc, run_with_cbet, facility_spec):
 
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
     with open(base_input_txt_loc) as old_file:
@@ -327,7 +327,7 @@ def generate_input_deck(run_location, base_input_txt_loc, run_with_cbet, facilit
                 if "NBEAMS" in line:
                     new_file.write("    NBEAMS                      = " + str(num_ifriit_beams) + ",\n")
                 elif "DIAGNOSE_INPUT_BEAMS_RADIUS_UM" in line:
-                    new_file.write("    DIAGNOSE_INPUT_BEAMS_RADIUS_UM = " + str(facility_spec['target_radius']) + "d0,\n")
+                    new_file.write("    DIAGNOSE_INPUT_BEAMS_RADIUS_UM = " + str(facility_spec['target_radius'][tind]) + "d0,\n")
                 elif "CBET = .FALSE.," in line:
                     if run_with_cbet:
                         new_file.write("    CBET = .TRUE.,\n")
