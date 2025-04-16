@@ -9,7 +9,7 @@ import sys
 from scipy.stats import qmc
 
 
-def define_system_params(root_dir):
+def define_system_params(data_dir):
     sys_params = {}
     sys_params["num_parallel_ifriits"] = 1
     sys_params["num_openmp_parallel"] = 4
@@ -20,14 +20,18 @@ def define_system_params(root_dir):
     sys_params["run_checkpoint"] = True
     sys_params["run_clean"] = True
 
-    sys_params["root_dir"] = root_dir
+    sys_params["data_dir"] = data_dir
     sys_params["config_dir"] = "config_"
     sys_params["sim_dir"] = "time_"
     sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
     sys_params["ifriit_ouput_name"] = "p_in_z1z2_beam_all.nc"
     sys_params["figure_location"] = "plots"
     sys_params["plot_file_type"] = ".pdf"
+    sys_params["root_dir"] = ".."
+    sys_params["bash_parallel_ifriit"] = "bash_parallel_ifriit"
     sys_params["plasma_profile_dir"] = "plasma_profiles"
+    sys_params["facility_config_files_dir"] = "facility_config_files"
+    sys_params["ifriit_run_files_dir"] = "ifriit_run_files"
     sys_params["ifriit_input_name"] = "ifriit_inputs_base.txt"
     sys_params["plasma_profile_nc"] = "ifriit_1davg_input.nc"
     sys_params["heat_source_nc"] = "heat_source_all_beams.nc"
@@ -40,7 +44,7 @@ def define_system_params(root_dir):
 
 
 
-def define_dataset_params(num_examples,
+def define_dataset_params(num_examples, sys_params,
                           random_sampling=0,
                           random_seed=12345):
     dataset_params = {}
@@ -50,7 +54,7 @@ def define_dataset_params(num_examples,
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
     dataset_params["random_sampling"] = random_sampling
-    dataset_params["hemisphere_symmetric"] = True
+    dataset_params["hemisphere_symmetric"] = False
     dataset_params["imap_nside"] = 256
     dataset_params["run_plasma_profile"] = False
     dataset_params["run_with_cbet"] = False
@@ -66,14 +70,14 @@ def define_dataset_params(num_examples,
     # defocus
     dataset_params["defocus_default"] = 0.0
     dataset_params["defocus_range"] = 35.0 # mm
-    dataset_params["defocus_bool"] = True
+    dataset_params["defocus_bool"] = False
     if dataset_params["defocus_bool"]:
         dataset_params["defocus_index"] = num_variables_per_beam
         num_variables_per_beam += 1
     # quad splitting
     dataset_params["quad_split_range"] = 3.0 # multiples of angular beam seperation within port
-    dataset_params["quad_split_bool"] = True
-    dataset_params["quad_split_skew_bool"] = True
+    dataset_params["quad_split_bool"] = False
+    dataset_params["quad_split_skew_bool"] = False
     if dataset_params["quad_split_bool"]:
         dataset_params["quad_split_index"] = num_variables_per_beam
         num_variables_per_beam += 1
@@ -94,9 +98,9 @@ def define_dataset_params(num_examples,
     dataset_params["num_variables_per_beam"] = num_variables_per_beam
     dataset_params["run_type"] = "lmj" #"test" #"lmj" #"nif"
     if dataset_params["run_type"] == "nif":
-        facility_spec = idg.import_nif_config()
+        facility_spec = idg.import_nif_config(sys_params)
     elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
-        facility_spec = idg.import_lmj_config(dataset_params["quad_split_bool"])
+        facility_spec = idg.import_lmj_config(sys_params, dataset_params["quad_split_bool"])
     facility_spec['target_radius'] = target_radius
     facility_spec['default_power'] = default_power_per_beam_TW
 
@@ -140,12 +144,12 @@ def define_dataset(dataset_params):
 
 def generate_training_data(dataset, dataset_params, sys_params, facility_spec):
 
-    nrw.save_general_netcdf(dataset_params, sys_params["root_dir"] + "/" + sys_params["dataset_params_filename"])
-    nrw.save_general_netcdf(facility_spec, sys_params["root_dir"] + "/" + sys_params["facility_spec_filename"])
+    nrw.save_general_netcdf(dataset_params, sys_params["data_dir"] + "/" + sys_params["dataset_params_filename"])
+    nrw.save_general_netcdf(facility_spec, sys_params["data_dir"] + "/" + sys_params["facility_spec_filename"])
 
     max_parallel = dataset["num_evaluated"]-1
     chkp_marker = 1.0
-    filename_trainingdata = sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"]
+    filename_trainingdata = sys_params["data_dir"] + "/" + sys_params["trainingdata_filename"]
     if sys_params["run_sims"]:
         # int is a floor round
         num_parallel_runs = int((dataset_params["num_examples"] - dataset["num_evaluated"]) / sys_params["num_parallel_ifriits"])
@@ -174,7 +178,7 @@ def generate_training_data(dataset, dataset_params, sys_params, facility_spec):
 
 
 def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec):
-    config_location = sys_params["root_dir"] + "/" + sys_params["config_dir"]
+    config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"]
     for tind in range(dataset_params["num_profiles_per_config"]):
         sim_dir = "/" + sys_params["sim_dir"] + str(tind)
 
@@ -183,7 +187,8 @@ def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_para
         else:
             num_mpi_parallel = 1
 
-        subprocess.check_call(["./bash_parallel_ifriit", config_location, sim_dir, str(min_parallel), str(max_parallel), str(num_mpi_parallel), str(sys_params["num_openmp_parallel"])])
+        loc_bash_parallel_ifriit = sys_params["root_dir"] + "/" + sys_params["bash_parallel_ifriit"]
+        subprocess.check_call(["./" + loc_bash_parallel_ifriit, config_location, sim_dir, str(min_parallel), str(max_parallel), str(num_mpi_parallel), str(sys_params["num_openmp_parallel"])])
 
     dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
     return dataset
@@ -197,7 +202,7 @@ def main(argv):
     run_type = str(argv[3]).split("=")[1]
 
     if (run_type=="init") or (run_type=="full"):
-        dataset_params, facility_spec = define_dataset_params(int(argv[2]))
+        dataset_params, facility_spec = define_dataset_params(int(argv[2]), sys_params)
 
         dataset = define_dataset(dataset_params)
         dataset = populate_dataset_random_inputs(dataset_params, dataset)
