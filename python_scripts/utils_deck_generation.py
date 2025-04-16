@@ -4,6 +4,7 @@ import numpy as np
 import csv
 import healpy_pointings as hpoint
 import netcdf_read_write as nrw
+import utils_multi as um
 
 
 def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec):
@@ -110,20 +111,8 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
                     deck_gen_params["phi_pointings"][iex,ind] = np.where(phi_p < 0.0,  2 * np.pi + phi_p, phi_p)
                     deck_gen_params['pointings'][iex,ind] = np.array(coord_n)
 
-        if sys_params["run_gen_deck"]:
-            config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iex)
-            file_exists = os.path.exists(config_location)
-            if not file_exists:
-                os.makedirs(config_location)
-
-            for tind in range(dataset_params["num_profiles_per_config"]):
-                if dataset_params["time_varying_pulse"]:
-                    pwr_ind = tind
-                else:
-                    pwr_ind = 0
-                run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
-                generate_run_files(tind, dataset_params, facility_spec, sys_params, run_location)
-                generate_input_pointing_and_pulses(iex, pwr_ind, facility_spec, deck_gen_params, run_location, dataset_params["run_type"])
+    if sys_params["run_gen_deck"]:
+        generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_gen_params)
 
     nrw.save_general_netcdf(deck_gen_params, sys_params["data_dir"] + "/" + sys_params["deck_gen_params_filename"])
     return deck_gen_params
@@ -297,28 +286,69 @@ def config_formatting(facility_spec):
 
 
 
-def generate_run_files(tind, dataset_params, facility_spec, sys_params, run_location):
+def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_gen_params):
 
-    isExist = os.path.exists(run_location)
+    for iconfig in range(dataset["num_evaluated"], dataset_params["num_examples"]):
+      if (iconfig==dataset["num_evaluated"]):
+        config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
+        file_exists = os.path.exists(config_location)
+        if not file_exists:
+            os.makedirs(config_location)
 
-    if not isExist:
-        os.makedirs(run_location)
+        if dataset_params["plasma_profile_source"] == "multi":
+            ind_interface_dt_ch = [0]
+            print("!!! Hardcoded hydro evaluation time DT-CH interface at cell:" + str(ind_interface_dt_ch)+" !!!")
+            path = sys_params["data_dir"] + "/" + sys_params["multi_dir"]
+            multi_data = um.multi_read_ascii(path+"/"+sys_params["multi_output_ascii_filename"])
+            multi_data = um.read_inputs(path+"/"+sys_params["multi_input_filename"], multi_data)
+
+        for tind in range(dataset_params["num_profiles_per_config"]):
+            run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+            isExist = os.path.exists(run_location)
+
+            if not isExist:
+                os.makedirs(run_location)
+
+            loc_ifriit_runfiles = sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
+            shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"],
+                            run_location + "/" + sys_params["ifriit_binary_filename"])
+            if dataset_params["run_plasma_profile"]:
+                if dataset_params["plasma_profile_source"] == "default":
+                    shutil.copyfile(sys_params["root_dir"] + "/" +
+                                sys_params["plasma_profile_dir"] + "/" +
+                                sys_params["plasma_profile_nc"],
+                                run_location + "/" + sys_params["plasma_profile_nc"])
+                elif dataset_params["plasma_profile_source"] == "multi":
+                    itime_multi = np.argmin(np.abs(multi_data["time"]*1.e9-dataset_params["plasma_profile_times"][tind]))
+                    multi_nc, ncells, nmat = um.multi2ifriit_inputs(multi_data, itime_multi, ind_interface_dt_ch)
+                    config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
+                    run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+                    nrw.save_general_netcdf(multi_nc, run_location + "/" + sys_params["plasma_profile_nc"],
+                                            extra_dimension={'x': ncells, 'z':1, 'nel':nmat})
+      else:
+        config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
+        file_exists = os.path.exists(config_location)
+        if file_exists:
+            shutil.rmtree(config_location)
+        shutil.copytree(sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(dataset["num_evaluated"]),
+                        config_location)
+ 
+      for tind in range(dataset_params["num_profiles_per_config"]):
+          generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params)
+          if dataset_params["time_varying_pulse"]:
+              pwr_ind = tind
+          else:
+              pwr_ind = 0
+          generate_input_pointing_and_pulses(iconfig, pwr_ind, dataset_params, facility_spec, sys_params, deck_gen_params)
+
+
+
+def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params):
+    config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
+    run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
 
     loc_ifriit_runfiles = sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
-    shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"], 
-                    run_location + "/" + sys_params["ifriit_binary_filename"])
-    if dataset_params["run_plasma_profile"]:
-        shutil.copyfile(sys_params["root_dir"] + "/" +
-                        sys_params["plasma_profile_dir"] + "/" +
-                        sys_params["plasma_profile_nc"],
-                        run_location + "/" + sys_params["plasma_profile_nc"])
-
     base_input_txt_loc = loc_ifriit_runfiles + "/" + sys_params["ifriit_input_name"]
-    generate_input_deck(tind, run_location, base_input_txt_loc, dataset_params["run_with_cbet"], facility_spec)
-
-
-
-def generate_input_deck(tind, run_location, base_input_txt_loc, run_with_cbet, facility_spec):
 
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
     with open(base_input_txt_loc) as old_file:
@@ -329,14 +359,16 @@ def generate_input_deck(tind, run_location, base_input_txt_loc, run_with_cbet, f
                 elif "DIAGNOSE_INPUT_BEAMS_RADIUS_UM" in line:
                     new_file.write("    DIAGNOSE_INPUT_BEAMS_RADIUS_UM = " + str(facility_spec['target_radius'][tind]) + "d0,\n")
                 elif "CBET = .FALSE.," in line:
-                    if run_with_cbet:
+                    if dataset_params["run_with_cbet"]:
                         new_file.write("    CBET = .TRUE.,\n")
                 else:
                     new_file.write(line)
 
 
 
-def generate_input_pointing_and_pulses(iex, tind, facility_spec, deck_gen_params, run_location, run_type):
+def generate_input_pointing_and_pulses(iex, tind, dataset_params, facility_spec, sys_params, deck_gen_params):
+    config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iex)
+    run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
     if (facility_spec['facility'] == "NIF"):
         j = 0
         with open(run_location+'/ifriit_inputs.txt','a') as f:
@@ -362,14 +394,14 @@ def generate_input_pointing_and_pulses(iex, tind, facility_spec, deck_gen_params
                     f.write('    T_0_NS              = {:.10f}d0,\n'.format(deck_gen_params['t0']))
                 else:
                     f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iex,j,tind]))
-                if (run_type == "nif"):
+                if (dataset_params["run_type"] == "nif"):
                     f.write('    PREDEF_FACILITY     = "NIF"\n')
                     f.write('    PREDEF_BEAM         = "'+beam+'",\n')
                     f.write('    PREDEF_CPP          = "NIF-'+cpp+'",\n')
                     f.write('    CPP_ROTATION_MODE   = 1,\n')
                     #f.write('    CPP_ROTATION_DEG    = 45.0d0,\n')
                     f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iex,j]))
-                elif (run_type == "test"):
+                elif (dataset_params["run_type"] == "test"):
                     f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_theta'][j])))
                     f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_phi'][j])))
                     f.write('    FOCAL_M             = 10.0d0,\n')
@@ -404,13 +436,13 @@ def generate_input_pointing_and_pulses(iex, tind, facility_spec, deck_gen_params
                     f.write('    T_0_NS              = {:.10f}d0,\n'.format(deck_gen_params['t0']))
                 else:
                     f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iex,j,tind]))
-                if (run_type == "lmj"):
+                if (dataset_params["run_type"] == "lmj"):
                     f.write('    PREDEF_FACILITY     = "'+facility_spec['facility']+'"\n')
                     f.write('    PREDEF_BEAM         = "'+beam+'",\n')
                     f.write('    PREDEF_CPP          = "'+cpp+'",\n')
                     f.write('    CPP_ROTATION_MODE   = 1,\n')
                     f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iex,j]))
-                elif (run_type == "test"):
+                elif (dataset_params["run_type"] == "test"):
                     f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_theta'][j])))
                     f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_phi'][j])))
                     f.write('    FOCAL_M             = 10.0d0,\n')

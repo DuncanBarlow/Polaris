@@ -63,8 +63,8 @@ def multi2ifriit_inputs(multi_data, itime, ind_interfaces):
     ifriit_input_format["vr"] = np.reshape(radial_velocity_cc[itime],(1,ncells))
     ifriit_input_format["vz"] = np.zeros((1,ncells))
 
-    print("Hardcoded for Foam and DT! Change inputs to vary which cells")
-    #print("Hardcoded for CH and DT! Change inputs to vary which cells")
+    #print("Hardcoded for Foam and DT! Change inputs to vary which cells")
+    print("Hardcoded for CH and DT! Change inputs to vary which cells")
     nmat = 4
     #                                     [ H,   D,   T,   C    ]
     ifriit_input_format["atomic_index"] = np.array([1.0, 2.0, 3.0, 12.011])
@@ -215,7 +215,7 @@ def multi_read_ascii(filename):
             multi_data[label] = np.zeros((nstep, num_radial_cells+1))
         else:
             multi_data[label] = np.zeros((nstep, num_radial_cells))
-    print(nstep, num_radial_cells)
+    #print(nstep, num_radial_cells)
 
     with open(filename) as file:
         for line in file:
@@ -245,6 +245,6 @@ def multi_read_ascii(filename):
     end = time.time()
     print("Elapsed time: ",end - start)
     
-    print(multi_data.keys())
+    #print(multi_data.keys())
     
     return multi_data

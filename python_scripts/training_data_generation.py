@@ -20,28 +20,33 @@ def define_system_params(data_dir):
     sys_params["run_checkpoint"] = True
     sys_params["run_clean"] = True
 
+    sys_params["root_dir"] = ".."
     sys_params["data_dir"] = data_dir
     sys_params["config_dir"] = "config_"
     sys_params["sim_dir"] = "time_"
-    sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
-    sys_params["ifriit_ouput_name"] = "p_in_z1z2_beam_all.nc"
     sys_params["figure_location"] = "plots"
     sys_params["plot_file_type"] = ".pdf"
-    sys_params["root_dir"] = ".."
     sys_params["bash_parallel_ifriit"] = "bash_parallel_ifriit"
     sys_params["plasma_profile_dir"] = "plasma_profiles"
     sys_params["facility_config_files_dir"] = "facility_config_files"
-    sys_params["ifriit_run_files_dir"] = "ifriit_run_files"
-    sys_params["ifriit_input_name"] = "ifriit_inputs_base.txt"
-    sys_params["plasma_profile_nc"] = "ifriit_1davg_input.nc"
-    sys_params["heat_source_nc"] = "heat_source_all_beams.nc"
+
+    sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
     sys_params["dataset_params_filename"] = "dataset_params.nc"
     sys_params["facility_spec_filename"] = "facility_spec.nc"
     sys_params["deck_gen_params_filename"] = "deck_gen_params.nc"
     sys_params["ifriit_binary_filename"] = "main"
 
-    return sys_params
+    sys_params["ifriit_run_files_dir"] = "ifriit_run_files"
+    sys_params["ifriit_input_name"] = "ifriit_inputs_base.txt"
+    sys_params["plasma_profile_nc"] = "ifriit_1davg_input.nc"
+    sys_params["ifriit_ouput_name"] = "p_in_z1z2_beam_all.nc"
+    sys_params["heat_source_nc"] = "heat_source_all_beams.nc"
 
+    sys_params["multi_dir"] = "multi_data"
+    sys_params["multi_output_ascii_filename"] = "multi_output.txt"
+    sys_params["multi_input_filename"] = "multi_input.txt"
+
+    return sys_params
 
 
 def define_dataset_params(num_examples, sys_params,
@@ -52,10 +57,13 @@ def define_dataset_params(num_examples, sys_params,
     target_radius = 1100.0
     default_power_per_beam_TW = 1.0
 
-    dataset_params["run_plasma_profile"] = False
-    dataset_params["num_profiles_per_config"] = 1
-    # if run_plasma_profilesize=False, len(illumination_evaluation_radii)>=num_profiles_per_config
-    illumination_evaluation_radii = np.array([target_radius, 800.0])
+    dataset_params["run_plasma_profile"] = True
+    dataset_params["plasma_profile_source"] = "multi" # "default"
+    dataset_params["num_profiles_per_config"] = 5
+    # if run_plasma_profile=True, define plasma profile times:
+    dataset_params["plasma_profile_times"] = np.linspace(0,15,int(dataset_params["num_profiles_per_config"]))
+    # if run_plasma_profile=False, len(illumination_evaluation_radii)>=num_profiles_per_config
+    illumination_evaluation_radii = np.zeros((dataset_params["num_profiles_per_config"])) + target_radius
 
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed

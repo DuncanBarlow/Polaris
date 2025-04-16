@@ -112,7 +112,7 @@ def save_general_netcdf(parameters, filename, extra_dimension={}):
             setattr(rootgrp, key, item)
 
     for key, item in extra_dimension.items():
-        print("Saving extra dimensions: ",key, item)
+        #print("Saving extra dimensions: ",key, item)
         rootgrp.createDimension(key, int(item))
     rootgrp.close()
 
