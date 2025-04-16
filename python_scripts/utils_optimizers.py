@@ -19,28 +19,28 @@ def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
 
 
 
-def define_optimizer_parameters(run_dir, num_optimization_params,
-                                num_init_examples, n_iter,
-                                random_seed, facility_spec, run_clean):
-    optimizer_params = {}
-    optimizer_params["run_dir"] = run_dir
-    optimizer_params["num_optimization_params"] = num_optimization_params
-    optimizer_params["num_init_examples"] = num_init_examples
-    optimizer_params["n_iter"] = n_iter
-    optimizer_params["run_clean"] = run_clean
-    optimizer_params["random_generator"] = np.random.default_rng(random_seed)
-    optimizer_params["fitness_desired_power_per_steradian"] = facility_spec['nbeams'] \
+def define_optimizer_parameters(run_dir, num_optimization_params, num_init_examples, n_iter,
+                                random_seed, facility_spec, run_clean, run_plasma_profile):
+    opt_params = {}
+    opt_params["run_dir"] = run_dir
+    opt_params["num_optimization_params"] = num_optimization_params
+    opt_params["num_init_examples"] = num_init_examples
+    opt_params["n_iter"] = n_iter
+    opt_params["run_clean"] = run_clean
+    opt_params["random_generator"] = np.random.default_rng(random_seed)
+    opt_params["fitness_desired_power_per_steradian"] = facility_spec['nbeams'] \
         * facility_spec['default_power'] * 1.0e12 / (4.0 * np.pi)
-    optimizer_params["fitness_desired_pressure_mbar"] = 70.0
-    optimizer_params["fitness_limit_broken_pressure_mbar"] = 100.0
-    optimizer_params["fitness_desired_rms"] = 0.05
-    optimizer_params["fitness_norm_factor"] = 0.5
-    optimizer_params["printout_iteration_skip"] = 1
+    opt_params["fitness_desired_pressure_mbar"] = 70.0
+    opt_params["fitness_limit_broken_pressure_mbar"] = 100.0
+    opt_params["fitness_desired_rms"] = 0.05
+    opt_params["fitness_norm_factor"] = 0.5
+    opt_params["printout_iteration_skip"] = 1
+    opt_params["run_plasma_profile"] = run_plasma_profile
 
-    pbounds = np.zeros((optimizer_params["num_optimization_params"], 2))
+    pbounds = np.zeros((opt_params["num_optimization_params"], 2))
     pbounds[:,1] = 1.0
-    optimizer_params["pbounds"] = pbounds
-    return optimizer_params
+    opt_params["pbounds"] = pbounds
+    return opt_params
 
 
 
@@ -49,17 +49,15 @@ def fitness_function(dataset, opt_params):
     norm_factor = opt_params["fitness_norm_factor"]
     number_of_timesteps = np.shape(dataset["rms"][:,:])[1]
 
-    if number_of_timesteps == 1:
-        target_flux = opt_params["fitness_desired_power_per_steradian"]
-        rms = dataset["rms"][:,0]
-        avg_flux = dataset["avg_flux"][:,0]
-    else:
+    rms = np.sqrt(np.sum(dataset["rms"][:,:]**2, axis=1) / float(number_of_timesteps))
+    avg_flux = np.sqrt(np.sum(dataset["avg_flux"][:,:]**2, axis=1) / float(number_of_timesteps))
+    if opt_params["run_plasma_profile"]:
         target_flux = opt_params["fitness_desired_pressure_mbar"]
-        rms = np.sqrt((dataset["rms"][:,0]**2 + dataset["rms"][:,1]**2 / 2.0) / float(number_of_timesteps))
-        avg_flux = dataset["avg_flux"][:,1]
         indices = np.where(np.array(avg_flux) > opt_params["fitness_limit_broken_pressure_mbar"])[0]
         print("Fitness function detects broken runs: ", indices)
         avg_flux[indices] = 0.0
+    else:
+        target_flux = opt_params["fitness_desired_power_per_steradian"]
 
     maxi_func = np.exp(-(rms/target_rms) + (avg_flux / target_flux) ** 0.25) * (avg_flux / target_flux) * norm_factor
     return maxi_func

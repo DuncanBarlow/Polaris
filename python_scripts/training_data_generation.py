@@ -182,7 +182,7 @@ def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_para
     for tind in range(dataset_params["num_profiles_per_config"]):
         sim_dir = "/" + sys_params["sim_dir"] + str(tind)
 
-        if dataset_params["run_plasma_profile"] and tind!=0: # this ensures the first run will be a solid sphere
+        if dataset_params["run_plasma_profile"]:
             num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
         else:
             num_mpi_parallel = 1
