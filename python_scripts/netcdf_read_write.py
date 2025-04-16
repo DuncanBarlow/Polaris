@@ -121,7 +121,7 @@ def save_general_netcdf(parameters, filename, extra_dimension={}):
 def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec):
 
     for iex in range(min_parallel, max_parallel+1):
-        config_location = sys_params["root_dir"] + "/" + sys_params["config_dir"] + str(iex)
+        config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iex)
         for tind in range(dataset_params["num_profiles_per_config"]):
             run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
             dir_illumination = run_location+"/"+sys_params["heat_source_nc"]
@@ -276,7 +276,7 @@ def save_training_data(X_train, Y_train, avg_powers, filename_trainingdata):
 
 
 def import_training_data_reversed(sys_params, LMAX):
-    training_data = Dataset(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
+    training_data = Dataset(sys_params["data_dir"] + "/" + sys_params["trainingdata_filename"])
     X_all = training_data.variables["Y_train"][:]
     Y_all = training_data.variables["X_train"][:]
     avg_powers_all = training_data.variables["avg_powers"][:]
@@ -289,7 +289,7 @@ def import_training_data_reversed(sys_params, LMAX):
 
 
 def import_training_data(sys_params):
-    training_data = Dataset(sys_params["root_dir"] + "/" + sys_params["trainingdata_filename"])
+    training_data = Dataset(sys_params["data_dir"] + "/" + sys_params["trainingdata_filename"])
     X_all = training_data.variables["X_train"][:]
     Y_all = training_data.variables["Y_train"][:]
     avg_powers_all = training_data.variables["avg_powers"][:]

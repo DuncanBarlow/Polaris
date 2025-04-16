@@ -111,7 +111,7 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
                     deck_gen_params['pointings'][iex,ind] = np.array(coord_n)
 
         if sys_params["run_gen_deck"]:
-            config_location = sys_params["root_dir"] + "/" + sys_params["config_dir"] + str(iex)
+            config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iex)
             file_exists = os.path.exists(config_location)
             if not file_exists:
                 os.makedirs(config_location)
@@ -125,18 +125,18 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
                 generate_run_files(dataset_params, facility_spec, sys_params, run_location)
                 generate_input_pointing_and_pulses(iex, pwr_ind, facility_spec, deck_gen_params, run_location, dataset_params["run_type"])
 
-    nrw.save_general_netcdf(deck_gen_params, sys_params["root_dir"] + "/" + sys_params["deck_gen_params_filename"])
+    nrw.save_general_netcdf(deck_gen_params, sys_params["data_dir"] + "/" + sys_params["deck_gen_params_filename"])
     return deck_gen_params
 
 
 
 def load_data_dicts_from_file(sys_params):
 
-    root_dir = sys_params["root_dir"]
-    dataset_params = nrw.read_general_netcdf(root_dir + "/" + sys_params["dataset_params_filename"])
-    facility_spec = nrw.read_general_netcdf(root_dir + "/" + sys_params["facility_spec_filename"])
-    dataset = nrw.read_general_netcdf(root_dir + "/" + sys_params["trainingdata_filename"])
-    deck_gen_params = nrw.read_general_netcdf(root_dir + "/" + sys_params["deck_gen_params_filename"])
+    data_dir = sys_params["data_dir"]
+    dataset_params = nrw.read_general_netcdf(data_dir + "/" + sys_params["dataset_params_filename"])
+    facility_spec = nrw.read_general_netcdf(data_dir + "/" + sys_params["facility_spec_filename"])
+    dataset = nrw.read_general_netcdf(data_dir + "/" + sys_params["trainingdata_filename"])
+    deck_gen_params = nrw.read_general_netcdf(data_dir + "/" + sys_params["deck_gen_params_filename"])
 
     return dataset, dataset_params, deck_gen_params, facility_spec
 
@@ -144,11 +144,11 @@ def load_data_dicts_from_file(sys_params):
 
 def save_data_dicts_to_file(sys_params, dataset, dataset_params, deck_gen_params, facility_spec):
 
-    root_dir = sys_params["root_dir"]
-    nrw.save_general_netcdf(dataset, root_dir + "/" + sys_params["trainingdata_filename"])
-    nrw.save_general_netcdf(dataset_params, root_dir + "/" + sys_params["dataset_params_filename"])
-    nrw.save_general_netcdf(facility_spec, root_dir + "/" + sys_params["facility_spec_filename"])
-    nrw.save_general_netcdf(deck_gen_params, root_dir + "/" + sys_params["deck_gen_params_filename"])
+    data_dir = sys_params["data_dir"]
+    nrw.save_general_netcdf(dataset, data_dir + "/" + sys_params["trainingdata_filename"])
+    nrw.save_general_netcdf(dataset_params, data_dir + "/" + sys_params["dataset_params_filename"])
+    nrw.save_general_netcdf(facility_spec, data_dir + "/" + sys_params["facility_spec_filename"])
+    nrw.save_general_netcdf(deck_gen_params, data_dir + "/" + sys_params["deck_gen_params_filename"])
 
     return
 
@@ -176,7 +176,7 @@ def define_deck_generation_params(dataset_params, facility_spec):
 
 
 
-def import_nif_config():
+def import_nif_config(sys_params):
     facility_spec = dict()
 
     facility_spec['nbeams'] = 192
@@ -191,8 +191,8 @@ def import_nif_config():
     facility_spec['quad_from_each_cone'] = np.array(('Q15T', 'Q13T', 'Q14T', 'Q11T', 'Q15B', 'Q16B', 'Q14B', 'Q13B'), dtype='<U4')
     facility_spec["beams_per_ifriit_beam"] = 1 # fuse quads?
 
-    filename1 = "NIF_UpperBeams.txt"
-    filename2 = "NIF_LowerBeams.txt"
+    filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/NIF_UpperBeams.txt"
+    filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/NIF_LowerBeams.txt"
     facility_spec = config_read_csv(facility_spec, filename1, filename2)
     facility_spec = config_formatting(facility_spec)
 
@@ -200,7 +200,7 @@ def import_nif_config():
 
 
 
-def import_lmj_config(quad_split_bool):
+def import_lmj_config(sys_params, quad_split_bool):
     facility_spec = dict()
 
     facility_spec['nbeams'] = 80
@@ -214,8 +214,8 @@ def import_lmj_config(quad_split_bool):
     facility_spec['quad_from_each_cone'] = np.array(('28U', '10U', '10L', '28L'), dtype='<U4')
     facility_spec["beams_per_ifriit_beam"] = 4 # fuse quads?
 
-    filename1 = "LMJ_UpperBeams.txt"
-    filename2 = "LMJ_LowerBeams.txt"
+    filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_UpperBeams.txt"
+    filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_LowerBeams.txt"
     facility_spec = config_read_csv(facility_spec, filename1, filename2)
 
     if quad_split_bool:
@@ -304,16 +304,16 @@ def generate_run_files(dataset_params, facility_spec, sys_params, run_location):
     if not isExist:
         os.makedirs(run_location)
 
-    shutil.copyfile(sys_params["ifriit_binary_filename"], run_location + "/" + sys_params["ifriit_binary_filename"])
+    loc_ifriit_runfiles = sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
+    shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"], 
+                    run_location + "/" + sys_params["ifriit_binary_filename"])
     if dataset_params["run_plasma_profile"]:
-        base_input_txt_loc = (sys_params["plasma_profile_dir"] + "/"
-                              + sys_params["ifriit_input_name"])
-        shutil.copyfile(sys_params["plasma_profile_dir"] + "/" +
+        shutil.copyfile(sys_params["root_dir"] + "/" +
+                        sys_params["plasma_profile_dir"] + "/" +
                         sys_params["plasma_profile_nc"],
                         run_location + "/" + sys_params["plasma_profile_nc"])
-    else:
-        base_input_txt_loc = ("ifriit_inputs_base.txt")
 
+    base_input_txt_loc = loc_ifriit_runfiles + "/" + sys_params["ifriit_input_name"]
     generate_input_deck(run_location, base_input_txt_loc, dataset_params["run_with_cbet"], facility_spec)
 
 

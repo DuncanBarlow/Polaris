@@ -1,6 +1,21 @@
 import numpy as np
 import time
 import re
+import string
+
+def critical_density(wavelength_l=351.0e-9):
+    epi_0 = 8.85e-12
+    mass_e = 9.11e-31
+    charge_e = 1.6e-19
+    c_s = 3.0e8
+    
+    omega_l = 2.0 * np.pi * c_s / wavelength_l
+    
+    n_crit = epi_0 * mass_e * omega_l**2 / charge_e**2
+    
+    print("Critical electron density for light wavelength {:.2f}nm is {:.2e}m^-3".format(wavelength_l*1.0e9,n_crit))
+    
+    return n_crit
 
 
 def read_inputs(path, multi_data):
