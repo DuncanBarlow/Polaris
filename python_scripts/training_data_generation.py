@@ -7,6 +7,9 @@ import os
 import subprocess
 import sys
 from scipy.stats import qmc
+import shutil
+import glob
+import stat
 
 
 def define_system_params(data_dir):
@@ -20,45 +23,60 @@ def define_system_params(data_dir):
     sys_params["run_checkpoint"] = True
     sys_params["run_clean"] = True
 
+    sys_params["root_dir"] = ".."
     sys_params["data_dir"] = data_dir
     sys_params["config_dir"] = "config_"
     sys_params["sim_dir"] = "time_"
-    sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
-    sys_params["ifriit_ouput_name"] = "p_in_z1z2_beam_all.nc"
     sys_params["figure_location"] = "plots"
     sys_params["plot_file_type"] = ".pdf"
-    sys_params["root_dir"] = ".."
     sys_params["bash_parallel_ifriit"] = "bash_parallel_ifriit"
     sys_params["plasma_profile_dir"] = "plasma_profiles"
     sys_params["facility_config_files_dir"] = "facility_config_files"
-    sys_params["ifriit_run_files_dir"] = "ifriit_run_files"
-    sys_params["ifriit_input_name"] = "ifriit_inputs_base.txt"
-    sys_params["plasma_profile_nc"] = "ifriit_1davg_input.nc"
-    sys_params["heat_source_nc"] = "heat_source_all_beams.nc"
+    sys_params["python_dir"] = "python_scripts"
+
+    sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
     sys_params["dataset_params_filename"] = "dataset_params.nc"
     sys_params["facility_spec_filename"] = "facility_spec.nc"
     sys_params["deck_gen_params_filename"] = "deck_gen_params.nc"
     sys_params["ifriit_binary_filename"] = "main"
 
-    return sys_params
+    sys_params["ifriit_run_files_dir"] = "ifriit_run_files"
+    sys_params["ifriit_input_name"] = "ifriit_inputs_base.txt"
+    sys_params["plasma_profile_nc"] = "ifriit_1davg_input.nc"
+    sys_params["ifriit_ouput_name"] = "p_in_z1z2_beam_all.nc"
+    sys_params["heat_source_nc"] = "heat_source_all_beams.nc"
+    sys_params["ifriit_pulse_name"] = "pulse_per_beam.txt"
 
+    sys_params["multi_dir"] = "multi_data"
+    sys_params["multi_output_ascii_filename"] = "multi_output.txt"
+    sys_params["multi_input_filename"] = "multi_input.txt"
+    sys_params["multi_pulse_name"] = "laser_pulse.txt"
+
+    return sys_params
 
 
 def define_dataset_params(num_examples, sys_params,
                           random_sampling=0,
                           random_seed=12345):
     dataset_params = {}
+
     target_radius = 1100.0
     default_power_per_beam_TW = 1.0
+
+    dataset_params["run_plasma_profile"] = True
+    dataset_params["plasma_profile_source"] = "multi" # "default"
+    dataset_params["num_profiles_per_config"] = 2
+    # if run_plasma_profile=True, define plasma profile times:
+    dataset_params["plasma_profile_times"] = np.linspace(0.1,15,int(dataset_params["num_profiles_per_config"]))
+    # if run_plasma_profile=False, len(illumination_evaluation_radii)>=num_profiles_per_config
+    illumination_evaluation_radii = np.zeros((dataset_params["num_profiles_per_config"])) + target_radius
 
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
     dataset_params["random_sampling"] = random_sampling
     dataset_params["hemisphere_symmetric"] = False
     dataset_params["imap_nside"] = 256
-    dataset_params["run_plasma_profile"] = False
     dataset_params["run_with_cbet"] = False
-    dataset_params["num_profiles_per_config"] = 1
 
     num_variables_per_beam = 0
     # pointings
@@ -101,7 +119,7 @@ def define_dataset_params(num_examples, sys_params,
         facility_spec = idg.import_nif_config(sys_params)
     elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
         facility_spec = idg.import_lmj_config(sys_params, dataset_params["quad_split_bool"])
-    facility_spec['target_radius'] = target_radius
+    facility_spec['target_radius'] = illumination_evaluation_radii
     facility_spec['default_power'] = default_power_per_beam_TW
 
     dataset_params["LMAX"] = 30
@@ -182,7 +200,7 @@ def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_para
     for tind in range(dataset_params["num_profiles_per_config"]):
         sim_dir = "/" + sys_params["sim_dir"] + str(tind)
 
-        if dataset_params["run_plasma_profile"] and tind!=0: # this ensures the first run will be a solid sphere
+        if dataset_params["run_plasma_profile"]:
             num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
         else:
             num_mpi_parallel = 1
@@ -192,6 +210,27 @@ def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_para
 
     dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
     return dataset
+
+
+
+def copy_python_files(sys_params):
+    path_bash_file = sys_params["data_dir"]+"/"+sys_params["bash_parallel_ifriit"]
+    file_exists = os.path.exists(sys_params["data_dir"]+"/"+sys_params["bash_parallel_ifriit"])
+    if not file_exists:
+        shutil.copy2(sys_params["root_dir"]+"/"+sys_params["bash_parallel_ifriit"],
+                     path_bash_file)
+    st = os.stat(path_bash_file)
+    os.chmod(path_bash_file, st.st_mode | stat.S_IEXEC)
+
+    files = glob.iglob(os.path.join(sys_params["root_dir"]+"/"+sys_params["python_dir"], "*.py"))
+
+    file_exists = os.path.exists(sys_params["data_dir"]+"/"+sys_params["python_dir"])
+    if not file_exists:
+        os.makedirs( sys_params["data_dir"]+"/"+sys_params["python_dir"])
+
+    for file in files:
+        if os.path.isfile(file):
+            shutil.copy2(file, sys_params["data_dir"]+"/"+sys_params["python_dir"])
 
 
 
@@ -210,6 +249,7 @@ def main(argv):
         deck_gen_params = idg.define_deck_generation_params(dataset_params, facility_spec)
         deck_gen_params = idg.create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
         idg.save_data_dicts_to_file(sys_params, dataset, dataset_params, deck_gen_params, facility_spec)
+        copy_python_files(sys_params)
 
     if (run_type=="restart") or (run_type=="full"):
         dataset, dataset_params, deck_gen_params, facility_spec = idg.load_data_dicts_from_file(sys_params)

@@ -210,7 +210,7 @@ def main(argv):
 
         opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
                                                      num_init_examples, ga_n_iter, dataset_params["random_seed"],
-                                                     facility_spec, sys_params["run_clean"])
+                                                     facility_spec, sys_params["run_clean"], dataset_params["run_plasma_profile"])
         num_mutations = int(opt_params["num_optimization_params"] / 2)
 
         ga_params = uopt.define_genetic_algorithm_params(initial_pop_size, num_parents_mating, num_mutations)
@@ -241,8 +241,8 @@ def main(argv):
     if use_bayesian_optimization: # Bayesian optimization
         bo_n_iter = int(argv[6])
         opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
-                                                     num_init_examples, bo_n_iter,
-                                                     dataset_params["random_seed"], facility_spec, sys_params["run_clean"])
+                                                     num_init_examples, bo_n_iter, dataset_params["random_seed"],
+                                                     facility_spec, sys_params["run_clean"], dataset_params["run_plasma_profile"])
         ifriit_runs_per_bo_iteration = sys_params["num_parallel_ifriits"]
 
         target = uopt.fitness_function(dataset, opt_params)
@@ -258,8 +258,8 @@ def main(argv):
         gd_n_iter = int(argv[8])
         line_search_evaluations = sys_params["num_parallel_ifriits"]
         opt_params = uopt.define_optimizer_parameters(output_dir, dataset_params["num_input_params"],
-                                                     num_init_examples, gd_n_iter,
-                                                     dataset_params["random_seed"], facility_spec, sys_params["run_clean"])
+                                                     num_init_examples, gd_n_iter, dataset_params["random_seed"],
+                                                     facility_spec, sys_params["run_clean"], dataset_params["run_plasma_profile"])
 
         gd_params = uopt.define_gradient_ascent_params(line_search_evaluations, dataset_params["num_input_params"])
         dataset = wrapper_gradient_ascent(dataset, gd_params, opt_params)
