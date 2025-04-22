@@ -86,7 +86,7 @@ def heatsource_analysis(hs_and_modes):
 
 
 
-def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, facility_spec, sys_params, deck_gen_params, use_ablation_pressure=0):
+def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, facility_spec, sys_params, deck_gen_params):
 
     total_power = 0
     print_line = []
@@ -145,7 +145,7 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
     print_line.append('The optimization selected a mean power percentage, {:.2f}%, '.format(mean_power_fraction * 100.0))
 
     print_line.append('Total power emitted {:.2f}TW, '.format(total_power))
-    if use_ablation_pressure == 0:
+    if not dataset_params["run_plasma_profile"]:
         print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * facility_spec['default_power'] * mean_power_fraction) * 100.0))
 
     return print_line
