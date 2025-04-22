@@ -41,10 +41,12 @@ def define_system_params(data_dir):
     sys_params["plasma_profile_nc"] = "ifriit_1davg_input.nc"
     sys_params["ifriit_ouput_name"] = "p_in_z1z2_beam_all.nc"
     sys_params["heat_source_nc"] = "heat_source_all_beams.nc"
+    sys_params["ifriit_pulse_name"] = "pulse_per_beam.txt"
 
     sys_params["multi_dir"] = "multi_data"
     sys_params["multi_output_ascii_filename"] = "multi_output.txt"
     sys_params["multi_input_filename"] = "multi_input.txt"
+    sys_params["multi_pulse_name"] = "laser_pulse.txt"
 
     return sys_params
 
@@ -59,9 +61,9 @@ def define_dataset_params(num_examples, sys_params,
 
     dataset_params["run_plasma_profile"] = True
     dataset_params["plasma_profile_source"] = "multi" # "default"
-    dataset_params["num_profiles_per_config"] = 5
+    dataset_params["num_profiles_per_config"] = 2
     # if run_plasma_profile=True, define plasma profile times:
-    dataset_params["plasma_profile_times"] = np.linspace(0,15,int(dataset_params["num_profiles_per_config"]))
+    dataset_params["plasma_profile_times"] = np.linspace(0.1,15,int(dataset_params["num_profiles_per_config"]))
     # if run_plasma_profile=False, len(illumination_evaluation_radii)>=num_profiles_per_config
     illumination_evaluation_radii = np.zeros((dataset_params["num_profiles_per_config"])) + target_radius
 

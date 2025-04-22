@@ -325,6 +325,8 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                     run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
                     nrw.save_general_netcdf(multi_nc, run_location + "/" + sys_params["plasma_profile_nc"],
                                             extra_dimension={'x': ncells, 'z':1, 'nel':nmat})
+
+                    multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec)
       else:
         config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
         file_exists = os.path.exists(config_location)
@@ -339,7 +341,44 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
               pwr_ind = tind
           else:
               pwr_ind = 0
-          generate_input_pointing_and_pulses(iconfig, pwr_ind, dataset_params, facility_spec, sys_params, deck_gen_params)
+          generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, facility_spec, sys_params, deck_gen_params)
+
+
+
+def multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec):
+    nbeams = facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam']
+
+    path = sys_params["data_dir"] + "/" + sys_params["multi_dir"]
+    f = open(path + "/" + sys_params["multi_pulse_name"], "r")
+    old_pulse = f.read()
+    f.close()
+    old_pulse = old_pulse.splitlines()
+    old_pulse_label = old_pulse[0]
+    old_pulse_data = old_pulse[1:]
+
+    old_pulse_nlines = len(old_pulse_data)
+    old_pulse_time = np.zeros((old_pulse_nlines))
+    old_pulse_power = np.zeros((old_pulse_nlines))
+
+    i=0
+    for line in old_pulse_data:
+        old_pulse_data = line.split( )
+        old_pulse_time[i] = old_pulse_data[0]
+        old_pulse_power[i] = old_pulse_data[1]
+        i+=1
+
+    new_pulse_time = old_pulse_time
+    new_pulse_power = old_pulse_power / nbeams
+
+    config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
+    run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+    f = open(run_location + "/" + sys_params["ifriit_pulse_name"], "w")
+    #f.write(old_pulse_label + "\n")
+
+    new_pulse_nlines = len(new_pulse_time)
+    for iline in range(new_pulse_nlines):
+        f.write("{:4.5f} {:4.5f} \n".format(new_pulse_time[iline],new_pulse_power[iline]))
+    f.close()
 
 
 
@@ -366,8 +405,8 @@ def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params
 
 
 
-def generate_input_pointing_and_pulses(iex, tind, dataset_params, facility_spec, sys_params, deck_gen_params):
-    config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iex)
+def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, facility_spec, sys_params, deck_gen_params):
+    config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
     run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
     if (facility_spec['facility'] == "NIF"):
         j = 0
@@ -388,19 +427,19 @@ def generate_input_pointing_and_pulses(iex, tind, dataset_params, facility_spec,
                 #     f.write('    LAMBDA_NM           = '+str((1052.85+0.45)/3.)+',\n')   
                 # else:
                 f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(1052.85/3.))
-                f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iex,j][0], deck_gen_params['pointings'][iex,j][1], deck_gen_params['pointings'][iex,j][2]))
-                if 't0' in deck_gen_params.keys():
-                    f.write('    POWER_PROFILE_FILE_TW_NS = "pulse_'+beam+'.txt"\n')
-                    f.write('    T_0_NS              = {:.10f}d0,\n'.format(deck_gen_params['t0']))
+                f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iconfig,j][0], deck_gen_params['pointings'][iconfig,j][1], deck_gen_params['pointings'][iconfig,j][2]))
+                if dataset_params["plasma_profile_source"] == "multi":
+                    f.write('    POWER_PROFILE_FILE_TW_NS = "'+sys_params["ifriit_pulse_name"]+'"\n')
+                    f.write('    T_0_NS              = {:.10f}d0,\n'.format(dataset_params["plasma_profile_times"][tind]))
                 else:
-                    f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iex,j,tind]))
+                    f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iconfig,j,pwr_ind]))
                 if (dataset_params["run_type"] == "nif"):
                     f.write('    PREDEF_FACILITY     = "NIF"\n')
                     f.write('    PREDEF_BEAM         = "'+beam+'",\n')
                     f.write('    PREDEF_CPP          = "NIF-'+cpp+'",\n')
                     f.write('    CPP_ROTATION_MODE   = 1,\n')
                     #f.write('    CPP_ROTATION_DEG    = 45.0d0,\n')
-                    f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iex,j]))
+                    f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iconfig,j]))
                 elif (dataset_params["run_type"] == "test"):
                     f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_theta'][j])))
                     f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_phi'][j])))
@@ -415,7 +454,7 @@ def generate_input_pointing_and_pulses(iex, tind, dataset_params, facility_spec,
                 else:
                     f.write('    FUSE_QUADS          = .FALSE.,\n')
                 if 'xy-mispoint' in deck_gen_params.keys():
-                    f.write('    XY_MISPOINT_UM      = {:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['xy-mispoint'][iex,j][0],deck_gen_params['xy-mispoint'][iex,j][1]))
+                    f.write('    XY_MISPOINT_UM      = {:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['xy-mispoint'][iconfig,j][0],deck_gen_params['xy-mispoint'][iconfig,j][1]))
                 f.write('/\n')
                 f.write('\n')
                 j = j + 1
@@ -430,18 +469,18 @@ def generate_input_pointing_and_pulses(iex, tind, dataset_params, facility_spec,
 
                 f.write('&BEAM\n')
                 f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(1052.85/3.))
-                f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iex,j][0],deck_gen_params['pointings'][iex,j][1],deck_gen_params['pointings'][iex,j][2]))
-                if 't0' in deck_gen_params.keys():
-                    f.write('    POWER_PROFILE_FILE_TW_NS = "pulse_'+beam+'.txt"\n')
-                    f.write('    T_0_NS              = {:.10f}d0,\n'.format(deck_gen_params['t0']))
+                f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iconfig,j][0],deck_gen_params['pointings'][iconfig,j][1],deck_gen_params['pointings'][iconfig,j][2]))
+                if dataset_params["plasma_profile_source"] == "multi":
+                    f.write('    POWER_PROFILE_FILE_TW_NS = "'+sys_params["ifriit_pulse_name"]+'"\n')
+                    f.write('    T_0_NS              = {:.10f}d0,\n'.format(dataset_params["plasma_profile_times"][tind]))
                 else:
-                    f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iex,j,tind]))
+                    f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iconfig,j,pwr_ind]))
                 if (dataset_params["run_type"] == "lmj"):
                     f.write('    PREDEF_FACILITY     = "'+facility_spec['facility']+'"\n')
                     f.write('    PREDEF_BEAM         = "'+beam+'",\n')
                     f.write('    PREDEF_CPP          = "'+cpp+'",\n')
                     f.write('    CPP_ROTATION_MODE   = 1,\n')
-                    f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iex,j]))
+                    f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iconfig,j]))
                 elif (dataset_params["run_type"] == "test"):
                     f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_theta'][j])))
                     f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_phi'][j])))
