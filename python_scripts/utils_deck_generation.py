@@ -400,6 +400,8 @@ def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params
                 elif "CBET = .FALSE.," in line:
                     if dataset_params["run_with_cbet"]:
                         new_file.write("    CBET = .TRUE.,\n")
+                    else:
+                        new_file.write("    CBET = .FALSE.,\n")
                 else:
                     new_file.write(line)
 

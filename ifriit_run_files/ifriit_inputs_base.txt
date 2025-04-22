@@ -44,7 +44,7 @@
 
 &OFFLINE_HYDRO
     NBEAM_NC                                 = 0,
-    NUMSPEC                                  = 2,
+    NUMSPEC                                  = 4,
     FROM_FILE                                = .TRUE.
     SPHERICAL_1D_NCDFFILE                     = .TRUE.
     SPHERICAL_1D_NCDFFILE_FILENAME            = "ifriit_1davg_input.nc"
