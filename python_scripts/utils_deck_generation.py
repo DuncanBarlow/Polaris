@@ -322,10 +322,20 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
             for tind in range(dataset_params["num_profiles_per_config"]):
                 itime_multi = np.argmin(np.abs(multi_data["time"]*1.e9-dataset_params["plasma_profile_times"][tind]))
                 multi_nc, ncells, nmat = um.multi2ifriit_inputs(multi_data, itime_multi, ind_interface_dt_ch)
-                config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
-                run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
-                nrw.save_general_netcdf(multi_nc, run_location + "/" + sys_params["plasma_profile_nc"],
-                                        extra_dimension={'x': ncells, 'z':1, 'nel':nmat})
+
+                n_crit = um.critical_density(wavelength_l=multi_data["wavelength"])
+                zero_crossings = np.where(np.diff(np.sign(multi_nc["ne"][0,:] - n_crit)))[0]
+                if len(zero_crossings)==0:
+                    ind_critical = len(multi_nc["ne"][0,:])-1
+                else:
+                    ind_critical = zero_crossings[-1]
+                facility_spec['target_radius'][tind] = multi_nc["xs"][ind_critical]
+
+                if dataset_params["run_plasma_profile"]:
+                    config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
+                    run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+                    nrw.save_general_netcdf(multi_nc, run_location + "/" + sys_params["plasma_profile_nc"],
+                                            extra_dimension={'x': ncells, 'z':1, 'nel':nmat})
 
                 multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec)
       else:
