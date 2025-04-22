@@ -295,13 +295,6 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
         if not file_exists:
             os.makedirs(config_location)
 
-        if dataset_params["plasma_profile_source"] == "multi":
-            ind_interface_dt_ch = [0]
-            print("!!! Hardcoded hydro evaluation time DT-CH interface at cell:" + str(ind_interface_dt_ch)+" !!!")
-            path = sys_params["data_dir"] + "/" + sys_params["multi_dir"]
-            multi_data = um.multi_read_ascii(path+"/"+sys_params["multi_output_ascii_filename"])
-            multi_data = um.read_inputs(path+"/"+sys_params["multi_input_filename"], multi_data)
-
         for tind in range(dataset_params["num_profiles_per_config"]):
             run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
             isExist = os.path.exists(run_location)
@@ -312,21 +305,29 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
             loc_ifriit_runfiles = sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
             shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"],
                             run_location + "/" + sys_params["ifriit_binary_filename"])
-            if dataset_params["run_plasma_profile"]:
-                if dataset_params["plasma_profile_source"] == "default":
-                    shutil.copyfile(sys_params["root_dir"] + "/" +
+
+        if (dataset_params["plasma_profile_source"] == "default") and dataset_params["run_plasma_profile"]:
+            for tind in range(dataset_params["num_profiles_per_config"]):
+                run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+                shutil.copyfile(sys_params["root_dir"] + "/" +
                                 sys_params["plasma_profile_dir"] + "/" +
                                 sys_params["plasma_profile_nc"],
                                 run_location + "/" + sys_params["plasma_profile_nc"])
-                elif dataset_params["plasma_profile_source"] == "multi":
-                    itime_multi = np.argmin(np.abs(multi_data["time"]*1.e9-dataset_params["plasma_profile_times"][tind]))
-                    multi_nc, ncells, nmat = um.multi2ifriit_inputs(multi_data, itime_multi, ind_interface_dt_ch)
-                    config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
-                    run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
-                    nrw.save_general_netcdf(multi_nc, run_location + "/" + sys_params["plasma_profile_nc"],
-                                            extra_dimension={'x': ncells, 'z':1, 'nel':nmat})
+        elif dataset_params["plasma_profile_source"] == "multi":
+            ind_interface_dt_ch = [0]
+            print("!!! Hardcoded hydro evaluation time DT-CH interface at cell:" + str(ind_interface_dt_ch)+" !!!")
+            path = sys_params["data_dir"] + "/" + sys_params["multi_dir"]
+            multi_data = um.multi_read_ascii(path+"/"+sys_params["multi_output_ascii_filename"])
+            multi_data = um.read_inputs(path+"/"+sys_params["multi_input_filename"], multi_data)
+            for tind in range(dataset_params["num_profiles_per_config"]):
+                itime_multi = np.argmin(np.abs(multi_data["time"]*1.e9-dataset_params["plasma_profile_times"][tind]))
+                multi_nc, ncells, nmat = um.multi2ifriit_inputs(multi_data, itime_multi, ind_interface_dt_ch)
+                config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
+                run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+                nrw.save_general_netcdf(multi_nc, run_location + "/" + sys_params["plasma_profile_nc"],
+                                        extra_dimension={'x': ncells, 'z':1, 'nel':nmat})
 
-                    multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec)
+                multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec)
       else:
         config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
         file_exists = os.path.exists(config_location)
