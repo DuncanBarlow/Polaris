@@ -7,6 +7,9 @@ import os
 import subprocess
 import sys
 from scipy.stats import qmc
+import shutil
+import glob
+import stat
 
 
 def define_system_params(data_dir):
@@ -29,6 +32,7 @@ def define_system_params(data_dir):
     sys_params["bash_parallel_ifriit"] = "bash_parallel_ifriit"
     sys_params["plasma_profile_dir"] = "plasma_profiles"
     sys_params["facility_config_files_dir"] = "facility_config_files"
+    sys_params["python_dir"] = "python_scripts"
 
     sys_params["trainingdata_filename"] = "training_data_and_labels.nc"
     sys_params["dataset_params_filename"] = "dataset_params.nc"
@@ -209,6 +213,27 @@ def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_para
 
 
 
+def copy_python_files(sys_params):
+    path_bash_file = sys_params["data_dir"]+"/"+sys_params["bash_parallel_ifriit"]
+    file_exists = os.path.exists(sys_params["data_dir"]+"/"+sys_params["bash_parallel_ifriit"])
+    if not file_exists:
+        shutil.copy2(sys_params["root_dir"]+"/"+sys_params["bash_parallel_ifriit"],
+                     path_bash_file)
+    st = os.stat(path_bash_file)
+    os.chmod(path_bash_file, st.st_mode | stat.S_IEXEC)
+
+    files = glob.iglob(os.path.join(sys_params["root_dir"]+"/"+sys_params["python_dir"], "*.py"))
+
+    file_exists = os.path.exists(sys_params["data_dir"]+"/"+sys_params["python_dir"])
+    if not file_exists:
+        os.makedirs( sys_params["data_dir"]+"/"+sys_params["python_dir"])
+
+    for file in files:
+        if os.path.isfile(file):
+            shutil.copy2(file, sys_params["data_dir"]+"/"+sys_params["python_dir"])
+
+
+
 def main(argv):
     sys_params = define_system_params(argv[1])
 
@@ -224,6 +249,7 @@ def main(argv):
         deck_gen_params = idg.define_deck_generation_params(dataset_params, facility_spec)
         deck_gen_params = idg.create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
         idg.save_data_dicts_to_file(sys_params, dataset, dataset_params, deck_gen_params, facility_spec)
+        copy_python_files(sys_params)
 
     if (run_type=="restart") or (run_type=="full"):
         dataset, dataset_params, deck_gen_params, facility_spec = idg.load_data_dicts_from_file(sys_params)
