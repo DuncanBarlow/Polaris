@@ -46,7 +46,7 @@ def print_save_readout(print_list, stats_filename):
 
 
 
-def readout_intensity(facility_spec, intensity_map, run_plasma_profile, ind_profile):
+def readout_intensity(facility_spec, intensity_map, dataset_params, ind_profile):
     n_beams = facility_spec['nbeams']
 
     #rms
@@ -57,15 +57,15 @@ def readout_intensity(facility_spec, intensity_map, run_plasma_profile, ind_prof
     print_line = []
     print_line.append('Number of beams ' + str(n_beams))
     #print_line.append('Max power per beam {:.2f}TW, '.format(facility_spec['default_power']))
-    print_line.append('Evaluation radius {:.2f}um, '.format(facility_spec['target_radius'][ind_profile]))
+    print_line.append('Evaluation radius {:.2f}um, '.format(dataset_params['illumination_evaluation_radii'][ind_profile]))
 
     print_line.append('RMS is {:.4f}%, '.format(intensity_map_rms))
     total_TW = None
-    if run_plasma_profile:
+    if dataset_params["run_plasma_profile"]:
         print_line.append('Mean ablation pressure: {:.2f}Mbar, '.format(avg_flux))
     else:
         total_TW = avg_flux*10**(-12) * 4.0 * np.pi
-        mean_intensity_cm = avg_flux / (facility_spec['target_radius'][ind_profile] / 10000.0)**2
+        mean_intensity_cm = avg_flux / (dataset_params['illumination_evaluation_radii'][ind_profile] / 10000.0)**2
 
         print_line.append('Mean intensity, {:.2e}W/cm2'.format(mean_intensity_cm))
         print_line.append('Mean intensity per steradian, {:.2e}W/sr'.format(avg_flux))
@@ -115,13 +115,13 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
         cone_defocus = deck_gen_params["defocus"][iex,quad_start_ind]
         if dataset_params["time_varying_pulse"]:
             cone_powers = deck_gen_params["p0"][iex,quad_start_ind,ind_profile] / (
-                          facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
+                          dataset_params['default_power'] * facility_spec["beams_per_ifriit_beam"])
         else:
             cone_powers = deck_gen_params["p0"][iex,quad_start_ind,0] / (
-                          facility_spec['default_power'] * facility_spec["beams_per_ifriit_beam"])
+                          dataset_params['default_power'] * facility_spec["beams_per_ifriit_beam"])
 
         if ("quad_split_bool" in dataset_params.keys()) and dataset_params["quad_split_bool"]:
-            quad_split_radius = 2. * facility_spec['target_radius'][0] / 1000 * np.sin(deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_index"]]/2.0)
+            quad_split_radius = 2. * dataset_params['target_radius'] / 1000 * np.sin(deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_index"]]/2.0)
             if dataset_params["quad_split_skew_bool"]:
                 quad_split_skew = deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_skew_index"]]
             else:
@@ -146,7 +146,7 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
 
     print_line.append('Total power emitted {:.2f}TW, '.format(total_power))
     if not dataset_params["run_plasma_profile"]:
-        print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * facility_spec['default_power'] * mean_power_fraction) * 100.0))
+        print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * dataset_params['default_power'] * mean_power_fraction) * 100.0))
 
     return print_line
 

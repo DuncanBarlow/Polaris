@@ -139,7 +139,7 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
                 dir_illumination = run_location + "/" + sys_params["ifriit_ouput_name"]
                 if os.path.exists(dir_illumination):
                     parameters = read_general_netcdf(dir_illumination)
-                    intensity_map = parameters["intensity"] * (facility_spec["target_radius"][tind] / 10000.0)**2
+                    intensity_map = parameters["intensity"] * (dataset_params['illumination_evaluation_radii'][tind] / 10000.0)**2
 
                     intensity_map_normalized, dataset["avg_flux"][iex,tind] = uim.imap_norm(intensity_map)
                     dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:] = uhp.imap2modes(intensity_map_normalized, dataset_params["LMAX"])

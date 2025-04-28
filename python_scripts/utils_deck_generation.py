@@ -8,50 +8,74 @@ import utils_multi as um
 
 
 def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec):
+    if (dataset_params["facility"]=="lmj") or (dataset_params["facility"]=="nif"):
+        deck_gen_params = create_run_files_pdd(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
+    elif (dataset_params["facility"]=="omega"):
+        deck_gen_params = create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
 
+    generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_gen_params)
+    nrw.save_general_netcdf(deck_gen_params, sys_params["data_dir"] + "/" + sys_params["deck_gen_params_filename"])
+    return deck_gen_params
+
+def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_params, facility_spec):
+    num_input_params = dataset_params["num_input_params"]
+    num_examples = dataset_params["num_examples"]
+    num_vars = dataset_params["num_variables_per_beam"]
+
+    deck_gen_params['pointings'][:,:] = np.zeros(3)
+    deck_gen_params["p0"][:,:] = dataset_params['default_power']
+    deck_gen_params["beamspot_order"][:,:] = dataset_params["beamspot_order_default"]
+    deck_gen_params["beamspot_major_radius"][:,:] = dataset_params["beamspot_radius_default"]
+    deck_gen_params["beamspot_minor_radius"][:,:] = dataset_params["beamspot_radius_default"]
+
+    return deck_gen_params
+
+
+def create_run_files_pdd(dataset, deck_gen_params, dataset_params, sys_params, facility_spec):
     num_input_params = dataset_params["num_input_params"]
     num_examples = dataset_params["num_examples"]
     num_vars = dataset_params["num_variables_per_beam"]
 
     coord_o = np.zeros(3)
-    coord_o[2] = facility_spec['target_radius'][0]
+    coord_o[2] = dataset_params['target_radius']
 
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
 
     for iex in range(dataset["num_evaluated"], num_examples):
         ex_params = dataset["input_parameters"][iex,:]
         for icone in range(facility_spec['num_cones']):
-            if icone > int(facility_spec['num_cones']/2.0-1):
-                bottom_hemisphere = True
-            else:
-                bottom_hemisphere = False
-            il = (icone*num_vars) % num_input_params
-            iu = ((icone+1)*num_vars-1) % num_input_params + 1
-            cone_params = ex_params[il:iu]
-
             quad_name = facility_spec['quad_from_each_cone'][icone]
             quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
             quad_start_ind = quad_slice[0]
             cone_name = facility_spec['Cone'][quad_start_ind]
             cone_slice = np.where(facility_spec['Cone'] == cone_name)[0]
-            if bottom_hemisphere:
+            if icone > int(facility_spec['num_cones']/2.0-1):
+                bottom_hemisphere = True
                 quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "B" in t or "L" in t]
             else:
+                bottom_hemisphere = False
                 quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "T" in t or "U" in t]
             quad_list_in_cone = list(set(quad_list_in_cone))
 
-            x = cone_params[dataset_params["theta_index"]] * 2.0 - 1.0
-            y = cone_params[dataset_params["phi_index"]] * 2.0 - 1.0
-            r, offset_phi = hpoint.square2disk(x, y)
+            il = (icone*num_vars) % num_input_params
+            iu = ((icone+1)*num_vars-1) % num_input_params + 1
+            cone_params = ex_params[il:iu]
 
-            if bottom_hemisphere:
-                if dataset_params["hemisphere_symmetric"]:
-                    offset_phi = np.pi - offset_phi # Symmetric
-                else:
-                    offset_phi = (offset_phi + np.pi) % (2.0 * np.pi) # anti-symmetric
-            offset_theta = r * dataset_params["surface_cover_radians"]
-            deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["theta_index"]] = offset_theta
-            deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["phi_index"]] = offset_phi
+            if dataset_params["pointing_bool"]:
+                x = cone_params[dataset_params["theta_index"]] * 2.0 - 1.0
+                y = cone_params[dataset_params["phi_index"]] * 2.0 - 1.0
+                r, offset_phi = hpoint.square2disk(x, y)
+                if bottom_hemisphere:
+                    if dataset_params["hemisphere_symmetric"]:
+                        offset_phi = np.pi - offset_phi # Symmetric
+                    else:
+                        offset_phi = (offset_phi + np.pi) % (2.0 * np.pi) # anti-symmetric
+                offset_theta = r * dataset_params["surface_cover_radians"]
+                deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["theta_index"]] = offset_theta
+                deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["phi_index"]] = offset_phi
+            else:
+                offset_phi = 0.0
+                offset_theta = 0.0
 
             if dataset_params["defocus_bool"]:
                 cone_defocus = cone_params[dataset_params["defocus_index"]] * dataset_params["defocus_range"]
@@ -61,11 +85,14 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
             deck_gen_params["defocus"][iex,cone_slice] = cone_defocus
 
             cone_power = np.zeros((dataset_params["num_powers_per_cone"]))
-            for tind in range(dataset_params["num_powers_per_cone"]):
-                pind = dataset_params["power_index"] + tind
-                cone_power[tind] = (cone_params[pind] * (1.0 - dataset_params["min_power"]) + dataset_params["min_power"])
-                deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["power_index"] + tind] = cone_power[tind]
-                deck_gen_params["p0"][iex,cone_slice,tind] = facility_spec['default_power'] * cone_power[tind] * facility_spec['beams_per_ifriit_beam']
+            if dataset_params["power_bool"]:
+                for tind in range(dataset_params["num_powers_per_cone"]):
+                    pind = dataset_params["power_index"] + tind
+                    cone_power[tind] = (cone_params[pind] * (1.0 - dataset_params["min_power"]) + dataset_params["min_power"])
+                    deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["power_index"] + tind] = cone_power[tind]
+                    deck_gen_params["p0"][iex,cone_slice,tind] = dataset_params['default_power'] * cone_power[tind] * facility_spec['beams_per_ifriit_beam']
+            else:
+                deck_gen_params["p0"][iex,cone_slice,0] = dataset_params['default_power'] * facility_spec['beams_per_ifriit_beam']
 
             for quad_name in quad_list_in_cone:
                 quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
@@ -111,10 +138,6 @@ def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facil
                     deck_gen_params["phi_pointings"][iex,ind] = np.where(phi_p < 0.0,  2 * np.pi + phi_p, phi_p)
                     deck_gen_params['pointings'][iex,ind] = np.array(coord_n)
 
-    if sys_params["run_gen_deck"]:
-        generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_gen_params)
-
-    nrw.save_general_netcdf(deck_gen_params, sys_params["data_dir"] + "/" + sys_params["deck_gen_params_filename"])
     return deck_gen_params
 
 
@@ -160,20 +183,36 @@ def define_deck_generation_params(dataset_params, facility_spec):
     deck_gen_params["defocus"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["p0"] = np.zeros((num_examples, num_ifriit_beams, dataset_params["num_powers_per_cone"]))
     deck_gen_params["sim_params"] = np.zeros((num_examples, dataset_params["num_input_params"]*2))
+    deck_gen_params["beamspot_order"] = np.zeros((num_examples, num_ifriit_beams))
+    deck_gen_params["beamspot_major_radius"] = np.zeros((num_examples, num_ifriit_beams))
+    deck_gen_params["beamspot_minor_radius"] = np.zeros((num_examples, num_ifriit_beams))
 
     return deck_gen_params
 
+
+def import_direct_drive_config(sys_params):
+    facility_spec = dict()
+
+    facility_spec['nbeams'] = 60
+    facility_spec['ifriit_facility_name'] = "OMEGA60"
+    facility_spec['num_quads'] = 0
+    facility_spec['num_cones'] = 0
+    facility_spec['beams_per_ifriit_beam'] = 1
+
+    facility_spec['Beam'] = [None] * facility_spec['nbeams']
+    for ibeam in range(facility_spec['nbeams']):
+        facility_spec['Beam'][ibeam] = str(int(10 + ibeam))
+
+    return facility_spec
 
 
 def import_nif_config(sys_params):
     facility_spec = dict()
 
     facility_spec['nbeams'] = 192
-    facility_spec['target_radius'] = [0.0] #place holder
-    facility_spec['facility'] = "NIF"
+    facility_spec['ifriit_facility_name'] = "NIF"
     facility_spec['num_quads'] = 48
     facility_spec['num_cones'] = 8
-    facility_spec['default_power'] = 1.0 #TW per beam
 
     facility_spec['cone_names'] = np.array((23.5, 30, 44.5, 50, 23.5, 30, 44.5, 50))
     # The order of these is important (top-to-equator, then bottom-to-equator)
@@ -193,11 +232,9 @@ def import_lmj_config(sys_params, quad_split_bool):
     facility_spec = dict()
 
     facility_spec['nbeams'] = 80
-    facility_spec['target_radius'] = [0.0] #place holder
-    facility_spec['facility'] = "LMJ"
+    facility_spec['ifriit_facility_name'] = "LMJ"
     facility_spec['num_quads'] = 20
     facility_spec['num_cones'] = 4
-    facility_spec['default_power'] = 1.0 # 0.63 #TW per beam
 
     # The order of these is important (top-to-equator, then bottom-to-equator)
     facility_spec['quad_from_each_cone'] = np.array(('28U', '10U', '10L', '28L'), dtype='<U4')
@@ -329,7 +366,7 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                     ind_critical = len(multi_nc["ne"][0,:])-1
                 else:
                     ind_critical = zero_crossings[-1]
-                facility_spec['target_radius'][tind] = multi_nc["xs"][ind_critical]
+                dataset_params['illumination_evaluation_radii'][tind] = multi_nc["xs"][ind_critical]
 
                 if dataset_params["run_plasma_profile"]:
                     config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
@@ -407,7 +444,7 @@ def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params
                 if "NBEAMS" in line:
                     new_file.write("    NBEAMS                      = " + str(num_ifriit_beams) + ",\n")
                 elif "DIAGNOSE_INPUT_BEAMS_RADIUS_UM" in line:
-                    new_file.write("    DIAGNOSE_INPUT_BEAMS_RADIUS_UM = " + str(facility_spec['target_radius'][tind]) + "d0,\n")
+                    new_file.write("    DIAGNOSE_INPUT_BEAMS_RADIUS_UM = " + str(dataset_params['illumination_evaluation_radii'][tind]) + "d0,\n")
                 elif "CBET = .FALSE.," in line:
                     if dataset_params["run_with_cbet"]:
                         new_file.write("    CBET = .TRUE.,\n")
@@ -421,93 +458,64 @@ def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params
 def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, facility_spec, sys_params, deck_gen_params):
     config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
     run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
-    if (facility_spec['facility'] == "NIF"):
-        j = 0
-        with open(run_location+'/ifriit_inputs.txt','a') as f:
-            for beam in facility_spec['Beam']:
-                cone_name = facility_spec["Cone"][np.where(facility_spec["Beam"] == beam)[0][0]]
-                if (cone_name == 23.5):
-                    cpp="inner-23"
-                elif (cone_name == 30):
-                    cpp="inner-30"
-                elif (cone_name == 44.5):
-                    cpp="outer-44"                                       
-                else:
-                    cpp="outer-50"
 
-                f.write('&BEAM\n')
-                # if (cpp=="inner-23" or cpp=="inner-30"):
-                #     f.write('    LAMBDA_NM           = '+str((1052.85+0.45)/3.)+',\n')   
-                # else:
-                f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(1052.85/3.))
-                f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iconfig,j][0], deck_gen_params['pointings'][iconfig,j][1], deck_gen_params['pointings'][iconfig,j][2]))
-                if dataset_params["plasma_profile_source"] == "multi":
-                    f.write('    POWER_PROFILE_FILE_TW_NS = "'+sys_params["ifriit_pulse_name"]+'"\n')
-                    f.write('    T_0_NS              = {:.10f}d0,\n'.format(dataset_params["plasma_profile_times"][tind]))
-                else:
-                    f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iconfig,j,pwr_ind]))
-                if (dataset_params["run_type"] == "nif"):
-                    f.write('    PREDEF_FACILITY     = "NIF"\n')
-                    f.write('    PREDEF_BEAM         = "'+beam+'",\n')
-                    f.write('    PREDEF_CPP          = "NIF-'+cpp+'",\n')
-                    f.write('    CPP_ROTATION_MODE   = 1,\n')
-                    #f.write('    CPP_ROTATION_DEG    = 45.0d0,\n')
-                    f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iconfig,j]))
-                elif (dataset_params["run_type"] == "test"):
-                    f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_theta'][j])))
-                    f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_phi'][j])))
-                    f.write('    FOCAL_M             = 10.0d0,\n')
-                    f.write('    SG                  = 6,\n')
-                    f.write('    LAW                  = 2,\n')
-                    f.write('    RAD_1_UM            = 80.0d0,\n')
-                    f.write('    RAD_2_UM            = 80.0d0,\n')
-                if 'fuse' in deck_gen_params.keys() and deck_gen_params['fuse'][j]:
-                    f.write('    FUSE_QUADS          = .TRUE.,\n')
-                    f.write('    FUSE_BY_POINTINGS   = .TRUE.,\n')
-                else:
-                    f.write('    FUSE_QUADS          = .FALSE.,\n')
-                if 'xy-mispoint' in deck_gen_params.keys():
-                    f.write('    XY_MISPOINT_UM      = {:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['xy-mispoint'][iconfig,j][0],deck_gen_params['xy-mispoint'][iconfig,j][1]))
-                f.write('/\n')
-                f.write('\n')
-                j = j + 1
+    with open(run_location+'/ifriit_inputs.txt','a') as f:
+        for j in range(int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])):
+            f.write('&BEAM\n')
+            f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(1052.85/3.))
+            f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iconfig,j][0],deck_gen_params['pointings'][iconfig,j][1],deck_gen_params['pointings'][iconfig,j][2]))
+            if dataset_params["plasma_profile_source"] == "multi":
+                f.write('    POWER_PROFILE_FILE_TW_NS = "'+sys_params["ifriit_pulse_name"]+'"\n')
+                f.write('    T_0_NS              = {:.10f}d0,\n'.format(dataset_params["plasma_profile_times"][tind]))
+            else:
+                f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iconfig,j,pwr_ind]))
+
+            if (dataset_params['facility'] == "custom"):
+                f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_theta'][j])))
+                f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_phi'][j])))
+                f.write('    FOCAL_M             = 10.0d0,\n')
+            else:
+                if (dataset_params['facility'] == "nif"):
+                    beam = facility_spec["Beam"][j]
+                    cone_name = facility_spec["Cone"][j]
+                    if (cone_name == 23.5):
+                        cpp="inner-23"
+                    elif (cone_name == 30):
+                        cpp="inner-30"
+                    elif (cone_name == 44.5):
+                        cpp="outer-44"
+                    else:
+                        cpp="outer-50"
+                elif (dataset_params['facility'] == "lmj"):
+                    beam = facility_spec["Quad"][j]
+                    cpp="LMJ-A"
+                elif (dataset_params['facility'] == "omega"):
+                    beam = facility_spec["Beam"][j]
+                    cpp="SG5"
+                f.write('    PREDEF_FACILITY     = "'+facility_spec['ifriit_facility_name']+'"\n')
+                f.write('    PREDEF_BEAM         = "'+beam+'",\n')
+
+            if dataset_params["beamspot_bool"]:
+                f.write('    LAW                  = 1,\n')
+                f.write('    SG                  = {:.6f}d0,\n'.format(deck_gen_params["beamspot_order"][iconfig,j]))
+                f.write('    RAD_1_UM            = {:.6f}d0,\n'.format(deck_gen_params["beamspot_major_radius"][iconfig,j]))
+                f.write('    RAD_2_UM            = {:.6f}d0,\n'.format(deck_gen_params["beamspot_minor_radius"][iconfig,j]))
+            else:
+                f.write('    PREDEF_CPP          = "'+cpp+'",\n')
+                f.write('    CPP_ROTATION_MODE   = 1,\n')
+                f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iconfig,j]))
+
+            if 'fuse' in deck_gen_params.keys() and deck_gen_params['fuse'][j]:
+                f.write('    FUSE_QUADS          = .TRUE.,\n')
+                f.write('    FUSE_BY_POINTINGS   = .TRUE.,\n')
+            else:
+                f.write('    FUSE_QUADS          = .FALSE.,\n')
+
+            if 'xy-mispoint' in deck_gen_params.keys():
+                f.write('    XY_MISPOINT_UM      = {:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['xy-mispoint'][iconfig,j][0],deck_gen_params['xy-mispoint'][iconfig,j][1]))
+            ##
+            f.write('/\n')
             f.write('\n')
-            f.write('! Last line must not be empty')
-
-    elif (facility_spec['facility'] == "LMJ"):
-        j = 0
-        with open(run_location+'/ifriit_inputs.txt','a') as f:
-            for beam in facility_spec['Quad']:
-                cpp="LMJ-A"
-
-                f.write('&BEAM\n')
-                f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(1052.85/3.))
-                f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iconfig,j][0],deck_gen_params['pointings'][iconfig,j][1],deck_gen_params['pointings'][iconfig,j][2]))
-                if dataset_params["plasma_profile_source"] == "multi":
-                    f.write('    POWER_PROFILE_FILE_TW_NS = "'+sys_params["ifriit_pulse_name"]+'"\n')
-                    f.write('    T_0_NS              = {:.10f}d0,\n'.format(dataset_params["plasma_profile_times"][tind]))
-                else:
-                    f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iconfig,j,pwr_ind]))
-                if (dataset_params["run_type"] == "lmj"):
-                    f.write('    PREDEF_FACILITY     = "'+facility_spec['facility']+'"\n')
-                    f.write('    PREDEF_BEAM         = "'+beam+'",\n')
-                    f.write('    PREDEF_CPP          = "'+cpp+'",\n')
-                    f.write('    CPP_ROTATION_MODE   = 1,\n')
-                    f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iconfig,j]))
-                elif (dataset_params["run_type"] == "test"):
-                    f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_theta'][j])))
-                    f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_phi'][j])))
-                    f.write('    FOCAL_M             = 10.0d0,\n')
-                    f.write('    SG                  = 6,\n')
-                    f.write('    LAW                  = 2,\n')
-                    f.write('    RAD_1_UM            = 80.0d0,\n')
-                    f.write('    RAD_2_UM            = 80.0d0,\n')
-                ##
-                f.write('/\n')
-                f.write('\n')
-                j = j + 1
-            f.write('\n')
-            f.write('! Last line must not be empty')
-
-    else:
-        print('Unknown facility',facility_spec['facility'])
+            j = j + 1
+        f.write('\n')
+        f.write('! Last line must not be empty')
