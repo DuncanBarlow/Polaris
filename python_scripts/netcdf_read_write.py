@@ -2,6 +2,7 @@ from netCDF4 import Dataset
 import numpy as np
 import os
 import glob
+import shutil
 from healpy_pointings import rot_mat
 import utils_intensity_map as uim
 import utils_healpy as uhp
@@ -152,13 +153,17 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
                 else:
                     print("Broken illumination!")
 
-            if sys_params["run_clean"]:
+            if not sys_params["run_clean"]:
                 #os.remove(run_location + "/" + sys_params["ifriit_binary_filename"])
                 #os.remove(run_location + "/" + sys_params["ifriit_ouput_name"])
                 for filename in glob.glob(run_location + "/fort.*"):
                     os.remove(filename)
                 for filename in glob.glob(run_location + "/abs_beam_*"):
                     os.remove(filename)
+        if sys_params["run_clean"]:
+            file_exists = os.path.exists(config_location)
+            if file_exists:
+                shutil.rmtree(config_location)
     return dataset
 
 
