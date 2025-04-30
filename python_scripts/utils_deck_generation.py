@@ -24,9 +24,17 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
 
     deck_gen_params['pointings'][:,:] = np.zeros(3)
     deck_gen_params["p0"][:,:] = dataset_params['default_power']
-    deck_gen_params["beamspot_order"][:,:] = dataset_params["beamspot_order_default"]
-    deck_gen_params["beamspot_major_radius"][:,:] = dataset_params["beamspot_radius_default"]
-    deck_gen_params["beamspot_minor_radius"][:,:] = dataset_params["beamspot_radius_default"]
+
+    for iconfig in range(dataset["num_evaluated"], num_examples):
+        ex_params = dataset["input_parameters"][iconfig,:]
+
+        if dataset_params["beamspot_bool"]:
+            deck_gen_params["beamspot_order"][iconfig,:] = (dataset_params["beamspot_order_default"] - 1.0) \
+                                                           * ex_params[dataset_params["beamspot_order_index"]] + 1.0
+            deck_gen_params["beamspot_major_radius"][iconfig,:] = dataset_params["beamspot_radius_default"] \
+                                                                  * ex_params[dataset_params["beamspot_radius_index"]] \
+                                                                  + dataset_params["beamspot_radius_min"]
+            deck_gen_params["beamspot_minor_radius"][iconfig,:] = deck_gen_params["beamspot_major_radius"][iconfig,:]
 
     return deck_gen_params
 

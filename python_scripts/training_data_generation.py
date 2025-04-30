@@ -55,13 +55,12 @@ def define_system_params(data_dir):
 
 
 def define_dataset_params(num_examples, sys_params,
-                          random_sampling=0,
                           random_seed=12345):
     dataset_params = {}
     dataset_params["facility"] = "omega"
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
-    dataset_params["random_sampling"] = random_sampling
+    dataset_params["sampling_method"] = "random" #"random", "lhs", "linear"
     dataset_params["run_with_cbet"] = False
     dataset_params["run_plasma_profile"] = False
 
@@ -144,6 +143,7 @@ def define_scan_parameters(dataset_params):
     dataset_params["beamspot_bool"] = False
     dataset_params["beamspot_order_default"] = 5.0
     dataset_params["beamspot_radius_default"] = dataset_params['target_radius']
+    dataset_params["beamspot_radius_min"] = dataset_params["beamspot_radius_default"] / 10.
     if dataset_params["beamspot_bool"]:
         dataset_params["beamspot_order_index"] = num_variables_per_beam
         num_variables_per_beam += 1
@@ -156,15 +156,34 @@ def define_scan_parameters(dataset_params):
 
 
 def populate_dataset_random_inputs(dataset_params, dataset):
+    num_examples = dataset_params["num_examples"]
+    num_input_params = dataset_params["num_input_params"]
 
     random_generator=np.random.default_rng(dataset_params["random_seed"])
-    if dataset_params["random_sampling"] == 1:
+    if dataset_params["sampling_method"] == "random":
         print("Random Sampling!")
         sample = random_generator.random((dataset_params["num_examples"], dataset_params["num_input_params"]))
-    else:
+    elif dataset_params["sampling_method"] == "lhs":
         sampler = qmc.LatinHypercube(d=dataset_params["num_input_params"],
                                      strength=1, seed=random_generator, optimization="random-cd")
         sample = sampler.random(n=dataset_params["num_examples"])
+    elif (dataset_params["sampling_method"] == "linear") and (num_input_params==2) \
+          and (int((num_examples)**(1.0/num_input_params))**num_input_params==int(num_examples)):
+        sample = np.zeros((dataset_params["num_examples"], dataset_params["num_input_params"]))
+        num_samples_per_param = int((dataset_params["num_examples"])**(1.0/dataset_params["num_input_params"]))
+        val_samples_per_param = np.linspace(0.,1.,num_samples_per_param)
+        iconfig = 0
+        for val_param1 in val_samples_per_param:
+            for val_param2 in val_samples_per_param:
+                sample[iconfig, 0] = val_param1
+                sample[iconfig, 1] = val_param2
+                iconfig+=1
+
+        print(dataset_params["num_examples"], dataset_params["num_input_params"], val_samples_per_param)
+        print(sample)
+    else:
+        sys.exit("dataset_params['sampling_method'] not recognised or see source code for type 'linear'")
+
     dataset["input_parameters"] = sample
 
     return dataset
