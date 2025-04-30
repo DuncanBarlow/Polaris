@@ -1,14 +1,6 @@
 Code written by Duncan Barlow at Universite de Bordeaux. Some code taken from other sources but cited.
 
-# README for PDD Neural Network
-
-## Clone
-
-use command:
-
-     git clone https://github.com/DuncanBarlow/PDDOptimisation.git
-
-via https.
+Code for optimizing laser illumination configurations for multi-beam facilities.
 
 ## Quick start
 
