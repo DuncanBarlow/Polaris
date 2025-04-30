@@ -18,7 +18,6 @@ def define_system_params(data_dir):
     sys_params["num_openmp_parallel"] = 4
     sys_params["num_ex_checkpoint"] = 1
 
-    sys_params["run_gen_deck"] = True
     sys_params["run_sims"] = True
     sys_params["run_checkpoint"] = True
     sys_params["run_clean"] = True
@@ -56,35 +55,61 @@ def define_system_params(data_dir):
 
 
 def define_dataset_params(num_examples, sys_params,
-                          random_sampling=0,
                           random_seed=12345):
     dataset_params = {}
-
-    target_radius = 1100.0
-    default_power_per_beam_TW = 1.0
-
-    dataset_params["run_plasma_profile"] = True
-    dataset_params["plasma_profile_source"] = "multi" # "default"
-    dataset_params["num_profiles_per_config"] = 2
-    # if run_plasma_profile=True, define plasma profile times:
-    dataset_params["plasma_profile_times"] = np.linspace(0.1,15,int(dataset_params["num_profiles_per_config"]))
-    # if run_plasma_profile=False, len(illumination_evaluation_radii)>=num_profiles_per_config
-    illumination_evaluation_radii = np.zeros((dataset_params["num_profiles_per_config"])) + target_radius
-
+    dataset_params["facility"] = "omega"
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
-    dataset_params["random_sampling"] = random_sampling
-    dataset_params["hemisphere_symmetric"] = False
-    dataset_params["imap_nside"] = 256
+    dataset_params["sampling_method"] = "random" #"random", "lhs", "linear"
     dataset_params["run_with_cbet"] = False
+    dataset_params["run_plasma_profile"] = False
+
+    target_radius = 1100.0
+    dataset_params['default_power'] = 1.0 # default power per beam TW
+
+    dataset_params["plasma_profile_source"] = "default" #"multi" # "default"
+    dataset_params["num_profiles_per_config"] = 1
+    dataset_params["plasma_profile_times"] = np.linspace(0.1,14.,int(dataset_params["num_profiles_per_config"]))
+    dataset_params['target_radius'] = target_radius
+    dataset_params['illumination_evaluation_radii'] = np.zeros((dataset_params["num_profiles_per_config"])) + target_radius
+
+    dataset_params["imap_nside"] = 256
+    dataset_params["LMAX"] = 30
+    dataset_params["num_coeff"] = int(((dataset_params["LMAX"] + 2) * (dataset_params["LMAX"] + 1))/2.0)
+
+    dataset_params = define_scan_parameters(dataset_params)
+
+    # facility specifications
+    if dataset_params["facility"] == "nif":
+        facility_spec = idg.import_nif_config(sys_params)
+        # assume hemisphere symmetry
+        dataset_params["num_input_params"] = int(facility_spec['num_cones']/2) * dataset_params["num_variables_per_beam"]
+        dataset_params["num_beam_groups"] = int(facility_spec['num_cones']/2)
+    elif (dataset_params["facility"] == "lmj") or (dataset_params["facility"] == "test"):
+        facility_spec = idg.import_lmj_config(sys_params, dataset_params["quad_split_bool"])
+        dataset_params["num_input_params"] = int(facility_spec['num_cones']/2) * dataset_params["num_variables_per_beam"]
+        dataset_params["num_beam_groups"] = int(facility_spec['num_cones']/2)
+    elif (dataset_params["facility"] == "omega"):
+        facility_spec = idg.import_direct_drive_config(sys_params)
+        dataset_params["num_beam_groups"] = 1
+
+    dataset_params["num_input_params"] = dataset_params["num_beam_groups"] * dataset_params["num_variables_per_beam"]
+
+    return dataset_params, facility_spec
+
+
+def define_scan_parameters(dataset_params):
+    dataset_params["hemisphere_symmetric"] = False
 
     num_variables_per_beam = 0
     # pointings
+    dataset_params["pointing_bool"] = False
     dataset_params["surface_cover_radians"] = np.radians(30.0)
-    dataset_params["theta_index"] = num_variables_per_beam
-    num_variables_per_beam += 1
-    dataset_params["phi_index"] = num_variables_per_beam
-    num_variables_per_beam += 1
+    if dataset_params["pointing_bool"]:
+        dataset_params["theta_index"] = num_variables_per_beam
+        num_variables_per_beam += 1
+        dataset_params["phi_index"] = num_variables_per_beam
+        num_variables_per_beam += 1
     # defocus
     dataset_params["defocus_default"] = 0.0
     dataset_params["defocus_range"] = 35.0 # mm
@@ -104,42 +129,61 @@ def define_dataset_params(num_examples, sys_params,
             num_variables_per_beam += 1
     # power (time-varying?)
     dataset_params["min_power"] = 0.5 # fraction of full power
-    dataset_params["power_index"] = num_variables_per_beam
+    dataset_params["power_bool"] = False
     dataset_params["time_varying_pulse"] = False
-    if dataset_params["time_varying_pulse"]:
-        dataset_params["num_powers_per_cone"] = dataset_params["num_profiles_per_config"]
-        num_variables_per_beam += dataset_params["num_profiles_per_config"]
-    else:
-        dataset_params["num_powers_per_cone"] = 1
+    dataset_params["num_powers_per_cone"] = 1
+    if dataset_params["power_bool"]:
+        dataset_params["power_index"] = num_variables_per_beam
+        if dataset_params["time_varying_pulse"]:
+            dataset_params["num_powers_per_cone"] = dataset_params["num_profiles_per_config"]
+            num_variables_per_beam += dataset_params["num_profiles_per_config"]
+        else:
+            num_variables_per_beam += 1
+    # beamspot
+    dataset_params["beamspot_bool"] = False
+    dataset_params["beamspot_order_default"] = 5.0
+    dataset_params["beamspot_radius_default"] = dataset_params['target_radius']
+    dataset_params["beamspot_radius_min"] = dataset_params["beamspot_radius_default"] / 10.
+    if dataset_params["beamspot_bool"]:
+        dataset_params["beamspot_order_index"] = num_variables_per_beam
+        num_variables_per_beam += 1
+        dataset_params["beamspot_radius_index"] = num_variables_per_beam
         num_variables_per_beam += 1
 
     dataset_params["num_variables_per_beam"] = num_variables_per_beam
-    dataset_params["run_type"] = "lmj" #"test" #"lmj" #"nif"
-    if dataset_params["run_type"] == "nif":
-        facility_spec = idg.import_nif_config(sys_params)
-    elif (dataset_params["run_type"] == "lmj") or (dataset_params["run_type"] == "test"):
-        facility_spec = idg.import_lmj_config(sys_params, dataset_params["quad_split_bool"])
-    facility_spec['target_radius'] = illumination_evaluation_radii
-    facility_spec['default_power'] = default_power_per_beam_TW
 
-    dataset_params["LMAX"] = 30
-    dataset_params["num_coeff"] = int(((dataset_params["LMAX"] + 2) * (dataset_params["LMAX"] + 1))/2.0)
-    # Assume symmetry
-    dataset_params["num_input_params"] = int(facility_spec['num_cones']/2) * dataset_params["num_variables_per_beam"]
-
-    return dataset_params, facility_spec
+    return dataset_params
 
 
 def populate_dataset_random_inputs(dataset_params, dataset):
+    num_examples = dataset_params["num_examples"]
+    num_input_params = dataset_params["num_input_params"]
 
     random_generator=np.random.default_rng(dataset_params["random_seed"])
-    if dataset_params["random_sampling"] == 1:
+    if dataset_params["sampling_method"] == "random":
         print("Random Sampling!")
         sample = random_generator.random((dataset_params["num_examples"], dataset_params["num_input_params"]))
-    else:
+    elif dataset_params["sampling_method"] == "lhs":
         sampler = qmc.LatinHypercube(d=dataset_params["num_input_params"],
                                      strength=1, seed=random_generator, optimization="random-cd")
         sample = sampler.random(n=dataset_params["num_examples"])
+    elif (dataset_params["sampling_method"] == "linear") and (num_input_params==2) \
+          and (int((num_examples)**(1.0/num_input_params))**num_input_params==int(num_examples)):
+        sample = np.zeros((dataset_params["num_examples"], dataset_params["num_input_params"]))
+        num_samples_per_param = int((dataset_params["num_examples"])**(1.0/dataset_params["num_input_params"]))
+        val_samples_per_param = np.linspace(0.,1.,num_samples_per_param)
+        iconfig = 0
+        for val_param1 in val_samples_per_param:
+            for val_param2 in val_samples_per_param:
+                sample[iconfig, 0] = val_param1
+                sample[iconfig, 1] = val_param2
+                iconfig+=1
+
+        print(dataset_params["num_examples"], dataset_params["num_input_params"], val_samples_per_param)
+        print(sample)
+    else:
+        sys.exit("dataset_params['sampling_method'] not recognised or see source code for type 'linear'")
+
     dataset["input_parameters"] = sample
 
     return dataset

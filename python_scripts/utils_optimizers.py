@@ -19,23 +19,23 @@ def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
 
 
 
-def define_optimizer_parameters(run_dir, num_optimization_params, num_init_examples, n_iter,
-                                random_seed, facility_spec, run_clean, run_plasma_profile):
+def define_optimizer_parameters(run_dir, num_init_examples, n_iter,
+                                dataset_params, facility_spec, sys_params):
     opt_params = {}
     opt_params["run_dir"] = run_dir
-    opt_params["num_optimization_params"] = num_optimization_params
+    opt_params["num_optimization_params"] = dataset_params["num_input_params"]
     opt_params["num_init_examples"] = num_init_examples
     opt_params["n_iter"] = n_iter
-    opt_params["run_clean"] = run_clean
-    opt_params["random_generator"] = np.random.default_rng(random_seed)
+    opt_params["run_clean"] = sys_params["run_clean"]
+    opt_params["random_generator"] = np.random.default_rng(dataset_params["random_seed"])
     opt_params["fitness_desired_power_per_steradian"] = facility_spec['nbeams'] \
-        * facility_spec['default_power'] * 1.0e12 / (4.0 * np.pi)
+        * dataset_params['default_power'] * 1.0e12 / (4.0 * np.pi)
     opt_params["fitness_desired_pressure_mbar"] = 70.0
-    opt_params["fitness_limit_broken_pressure_mbar"] = 100.0
+    opt_params["fitness_limit_broken_pressure_mbar"] = 500.0
     opt_params["fitness_desired_rms"] = 0.05
     opt_params["fitness_norm_factor"] = 0.5
     opt_params["printout_iteration_skip"] = 1
-    opt_params["run_plasma_profile"] = run_plasma_profile
+    opt_params["run_plasma_profile"] = dataset_params["run_plasma_profile"]
 
     pbounds = np.zeros((opt_params["num_optimization_params"], 2))
     pbounds[:,1] = 1.0
