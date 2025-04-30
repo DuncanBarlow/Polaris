@@ -10,6 +10,8 @@ To generate training data in file "Data/Data\_input" with "10" examples:
 
      python training_data_generation.py ../Data/Data_input 10 run_type=full
 
+The "input deck" for changing parameters is found in: "python\_scripts/training_data_generation.py" within functions: "define_system_params", "define_dataset_params" and "define_scan_parameters".
+
 To run the optimisation suite use:
 
      python optimize.py ../Data/Data_output 100 2 10 1 10 1 10 0 12345 ../Data/Data_input
