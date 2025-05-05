@@ -547,7 +547,11 @@ def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, f
                         cpp="outer-50"
                 elif (dataset_params['facility'] == "lmj"):
                     beam = facility_spec["Quad"][j]
-                    cpp="LMJ-A"
+                    cone_name = facility_spec["Cone"][j]
+                    if (cone_name == 49.0) or (cone_name == 131.0):
+                        cpp="LMJ-A"
+                    else:
+                        cpp="LMJ-B"
                 elif (dataset_params['facility'] == "omega"):
                     beam = facility_spec["Beam"][j]
                     cpp="SG5"
