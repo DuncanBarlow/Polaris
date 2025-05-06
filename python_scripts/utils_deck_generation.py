@@ -239,8 +239,10 @@ def generate_facility_cpm48(facility_spec):
         for m in range(num_m):
             for l in range(num_l):
                 facility_spec["Theta"][j] = (-1.0)**m * theta_i[i] + 180.0 * m
-                facility_spec["Phi"][j] = (-1.0)**m * phi_i[i] + 90.0 * l
+                facility_spec["Phi"][j] = (-1.0)**m * phi_i[i] + 37.2604 * m + 90.0 * l
                 j+=1
+    facility_spec["Theta"] = np.radians(facility_spec["Theta"])
+    facility_spec["Phi"] = np.radians(facility_spec["Phi"])
     return facility_spec
 
 

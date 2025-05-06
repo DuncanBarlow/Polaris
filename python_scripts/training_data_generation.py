@@ -57,17 +57,17 @@ def define_system_params(data_dir):
 def define_dataset_params(num_examples, sys_params,
                           random_seed=12345):
     dataset_params = {}
-    dataset_params["facility"] = "custom_facility" #"nif" #"lmj" # "omega"
+    dataset_params["facility"] = "omega" #"custom_facility" #"nif" #"lmj" # "omega"
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
-    dataset_params["sampling_method"] = "linear" #"random", "lhs", "linear"
+    dataset_params["sampling_method"] = "random" #"random", "lhs", "linear"
     dataset_params["run_with_cbet"] = False
     dataset_params["run_plasma_profile"] = False
 
     target_radius = 2307.0
     dataset_params['default_power'] = 1.0 # default power per beam TW
 
-    dataset_params["plasma_profile_source"] = "multi" #"multi" # "default"
+    dataset_params["plasma_profile_source"] = "default" #"multi" # "default"
     dataset_params["num_profiles_per_config"] = 4
     dataset_params["plasma_profile_times"] = np.linspace(0.5,14.,int(dataset_params["num_profiles_per_config"]))
     dataset_params['target_radius'] = target_radius
@@ -140,10 +140,10 @@ def define_scan_parameters(dataset_params):
         else:
             num_variables_per_beam += 1
     # beamspot
-    dataset_params["beamspot_bool"] = True
-    dataset_params["beamspot_order_default"] = 8.0
+    dataset_params["beamspot_bool"] = False
+    dataset_params["beamspot_order_default"] = 5.0
     dataset_params["beamspot_radius_min"] = dataset_params['target_radius'] / 10.
-    dataset_params["beamspot_radius_max"] = dataset_params['target_radius'] * 3.
+    dataset_params["beamspot_radius_max"] = dataset_params['target_radius'] * 1.1
     if dataset_params["beamspot_bool"]:
         dataset_params["beamspot_order_index"] = num_variables_per_beam
         num_variables_per_beam += 1
