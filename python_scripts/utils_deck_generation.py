@@ -63,7 +63,7 @@ def create_run_files_pdd(dataset, deck_gen_params, dataset_params, sys_params, f
                 quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "B" in t or "L" in t]
             else:
                 bottom_hemisphere = False
-                quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "T" in t or "U" in t]
+                quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "T" in t or "U" in t or "H" in t]
             quad_list_in_cone = list(set(quad_list_in_cone))
 
             il = (icone*num_vars) % num_input_params
@@ -285,9 +285,33 @@ def import_nif_config(sys_params):
 
     return facility_spec
 
-
-
 def import_lmj_config(sys_params, quad_split_bool):
+    facility_spec = dict()
+
+    facility_spec['nbeams'] = 80
+    facility_spec['ifriit_facility_name'] = "LMJ"
+    facility_spec['num_quads'] = 20
+    facility_spec['num_cones'] = 4
+
+    # The order of these is important (top-to-equator, then bottom-to-equator)
+    facility_spec['quad_from_each_cone'] = np.array(('Q28H', 'Q10H', 'Q10B', 'Q28B'), dtype='<U4')
+
+    if quad_split_bool:
+        facility_spec["beams_per_ifriit_beam"] = 1
+        list_beam_keys = ["Beam", "Quad", "Cone", "Theta", "Phi", "PR"]
+        filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_UpperBeams_split.txt"
+        filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_LowerBeams_split.txt"
+        facility_spec = config_read_csv(facility_spec, filename1, filename2)
+    else :
+        facility_spec["beams_per_ifriit_beam"] = 4 # fuse quads?
+        filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_UpperBeams.txt"
+        filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_LowerBeams.txt"
+        facility_spec = config_read_csv(facility_spec, filename1, filename2)
+
+    facility_spec = config_formatting(facility_spec)
+    return facility_spec
+
+def import_lmj_config_back(sys_params, quad_split_bool):
     facility_spec = dict()
 
     facility_spec['nbeams'] = 80
@@ -362,7 +386,11 @@ def config_read_csv(facility_spec, filename1, filename2):
 
 def config_formatting(facility_spec):
     facility_spec["PR"] = np.array(facility_spec["PR"], dtype='i')
-    facility_spec["Beam"] = np.array(facility_spec["Beam"], dtype='<U4')
+    condition = ((facility_spec['ifriit_facility_name'] == "LMJ") and (len(facility_spec["Beam"]) == 80))
+    if condition :
+        facility_spec["Beam"] = np.array(facility_spec["Beam"], dtype='<U5')
+    else :
+        facility_spec["Beam"] = np.array(facility_spec["Beam"], dtype='<U4')
     facility_spec["Quad"] = np.array(facility_spec["Quad"], dtype='<U4')
     facility_spec["Cone"] = np.array(facility_spec["Cone"])
     facility_spec["Theta"] = np.radians(facility_spec["Theta"])
@@ -546,7 +574,10 @@ def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, f
                     else:
                         cpp="outer-50"
                 elif (dataset_params['facility'] == "lmj"):
-                    beam = facility_spec["Quad"][j]
+                    if dataset_params["quad_split_bool"] :
+                        beam = facility_spec["Beam"][j]
+                    else :
+                        beam = facility_spec["Quad"][j]
                     cone_name = facility_spec["Cone"][j]
                     if (cone_name == 49.0) or (cone_name == 131.0):
                         cpp="LMJ-A"
