@@ -49,8 +49,8 @@ def fitness_function(dataset, opt_params):
     norm_factor = opt_params["fitness_norm_factor"]
     number_of_timesteps = np.shape(dataset["rms"][:,:])[1]
 
-    rms = np.sqrt(np.sum(dataset["rms"][:,:]**2, axis=1) / float(number_of_timesteps))
-    avg_flux = np.sqrt(np.sum(dataset["avg_flux"][:,:]**2, axis=1) / float(number_of_timesteps))
+    rms = np.sqrt(np.sum(dataset["rms"]**2, axis=1) / float(number_of_timesteps))
+    avg_flux = np.sqrt(np.sum(dataset["avg_flux"]**2, axis=1) / float(number_of_timesteps))
     if opt_params["run_plasma_profile"]:
         target_flux = opt_params["fitness_desired_pressure_mbar"]
         indices = np.where(np.array(avg_flux) > opt_params["fitness_limit_broken_pressure_mbar"])[0]
@@ -59,7 +59,7 @@ def fitness_function(dataset, opt_params):
     else:
         target_flux = opt_params["fitness_desired_power_per_steradian"]
 
-    maxi_func = np.exp(-(rms/target_rms) + (avg_flux / target_flux) ** 0.25) * (avg_flux / target_flux) * norm_factor
+    maxi_func = np.exp(-(rms/target_rms) + (avg_flux / target_flux) ** 0.25) * (avg_flux / target_flux)**0.01 * norm_factor
     return maxi_func
 
 
