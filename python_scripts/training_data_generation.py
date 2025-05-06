@@ -14,13 +14,13 @@ import stat
 
 def define_system_params(data_dir):
     sys_params = {}
-    sys_params["num_parallel_ifriits"] = 1
-    sys_params["num_openmp_parallel"] = 4
+    sys_params["num_parallel_ifriits"] = 4
+    sys_params["num_openmp_parallel"] = 10
     sys_params["num_ex_checkpoint"] = 1
 
     sys_params["run_sims"] = True
     sys_params["run_checkpoint"] = True
-    sys_params["run_clean"] = True
+    sys_params["run_clean"] = False
 
     sys_params["root_dir"] = ".."
     sys_params["data_dir"] = data_dir
@@ -57,19 +57,19 @@ def define_system_params(data_dir):
 def define_dataset_params(num_examples, sys_params,
                           random_seed=12345):
     dataset_params = {}
-    dataset_params["facility"] = "omega"
+    dataset_params["facility"] = "custom_facility" #"nif" #"lmj" # "omega"
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
-    dataset_params["sampling_method"] = "random" #"random", "lhs", "linear"
+    dataset_params["sampling_method"] = "linear" #"random", "lhs", "linear"
     dataset_params["run_with_cbet"] = False
     dataset_params["run_plasma_profile"] = False
 
-    target_radius = 1100.0
+    target_radius = 2307.0
     dataset_params['default_power'] = 1.0 # default power per beam TW
 
-    dataset_params["plasma_profile_source"] = "default" #"multi" # "default"
-    dataset_params["num_profiles_per_config"] = 1
-    dataset_params["plasma_profile_times"] = np.linspace(0.1,14.,int(dataset_params["num_profiles_per_config"]))
+    dataset_params["plasma_profile_source"] = "multi" #"multi" # "default"
+    dataset_params["num_profiles_per_config"] = 4
+    dataset_params["plasma_profile_times"] = np.linspace(0.5,14.,int(dataset_params["num_profiles_per_config"]))
     dataset_params['target_radius'] = target_radius
     dataset_params['illumination_evaluation_radii'] = np.zeros((dataset_params["num_profiles_per_config"])) + target_radius
 
@@ -89,8 +89,8 @@ def define_dataset_params(num_examples, sys_params,
         facility_spec = idg.import_lmj_config(sys_params, dataset_params["quad_split_bool"])
         dataset_params["num_input_params"] = int(facility_spec['num_cones']/2) * dataset_params["num_variables_per_beam"]
         dataset_params["num_beam_groups"] = int(facility_spec['num_cones']/2)
-    elif (dataset_params["facility"] == "omega"):
-        facility_spec = idg.import_direct_drive_config(sys_params)
+    elif (dataset_params["facility"]=="custom_facility") or (dataset_params["facility"]=="omega"):
+        facility_spec = idg.import_direct_drive_config(sys_params, dataset_params)
         dataset_params["num_beam_groups"] = 1
 
     dataset_params["num_input_params"] = dataset_params["num_beam_groups"] * dataset_params["num_variables_per_beam"]
@@ -140,10 +140,10 @@ def define_scan_parameters(dataset_params):
         else:
             num_variables_per_beam += 1
     # beamspot
-    dataset_params["beamspot_bool"] = False
-    dataset_params["beamspot_order_default"] = 5.0
-    dataset_params["beamspot_radius_default"] = dataset_params['target_radius']
-    dataset_params["beamspot_radius_min"] = dataset_params["beamspot_radius_default"] / 10.
+    dataset_params["beamspot_bool"] = True
+    dataset_params["beamspot_order_default"] = 8.0
+    dataset_params["beamspot_radius_min"] = dataset_params['target_radius'] / 10.
+    dataset_params["beamspot_radius_max"] = dataset_params['target_radius'] * 3.
     if dataset_params["beamspot_bool"]:
         dataset_params["beamspot_order_index"] = num_variables_per_beam
         num_variables_per_beam += 1
@@ -178,9 +178,6 @@ def populate_dataset_random_inputs(dataset_params, dataset):
                 sample[iconfig, 0] = val_param1
                 sample[iconfig, 1] = val_param2
                 iconfig+=1
-
-        print(dataset_params["num_examples"], dataset_params["num_input_params"], val_samples_per_param)
-        print(sample)
     else:
         sys.exit("dataset_params['sampling_method'] not recognised or see source code for type 'linear'")
 
