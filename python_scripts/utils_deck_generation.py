@@ -350,7 +350,6 @@ def config_formatting(facility_spec):
         quad_name = facility_spec['quad_from_each_cone'][icone]
         quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
         quad_start_ind = quad_slice[0]
-
         cone_name = facility_spec['Cone'][quad_start_ind]
         facility_spec['beams_per_cone'][icone] = int(np.count_nonzero(facility_spec["Cone"] == cone_name) / 2 * facility_spec["beams_per_ifriit_beam"])
     facility_spec['beams_per_cone'] = np.array(facility_spec['beams_per_cone'], dtype='int8')
