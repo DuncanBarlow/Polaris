@@ -28,15 +28,28 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
     for iconfig in range(dataset["num_evaluated"], num_examples):
         ex_params = dataset["input_parameters"][iconfig,:]
 
-        if dataset_params["beamspot_bool"]:
-            deck_gen_params["beamspot_order"][iconfig,:] = (dataset_params["beamspot_order_default"] - 1.0) \
+        if dataset_params["scan_beamspot_bool"]:
+            deck_gen_params["beamspot_order"][iconfig,:] = (dataset_params["beamspot_order_max"] - 1.0) \
                                                            * ex_params[dataset_params["beamspot_order_index"]] + 1.0
             deck_gen_params["beamspot_major_radius"][iconfig,:] = (dataset_params["beamspot_radius_max"]
                                                                   - dataset_params["beamspot_radius_min"]) \
                                                                   * ex_params[dataset_params["beamspot_radius_index"]] \
                                                                   + dataset_params["beamspot_radius_min"]
             deck_gen_params["beamspot_minor_radius"][iconfig,:] = deck_gen_params["beamspot_major_radius"][iconfig,:]
+        elif dataset_params["select_beamspot_bool"]:
+            deck_gen_params["beamspot_order"][iconfig,:] = dataset_params["beamspot_order_default"]
+            deck_gen_params["beamspot_major_radius"][iconfig,:] = dataset_params["beamspot_radius_default"]
+            deck_gen_params["beamspot_minor_radius"][iconfig,:] = dataset_params["beamspot_radius_default"]
 
+        if dataset_params["scan_bandwidth_bool"]:
+            deck_gen_params["bandwidth_num_spectral_lines"][iconfig] = int((dataset_params["bandwidth_num_spectral_lines_max"] - 2)
+                                                                      * ex_params[dataset_params["bandwidth_lines_index"]] + 2)
+            deck_gen_params["bandwidth_percentage_width"][iconfig,:] = dataset_params["bandwidth_percentage_width_max"] \
+                                                                       ** (ex_params[dataset_params["bandwidth_percentage_index"]]
+                                                                       * 2.0 - 1.0)
+        elif dataset_params["select_bandwidth_bool"]:
+            deck_gen_params["bandwidth_num_spectral_lines"][iconfig] = dataset_params["bandwidth_num_spectral_lines_default"]
+            deck_gen_params["bandwidth_percentage_width"][iconfig,:] = dataset_params["bandwidth_percentage_width_default"]
     return deck_gen_params
 
 
@@ -195,6 +208,8 @@ def define_deck_generation_params(dataset_params, facility_spec):
     deck_gen_params["beamspot_order"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["beamspot_major_radius"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["beamspot_minor_radius"] = np.zeros((num_examples, num_ifriit_beams))
+    deck_gen_params["bandwidth_num_spectral_lines"] = np.zeros(num_examples, dtype=np.uint32)
+    deck_gen_params["bandwidth_percentage_width"] = np.zeros((num_examples, num_ifriit_beams))
 
     return deck_gen_params
 
@@ -399,8 +414,12 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                 os.makedirs(run_location)
 
             loc_ifriit_runfiles = sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
-            shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"],
-                            run_location + "/" + sys_params["ifriit_binary_filename"])
+            if dataset_params["bandwidth_bool"]:
+                shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"] + "_bandwidth",
+                                run_location + "/" + sys_params["ifriit_binary_filename"])
+            else:
+                shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"],
+                                run_location + "/" + sys_params["ifriit_binary_filename"])
 
         if (dataset_params["plasma_profile_source"] == "default") and dataset_params["run_plasma_profile"]:
             for tind in range(dataset_params["num_profiles_per_config"]):
@@ -443,7 +462,7 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                         config_location)
  
       for tind in range(dataset_params["num_profiles_per_config"]):
-          generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params)
+          generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params)
           if dataset_params["time_varying_pulse"]:
               pwr_ind = tind
           else:
@@ -489,7 +508,7 @@ def multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec):
 
 
 
-def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params):
+def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params):
     config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
     run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
 
@@ -507,8 +526,12 @@ def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params
                 elif "CBET = .FALSE.," in line:
                     if dataset_params["run_with_cbet"]:
                         new_file.write("    CBET = .TRUE.,\n")
+                        if dataset_params["bandwidth_bool"]:
+                            new_file.write("    BANDWIDTH_NLINES = {},\n".format(deck_gen_params["bandwidth_num_spectral_lines"][iconfig]))
                     else:
                         new_file.write("    CBET = .FALSE.,\n")
+                elif "RMAX                    = 6000.d0," in line:
+                    new_file.write("    RMAX                    = {:.5f}d0,\n".format(dataset_params['target_radius'] * 8.0))
                 else:
                     new_file.write(line)
 
@@ -563,6 +586,8 @@ def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, f
                 f.write('    PREDEF_CPP          = "'+cpp+'",\n')
                 f.write('    CPP_ROTATION_MODE   = 1,\n')
                 f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iconfig,j]))
+            if dataset_params["bandwidth_bool"]:
+                f.write('    BANDWIDTH_DELTA_OM_OM_PERCENT = {:.10f}d0,\n'.format(deck_gen_params["bandwidth_percentage_width"][iconfig,j]))
 
             if 'fuse' in deck_gen_params.keys() and deck_gen_params['fuse'][j]:
                 f.write('    FUSE_QUADS          = .TRUE.,\n')
