@@ -26,6 +26,7 @@ def define_system_params(data_dir):
     sys_params["data_dir"] = data_dir
     sys_params["config_dir"] = "config_"
     sys_params["sim_dir"] = "time_"
+    sys_params["pert_dir"] = "pert_"
     sys_params["figure_location"] = "plots"
     sys_params["plot_file_type"] = ".pdf"
     sys_params["bash_parallel_ifriit"] = "bash_parallel_ifriit"
@@ -76,6 +77,10 @@ def define_dataset_params(num_examples, sys_params,
     dataset_params["imap_nside"] = 256
     dataset_params["LMAX"] = 30
     dataset_params["num_coeff"] = int(((dataset_params["LMAX"] + 2) * (dataset_params["LMAX"] + 1))/2.0)
+
+    dataset_params["num_perturbations"] = 1
+    dataset_params["target_offset_bool"] = False
+    dataset_params["target_offset_amplitude_max"] = 0.01 # fraction of target radius
 
     dataset_params = define_scan_parameters(dataset_params)
 
@@ -222,10 +227,10 @@ def define_dataset(dataset_params):
     dataset["num_evaluated"] = 0
 
     dataset["input_parameters"] = np.zeros((dataset_params["num_examples"], dataset_params["num_input_params"]))
-    dataset["real_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"], dataset_params["num_coeff"]))
-    dataset["imag_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"], dataset_params["num_coeff"]))
-    dataset["avg_flux"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"]))
-    dataset["rms"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"]))
+    dataset["real_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"], dataset_params["num_perturbations"], dataset_params["num_coeff"]))
+    dataset["imag_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"], dataset_params["num_perturbations"], dataset_params["num_coeff"]))
+    dataset["avg_flux"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"], dataset_params["num_perturbations"]))
+    dataset["rms"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"], dataset_params["num_perturbations"]))
     return dataset
 
 
@@ -268,15 +273,16 @@ def generate_training_data(dataset, dataset_params, sys_params, facility_spec):
 def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec):
     config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"]
     for tind in range(dataset_params["num_profiles_per_config"]):
-        sim_dir = "/" + sys_params["sim_dir"] + str(tind)
+        for ipert in range(dataset_params["num_perturbations"]):
+            sim_dir = "/" + sys_params["sim_dir"] + str(tind) + "/" + sys_params["pert_dir"] + str(ipert)
 
-        if dataset_params["run_plasma_profile"]:
-            num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
-        else:
-            num_mpi_parallel = 1
+            if dataset_params["run_plasma_profile"]:
+                num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
+            else:
+                num_mpi_parallel = 1
 
-        loc_bash_parallel_ifriit = sys_params["root_dir"] + "/" + sys_params["bash_parallel_ifriit"]
-        subprocess.check_call(["./" + loc_bash_parallel_ifriit, config_location, sim_dir, str(min_parallel), str(max_parallel), str(num_mpi_parallel), str(sys_params["num_openmp_parallel"])])
+            loc_bash_parallel_ifriit = sys_params["root_dir"] + "/" + sys_params["bash_parallel_ifriit"]
+            subprocess.check_call(["./" + loc_bash_parallel_ifriit, config_location, sim_dir, str(min_parallel), str(max_parallel), str(num_mpi_parallel), str(sys_params["num_openmp_parallel"])])
 
     dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
     return dataset

@@ -30,13 +30,8 @@ def read_general_netcdf(filename):
     rootgrp = Dataset(filename)
     keys = list(rootgrp.variables.keys())
     for key in keys:
-        if np.shape(np.shape(rootgrp[key]))[0] == 3:
-            parameters[key] = rootgrp[key][:,:,:]
-        if np.shape(np.shape(rootgrp[key]))[0] == 2:
-            parameters[key] = rootgrp[key][:,:]
-        if np.shape(np.shape(rootgrp[key]))[0] == 1:
-            parameters[key] = rootgrp[key][:]
-        #print(key, parameters[key])
+        parameters[key] = rootgrp[key][:]
+        #print(key, np.shape(parameters[key]))
 
     keys = list(rootgrp.__dict__.keys())
     for key in keys:
@@ -81,37 +76,23 @@ def save_general_netcdf(parameters, filename, extra_dimension={}):
             item = np.array(item, dtype='S'+str(str_length))
             dims = dims + (str_length,)
             total_dims += 1
-        if total_dims == 3:
-            rootgrp.createDimension(key+'_'+'item_dim1', dims[0])
-            rootgrp.createDimension(key+'_'+'item_dim2', dims[1])
-            rootgrp.createDimension(key+'_'+'item_dim3', dims[2])
-            variable = rootgrp.createVariable(key, var_type,
-                                            (key+'_'+'item_dim1',
-                                             key+'_'+'item_dim2',
-                                             key+'_'+'item_dim3'))
-            variable._Encoding = 'ascii' # this enables automatic conversion of strings
-            variable[:,:,:] = item
-        if total_dims == 2:
-            rootgrp.createDimension(key+'_'+'item_dim1', dims[0])
-            rootgrp.createDimension(key+'_'+'item_dim2', dims[1])
-            variable = rootgrp.createVariable(key, var_type,
-                                            (key+'_'+'item_dim1',
-                                             key+'_'+'item_dim2'))
-            variable._Encoding = 'ascii' # this enables automatic conversion
-            variable[:,:] = item
-        if total_dims == 1:
-            rootgrp.createDimension(key+'_'+'item_dim1', dims[0])
-            variable = rootgrp.createVariable(key, var_type,
-                                            (key+'_'+'item_dim1'))
-            variable._Encoding = 'ascii' # this enables automatic conversion
-            variable[:] = item
+        list_dim_labels = [None] * total_dims
+
         if total_dims == 0:
             if item == True:
                 item = 1
             if item == False:
                 item = 0
             setattr(rootgrp, key, item)
-
+        else:
+            for idims in range(total_dims):
+                list_dim_labels[idims] = key +'_' + "item_dim" + str(idims+1)
+                rootgrp.createDimension(list_dim_labels[idims], dims[idims])
+            #print(list_dim_labels)
+            variable = rootgrp.createVariable(key, var_type, list_dim_labels)
+            variable._Encoding = 'ascii' # this enables automatic conversion of strings
+            variable[:] = item
+            #print(key, np.shape(item))
     for key, item in extra_dimension.items():
         #print("Saving extra dimensions: ",key, item)
         rootgrp.createDimension(key, int(item))
@@ -124,42 +105,44 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
     for iex in range(min_parallel, max_parallel+1):
         config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iex)
         for tind in range(dataset_params["num_profiles_per_config"]):
-            run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
-            dir_illumination = run_location+"/"+sys_params["heat_source_nc"]
-            if os.path.exists(dir_illumination):
-                hs_and_modes = read_general_netcdf(dir_illumination)
-                dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:], dataset["avg_flux"][iex,tind] = uim.heatsource_analysis(hs_and_modes)
-                dataset["rms"][iex,tind] = uim.alms2rms(dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:], dataset_params["LMAX"])
-
-                print(dir_illumination)
-                print("With density profiles:")
-                print('Mean ablation pressure: {:.2f}Mbar'.format(dataset["avg_flux"][iex, tind]))
-                print("The rms is: {:.2f} %".format(dataset["rms"][iex,tind]*100.0))
-
-            else:
-                dir_illumination = run_location + "/" + sys_params["ifriit_ouput_name"]
+            tind_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+            for ipert in range(dataset_params["num_perturbations"]):
+                run_location = tind_location + "/" + sys_params["pert_dir"] + str(ipert)
+                dir_illumination = run_location+"/"+sys_params["heat_source_nc"]
                 if os.path.exists(dir_illumination):
-                    parameters = read_general_netcdf(dir_illumination)
-                    intensity_map = parameters["intensity"] * (dataset_params['illumination_evaluation_radii'][tind] / 10000.0)**2
-
-                    intensity_map_normalized, dataset["avg_flux"][iex,tind] = uim.imap_norm(intensity_map)
-                    dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:] = uhp.imap2modes(intensity_map_normalized, dataset_params["LMAX"])
-                    dataset["rms"][iex,tind] = uim.alms2rms(dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:], dataset_params["LMAX"])
+                    hs_and_modes = read_general_netcdf(dir_illumination)
+                    dataset["real_modes"][iex,tind,ipert,:], dataset["imag_modes"][iex,tind,ipert,:], dataset["avg_flux"][iex,tind,ipert] = uim.heatsource_analysis(hs_and_modes)
+                    dataset["rms"][iex,tind,ipert] = uim.alms2rms(dataset["real_modes"][iex,tind,ipert,:], dataset["imag_modes"][iex,tind,ipert,:], dataset_params["LMAX"])
 
                     print(dir_illumination)
-                    print("Without density profiles:")
-                    print('Intensity per steradian, {:.2e}W/sr'.format(dataset["avg_flux"][iex, tind]))
-                    print("The rms is: {:.2f} %".format(dataset["rms"][iex,tind]*100.0))
-                else:
-                    print("Broken illumination!")
+                    print("With density profiles:")
+                    print('Mean ablation pressure: {:.2f}Mbar'.format(dataset["avg_flux"][iex, tind, ipert]))
+                    print("The rms is: {:.2f} %".format(dataset["rms"][iex, tind, ipert]*100.0))
 
-            if not sys_params["run_clean"]:
-                #os.remove(run_location + "/" + sys_params["ifriit_binary_filename"])
-                #os.remove(run_location + "/" + sys_params["ifriit_ouput_name"])
-                for filename in glob.glob(run_location + "/fort.*"):
-                    os.remove(filename)
-                for filename in glob.glob(run_location + "/abs_beam_*"):
-                    os.remove(filename)
+                else:
+                    dir_illumination = run_location + "/" + sys_params["ifriit_ouput_name"]
+                    if os.path.exists(dir_illumination):
+                        parameters = read_general_netcdf(dir_illumination)
+                        intensity_map = parameters["intensity"] * (dataset_params['illumination_evaluation_radii'][tind] / 10000.0)**2
+
+                        intensity_map_normalized, dataset["avg_flux"][iex,tind,ipert] = uim.imap_norm(intensity_map)
+                        dataset["real_modes"][iex,tind,ipert,:], dataset["imag_modes"][iex,tind,ipert,:] = uhp.imap2modes(intensity_map_normalized, dataset_params["LMAX"])
+                        dataset["rms"][iex,tind,ipert] = uim.alms2rms(dataset["real_modes"][iex,tind,ipert,:], dataset["imag_modes"][iex,tind,ipert,:], dataset_params["LMAX"])
+
+                        print(dir_illumination)
+                        print("Without density profiles:")
+                        print('Intensity per steradian, {:.2e}W/sr'.format(dataset["avg_flux"][iex, tind, ipert]))
+                        print("The rms is: {:.2f} %".format(dataset["rms"][iex,tind,ipert]*100.0))
+                    else:
+                        print("Broken illumination!")
+
+                if not sys_params["run_clean"]:
+                    #os.remove(run_location + "/" + sys_params["ifriit_binary_filename"])
+                    #os.remove(run_location + "/" + sys_params["ifriit_ouput_name"])
+                    for filename in glob.glob(run_location + "/fort.*"):
+                        os.remove(filename)
+                    for filename in glob.glob(run_location + "/abs_beam_*"):
+                        os.remove(filename)
         if sys_params["run_clean"]:
             file_exists = os.path.exists(config_location)
             if file_exists:
