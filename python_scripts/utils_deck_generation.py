@@ -26,6 +26,9 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
     deck_gen_params['pointings'][:,:] = np.zeros(3)
     deck_gen_params["power_multiplier"][:,:,:] = facility_spec['beams_per_ifriit_beam']
 
+    if dataset_params["target_offset_bool"]:
+        deck_gen_params = populate_dataset_random_perturbations(dataset_params, deck_gen_params)
+
     for iconfig in range(dataset["num_evaluated"], num_examples):
         ex_params = dataset["input_parameters"][iconfig,:]
 
@@ -51,6 +54,18 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
         elif dataset_params["select_bandwidth_bool"]:
             deck_gen_params["bandwidth_num_spectral_lines"][iconfig] = dataset_params["bandwidth_num_spectral_lines_default"]
             deck_gen_params["bandwidth_percentage_width"][iconfig,:] = dataset_params["bandwidth_percentage_width_default"]
+    return deck_gen_params
+
+
+def populate_dataset_random_perturbations(dataset_params, deck_gen_params):
+    print("Not sure this is correct 3D normal distribution")
+
+    sigma = dataset_params["target_offset_amplitude_mean"] * dataset_params['target_radius'] / np.sqrt(3)
+    npoints = dataset_params["num_perturbations"]
+    deck_gen_params["target_offset_xyz"][:,0] = np.random.normal(0.0,sigma,npoints)
+    deck_gen_params["target_offset_xyz"][:,1] = np.random.normal(0.0,sigma,npoints)
+    deck_gen_params["target_offset_xyz"][:,2] = np.random.normal(0.0,sigma,npoints)
+
     return deck_gen_params
 
 
@@ -196,6 +211,7 @@ def save_data_dicts_to_file(sys_params, dataset, dataset_params, deck_gen_params
 def define_deck_generation_params(dataset_params, facility_spec):
     num_examples = dataset_params["num_examples"]
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
+    num_perturbs = dataset_params["num_perturbations"]
 
     deck_gen_params = dict()
     deck_gen_params["non_expand_keys"] = ["non_expand_keys", "port_centre_theta", "port_centre_phi", "fuse_quads"]
@@ -215,6 +231,7 @@ def define_deck_generation_params(dataset_params, facility_spec):
     deck_gen_params["beamspot_minor_radius"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["bandwidth_num_spectral_lines"] = np.zeros(num_examples, dtype=np.uint32)
     deck_gen_params["bandwidth_percentage_width"] = np.zeros((num_examples, num_ifriit_beams))
+    deck_gen_params["target_offset_xyz"] = np.zeros((num_perturbs, 3))
 
     return deck_gen_params
 
@@ -462,7 +479,10 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
         for tind in range(dataset_params["num_profiles_per_config"]):
             run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
             isExist = os.path.exists(run_location)
-
+            if not isExist:
+                os.makedirs(run_location)
+            run_location = run_location + "/" + sys_params["pert_dir"] + str(0)
+            isExist = os.path.exists(run_location)
             if not isExist:
                 os.makedirs(run_location)
 
@@ -477,6 +497,7 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
         if (dataset_params["plasma_profile_source"] == "default") and dataset_params["run_plasma_profile"]:
             for tind in range(dataset_params["num_profiles_per_config"]):
                 run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+                run_location = run_location + "/" + sys_params["pert_dir"] + str(0)
                 shutil.copyfile(sys_params["root_dir"] + "/" +
                                 sys_params["plasma_profile_dir"] + "/" +
                                 sys_params["plasma_profile_nc"],
@@ -488,6 +509,8 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
             multi_data = um.multi_read_ascii(path+"/"+sys_params["multi_output_ascii_filename"])
             multi_data = um.read_inputs(path+"/"+sys_params["multi_input_filename"], multi_data)
             for tind in range(dataset_params["num_profiles_per_config"]):
+                run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+                run_location = run_location + "/" + sys_params["pert_dir"] + str(0)
                 itime_multi = np.argmin(np.abs(multi_data["time"]*1.e9-dataset_params["plasma_profile_times"][tind]))
                 multi_nc, ncells, nmat = um.multi2ifriit_inputs(multi_data, itime_multi, ind_interface_dt_ch)
 
@@ -501,12 +524,17 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                 dataset_params['illumination_evaluation_radii'][tind] = multi_nc["xs"][ind_critical]
 
                 if dataset_params["run_plasma_profile"]:
-                    config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
-                    run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
                     nrw.save_general_netcdf(multi_nc, run_location + "/" + sys_params["plasma_profile_nc"],
                                             extra_dimension={'x': ncells, 'z':1, 'nel':nmat})
 
                 multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset_params)
+        for tind in range(dataset_params["num_profiles_per_config"]):
+            for ipert in range(1, dataset_params["num_perturbations"]):
+                run_location = config_location + "/" + sys_params["sim_dir"] + str(tind) + "/" + sys_params["pert_dir"]
+                file_exists = os.path.exists(run_location + str(ipert))
+                if file_exists:
+                    shutil.rmtree(run_location + str(ipert))
+                shutil.copytree(run_location + str(0), run_location + str(ipert))
       else:
         config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
         file_exists = os.path.exists(config_location)
@@ -516,9 +544,9 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                         config_location)
 
       for tind in range(dataset_params["num_profiles_per_config"]):
-          generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params)
-          generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params)
-
+          for ipert in range(dataset_params["num_perturbations"]):
+              generate_input_deck(iconfig, tind, ipert, dataset_params, facility_spec, sys_params, deck_gen_params)
+              generate_input_pointing_and_pulses(iconfig, tind, ipert, dataset_params, facility_spec, sys_params, deck_gen_params)
 
 
 def multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset_params):
@@ -566,9 +594,9 @@ def multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset
 
 
 
-def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params):
+def generate_input_deck(iconfig, tind, ipert, dataset_params, facility_spec, sys_params, deck_gen_params):
     config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
-    run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+    run_location = config_location + "/" + sys_params["sim_dir"] + str(tind) + "/" + sys_params["pert_dir"] + str(ipert)
 
     loc_ifriit_runfiles = sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
     base_input_txt_loc = loc_ifriit_runfiles + "/" + sys_params["ifriit_input_name"]
@@ -590,14 +618,22 @@ def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params
                         new_file.write("    CBET = .FALSE.,\n")
                 elif "RMAX                    = 6000.d0," in line:
                     new_file.write("    RMAX                    = {:.5f}d0,\n".format(dataset_params['target_radius'] * 5.0))
+                elif "TARGET_OFFSET_UM" in line:
+                    if dataset_params["target_offset_bool"]:
+                        new_file.write("    TARGET_OFFSET_UM = {:.5f}d0, {:.5f}d0, {:.5f}d0,\n".format
+                                       (deck_gen_params["target_offset_xyz"][ipert,0],
+                                        deck_gen_params["target_offset_xyz"][ipert,1],
+                                        deck_gen_params["target_offset_xyz"][ipert,2]))
+                    else:
+                        new_file.write(line)
                 else:
                     new_file.write(line)
 
 
 
-def generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params):
+def generate_input_pointing_and_pulses(iconfig, tind, ipert, dataset_params, facility_spec, sys_params, deck_gen_params):
     config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
-    run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+    run_location = config_location + "/" + sys_params["sim_dir"] + str(tind) + "/" + sys_params["pert_dir"] + str(ipert)
 
     with open(run_location+'/ifriit_inputs.txt','a') as f:
         for j in range(int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])):
