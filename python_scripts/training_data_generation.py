@@ -273,16 +273,15 @@ def generate_training_data(dataset, dataset_params, sys_params, facility_spec):
 def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec):
     config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"]
     for tind in range(dataset_params["num_profiles_per_config"]):
-        for ipert in range(dataset_params["num_perturbations"]):
-            sim_dir = "/" + sys_params["sim_dir"] + str(tind) + "/" + sys_params["pert_dir"] + str(ipert)
+        sim_dir = "/" + sys_params["sim_dir"] + str(tind) + "/" + sys_params["pert_dir"]
 
-            if dataset_params["run_plasma_profile"]:
-                num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
-            else:
-                num_mpi_parallel = 1
+        if dataset_params["run_plasma_profile"]:
+            num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
+        else:
+            num_mpi_parallel = 1
 
-            loc_bash_parallel_ifriit = sys_params["root_dir"] + "/" + sys_params["bash_parallel_ifriit"]
-            subprocess.check_call(["./" + loc_bash_parallel_ifriit, config_location, sim_dir, str(min_parallel), str(max_parallel), str(num_mpi_parallel), str(sys_params["num_openmp_parallel"])])
+        loc_bash_parallel_ifriit = sys_params["root_dir"] + "/" + sys_params["bash_parallel_ifriit"]
+        subprocess.check_call(["./" + loc_bash_parallel_ifriit, config_location, sim_dir, str(min_parallel), str(max_parallel), str(num_mpi_parallel), str(sys_params["num_openmp_parallel"]), str(dataset_params["num_perturbations"])])
 
     dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
     return dataset
