@@ -6,6 +6,7 @@ min=$3
 max=$4
 nbeams=$5
 num_openmp=$6
+npert=$7
 homedir=$(pwd)
 
 echo "Running example "$min" to "$max" with mpi_procs="$nbeams" and openmp_threads="$num_openmp" per proc"
@@ -13,10 +14,15 @@ export OMP_NUM_THREADS=$num_openmp
 
 for i in $(seq $min $max)
 do
-    cd $run_location$i$sim_dir
-    chmod +x main
-    mpirun -np $nbeams ./main>a.out &
-    cd $homedir
+    for ipert in $(seq 0 $(($npert-1)))
+    do
+        echo "start: "$run_location$i$sim_dir$ipert
+	cd $run_location$i$sim_dir$ipert
+        chmod +x main
+	mpirun -np $nbeams ./main > a.out &
+	cd $homedir
+        echo "stop: "$run_location$i$sim_dir$ipert
+    done
 done
 
 wait
