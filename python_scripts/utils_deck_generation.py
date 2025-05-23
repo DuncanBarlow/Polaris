@@ -299,52 +299,17 @@ def import_lmj_config(sys_params, quad_split_bool):
     if quad_split_bool:
         facility_spec["beams_per_ifriit_beam"] = 1
         list_beam_keys = ["Beam", "Quad", "Cone", "Theta", "Phi", "PR"]
-        filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_UpperBeams_split.txt"
-        filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_LowerBeams_split.txt"
-        facility_spec = config_read_csv(facility_spec, filename1, filename2)
-    else :
-        facility_spec["beams_per_ifriit_beam"] = 4 # fuse quads?
         filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_UpperBeams.txt"
         filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_LowerBeams.txt"
         facility_spec = config_read_csv(facility_spec, filename1, filename2)
+    else :
+        facility_spec["beams_per_ifriit_beam"] = 4 # fuse quads?
+        filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_UpperQuads.txt"
+        filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_LowerQuads.txt"
+        facility_spec = config_read_csv(facility_spec, filename1, filename2)
 
     facility_spec = config_formatting(facility_spec)
     return facility_spec
-
-def import_lmj_config_back(sys_params, quad_split_bool):
-    facility_spec = dict()
-
-    facility_spec['nbeams'] = 80
-    facility_spec['ifriit_facility_name'] = "LMJ"
-    facility_spec['num_quads'] = 20
-    facility_spec['num_cones'] = 4
-
-    # The order of these is important (top-to-equator, then bottom-to-equator)
-    facility_spec['quad_from_each_cone'] = np.array(('28U', '10U', '10L', '28L'), dtype='<U4')
-    facility_spec["beams_per_ifriit_beam"] = 4 # fuse quads?
-
-    filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_UpperBeams.txt"
-    filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_LowerBeams.txt"
-    facility_spec = config_read_csv(facility_spec, filename1, filename2)
-
-    if quad_split_bool:
-        facility_spec["beams_per_ifriit_beam"] = 1
-        list_beam_keys = ["Beam", "Quad", "Cone", "Theta", "Phi", "PR"]
-        for key in list_beam_keys:
-            if key == "Theta":
-                facility_spec[key] = np.array(facility_spec[key])
-                facility_spec[key] = np.concatenate((facility_spec[key]+2.26, facility_spec[key]+2.26, facility_spec[key]-2.26, facility_spec[key]-2.26))
-            elif key == "Phi":
-                facility_spec[key] = np.array(facility_spec[key])
-                facility_spec[key] = np.concatenate((facility_spec[key]-1.769, facility_spec[key]+1.769, facility_spec[key]+1.769, facility_spec[key]-1.769))
-            else:
-                facility_spec[key] = np.concatenate((facility_spec[key], facility_spec[key], facility_spec[key], facility_spec[key]))
-
-    facility_spec = config_formatting(facility_spec)
-
-    return facility_spec
-
-
 
 def config_read_csv(facility_spec, filename1, filename2):
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
