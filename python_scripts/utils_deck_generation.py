@@ -288,9 +288,9 @@ def import_nif_config(sys_params):
 def import_lmj_config(sys_params, quad_split_bool):
     facility_spec = dict()
 
-    facility_spec['nbeams'] = 80
+    facility_spec['nbeams'] = 160
     facility_spec['ifriit_facility_name'] = "LMJ"
-    facility_spec['num_quads'] = 20
+    facility_spec['num_quads'] = 40
     facility_spec['num_cones'] = 4
 
     # The order of these is important (top-to-equator, then bottom-to-equator)
@@ -351,7 +351,7 @@ def config_read_csv(facility_spec, filename1, filename2):
 
 def config_formatting(facility_spec):
     facility_spec["PR"] = np.array(facility_spec["PR"], dtype='i')
-    condition = ((facility_spec['ifriit_facility_name'] == "LMJ") and (len(facility_spec["Beam"]) == 80))
+    condition = ((facility_spec['ifriit_facility_name'] == "LMJ") and (len(facility_spec["Beam"]) == 160))
     if condition :
         facility_spec["Beam"] = np.array(facility_spec["Beam"], dtype='<U5')
     else :
