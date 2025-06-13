@@ -281,6 +281,8 @@ def import_nif_config(sys_params):
     filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/NIF_UpperBeams.txt"
     filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/NIF_LowerBeams.txt"
     facility_spec = config_read_csv(facility_spec, filename1, filename2)
+    facility_spec["Cone"] = np.array(facility_spec["Cone"])
+    facility_spec['Cone'][int(facility_spec['nbeams']/2):] = 180. - facility_spec['Cone'][int(facility_spec['nbeams']/2):]
     facility_spec = config_formatting(facility_spec)
 
     return facility_spec
@@ -367,7 +369,7 @@ def config_formatting(facility_spec):
         quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
         quad_start_ind = quad_slice[0]
         cone_name = facility_spec['Cone'][quad_start_ind]
-        facility_spec['beams_per_cone'][icone] = int(np.count_nonzero(facility_spec["Cone"] == cone_name) / 2 * facility_spec["beams_per_ifriit_beam"])
+        facility_spec['beams_per_cone'][icone] = int(np.count_nonzero(facility_spec["Cone"] == cone_name) * facility_spec["beams_per_ifriit_beam"])
     facility_spec['beams_per_cone'] = np.array(facility_spec['beams_per_cone'], dtype='int8')
 
     return facility_spec
@@ -529,14 +531,16 @@ def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, f
                 if (dataset_params['facility'] == "nif"):
                     beam = facility_spec["Beam"][j]
                     cone_name = facility_spec["Cone"][j]
-                    if (cone_name == 23.5):
-                        cpp="inner-23"
-                    elif (cone_name == 30):
-                        cpp="inner-30"
-                    elif (cone_name == 44.5):
-                        cpp="outer-44"
+                    if (cone_name == 23.5 or abs(cone_name - 156.5) <= 1.0):
+                        cpp="NIF-inner-23"
+                    elif (cone_name == 30 or abs(cone_name - 150) <= 1.0):
+                        cpp="NIF-inner-30"
+                    elif (cone_name == 44.5 or abs(cone_name - 135.5) <= 1.0):
+                        cpp="NIF-outer-44"
+                    elif (cone_name == 50 or abs(cone_name - 130) <= 1.0):
+                        cpp="NIF-outer-50"
                     else:
-                        cpp="outer-50"
+                        sys.exit("Unrecognised cpp/cone name ", cone_name)
                 elif (dataset_params['facility'] == "lmj"):
                     if dataset_params["quad_split_bool"] :
                         beam = facility_spec["Beam"][j]

@@ -138,10 +138,9 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
                   "{:.2f}% power, ".format(cone_powers * 100) +
                   "{:.2f}mm qsplit,".format(quad_split_radius) +
                   "{:.2f}\N{DEGREE SIGN} qsplit".format(np.degrees(quad_split_skew)))
-
         total_power += cone_powers * beams_per_cone
 
-    mean_power_fraction = total_power / facility_spec['nbeams']
+    mean_power_fraction = total_power / (facility_spec['nbeams'] * dataset_params['default_power'])
     print_line.append('The optimization selected a mean power percentage, {:.2f}%, '.format(mean_power_fraction * 100.0))
 
     print_line.append('Total power emitted {:.2f}TW, '.format(total_power))
