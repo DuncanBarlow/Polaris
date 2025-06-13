@@ -13,14 +13,10 @@ export OMP_NUM_THREADS=$num_openmp
 
 for i in $(seq $min $max)
 do
-	cd $run_location$i$sim_dir
+    cd $run_location$i$sim_dir
     chmod +x main
-    if [ -n "${BRIDGE_MSUB_PWD+1}" ]; then
-        ccc_mprun -n $nbeams ./main 1>a.out 2>a.err &
-    else
-        mpirun -np $nbeams ./main 1>a.out 2>a.err &
-    fi
-	cd $homedir
+    mpirun -np $nbeams ./main>a.out &
+    cd $homedir
 done
 
 wait
