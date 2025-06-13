@@ -103,9 +103,13 @@ def define_scan_parameters(dataset_params):
 
     num_variables_per_beam = 0
     # pointings
+    dataset_params["theta_bool"] = False
     dataset_params["pointing_bool"] = False
     dataset_params["surface_cover_radians"] = np.radians(30.0)
-    if dataset_params["pointing_bool"]:
+    if dataset_params["theta_bool"]:
+        dataset_params["theta_index"] = num_variables_per_beam
+        num_variables_per_beam += 1
+    elif dataset_params["pointing_bool"]:
         dataset_params["theta_index"] = num_variables_per_beam
         num_variables_per_beam += 1
         dataset_params["phi_index"] = num_variables_per_beam

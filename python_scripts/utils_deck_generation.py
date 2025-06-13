@@ -70,7 +70,13 @@ def create_run_files_pdd(dataset, deck_gen_params, dataset_params, sys_params, f
             iu = ((icone+1)*num_vars-1) % num_input_params + 1
             cone_params = ex_params[il:iu]
 
-            if dataset_params["pointing_bool"]:
+            if dataset_params["theta_bool"]:
+                offset_phi = 0.0
+                offset_theta = (cone_params[dataset_params["theta_index"]] * 2.0 - 1.0) * dataset_params["surface_cover_radians"]
+                if bottom_hemisphere:
+                    offset_theta = - offset_theta
+                deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["theta_index"]] = offset_theta
+            elif dataset_params["pointing_bool"]:
                 x = cone_params[dataset_params["theta_index"]] * 2.0 - 1.0
                 y = cone_params[dataset_params["phi_index"]] * 2.0 - 1.0
                 r, offset_phi = hpoint.square2disk(x, y)
