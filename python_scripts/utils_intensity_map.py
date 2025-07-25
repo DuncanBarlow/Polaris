@@ -3,13 +3,13 @@ import os
 
 
 def angle2moll(theta, phi):
-    
+
     latitude = np.pi / 2.0 - theta
     if phi < np.pi:
         longitude = phi
     else:
         longitude = phi - 2.0 * np.pi
-    
+
     rad = 1.0 / np.sqrt(2.0)
     longitude0 = 0.0
     i=0
@@ -22,7 +22,7 @@ def angle2moll(theta, phi):
         i+=1
     x = rad * 2.0 * np.sqrt(2.0) / np.pi * (longitude - longitude0) * np.cos(angle2)
     y = rad * np.sqrt(2.0) * np.sin(angle2)
-    
+
     return x, y
 
 
@@ -106,11 +106,11 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
         phi_pointings_quad = np.arctan2(quad_centre[1], quad_centre[0])
 
         cone_phi_offset[quad_slice] = phi_pointings_quad%(2*np.pi)-deck_gen_params["port_centre_phi"][quad_slice[0]]
-    for icone in range(facility_spec['num_cones']):
-        quad_name = facility_spec['quad_from_each_cone'][icone]
+    for igroup in range(dataset_params['num_beam_groups']):
+        quad_name = dataset_params['quad_from_each_group'][igroup]
         quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
         quad_start_ind = quad_slice[0]
-        beams_per_cone = facility_spec['beams_per_cone'][icone]
+        beams_per_group = int(np.count_nonzero(dataset_params['beamgroup_name'] == dataset_params['beamgroup_name'][quad_start_ind]) * facility_spec["beams_per_ifriit_beam"])
 
         cone_defocus = deck_gen_params["defocus"][iex,quad_start_ind]
         if dataset_params["time_varying_pulse"]:
@@ -121,27 +121,25 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
                           dataset_params['default_power'] * facility_spec["beams_per_ifriit_beam"])
 
         if ("quad_split_bool" in dataset_params.keys()) and dataset_params["quad_split_bool"]:
-            quad_split_radius = 2. * dataset_params['target_radius'] / 1000 * np.sin(deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_index"]]/2.0)
+            quad_split_radius = 2. * dataset_params['target_radius'] / 1000 * np.sin(deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["quad_split_index"]]/2.0)
             if dataset_params["quad_split_skew_bool"]:
-                quad_split_skew = deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_skew_index"]]
+                quad_split_skew = deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["quad_split_skew_index"]]
             else:
                 quad_split_skew = 0.0
         else:
             quad_split_radius = 0.0
             quad_split_skew = 0.0
 
-        if icone < int(facility_spec['num_cones']/2):
-            print_line.append("For cone " + str(icone+1) +
-                  ": {:.2f}\N{DEGREE SIGN}, ".format(np.degrees(theta_pointings_quad[quad_start_ind])) +
-                  "{:.2f}\N{DEGREE SIGN}, ".format(np.degrees(cone_phi_offset[quad_start_ind])) +
-                  "{:.2f}mm, ".format(cone_defocus) +
-                  "{:.2f}% power, ".format(cone_powers * 100) +
-                  "{:.2f}mm qsplit,".format(quad_split_radius) +
-                  "{:.2f}\N{DEGREE SIGN} qsplit".format(np.degrees(quad_split_skew)))
+        print_line.append("For group " + dataset_params['beamgroup_name'][quad_start_ind] +
+              ": {:.2f}\N{DEGREE SIGN}, ".format(np.degrees(theta_pointings_quad[quad_start_ind])) +
+              "{:.2f}\N{DEGREE SIGN}, ".format(np.degrees(cone_phi_offset[quad_start_ind])) +
+              "{:.2f}mm, ".format(cone_defocus) +
+              "{:.2f}% power, ".format(cone_powers * 100) +
+              "{:.2f}mm qsplit,".format(quad_split_radius) +
+              "{:.2f}\N{DEGREE SIGN} qsplit".format(np.degrees(quad_split_skew)))
+        total_power += cone_powers * beams_per_group
 
-        total_power += cone_powers * beams_per_cone
-
-    mean_power_fraction = total_power / facility_spec['nbeams']
+    mean_power_fraction = total_power / (facility_spec['nbeams'] * dataset_params['default_power'])
     print_line.append('The optimization selected a mean power percentage, {:.2f}%, '.format(mean_power_fraction * 100.0))
 
     print_line.append('Total power emitted {:.2f}TW, '.format(total_power))

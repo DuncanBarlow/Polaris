@@ -63,6 +63,7 @@ def define_dataset_params(num_examples, sys_params,
     dataset_params["sampling_method"] = "random" #"random", "lhs", "linear"
     dataset_params["run_with_cbet"] = False
     dataset_params["run_plasma_profile"] = False
+    dataset_params["bool_group_beams_by_cone"] = False
 
     target_radius = 2307.0
     dataset_params['default_power'] = 1.0 # default power per beam TW
@@ -81,19 +82,15 @@ def define_dataset_params(num_examples, sys_params,
 
     # facility specifications
     if dataset_params["facility"] == "nif":
-        facility_spec = idg.import_nif_config(sys_params)
-        # assume hemisphere symmetry
-        dataset_params["num_input_params"] = int(facility_spec['num_cones']/2) * dataset_params["num_variables_per_beam"]
-        dataset_params["num_beam_groups"] = int(facility_spec['num_cones']/2)
+        facility_spec, dataset_params = idg.import_nif_config(sys_params, dataset_params)
     elif (dataset_params["facility"] == "lmj") or (dataset_params["facility"] == "test"):
-        facility_spec = idg.import_lmj_config(sys_params, dataset_params["quad_split_bool"])
-        dataset_params["num_input_params"] = int(facility_spec['num_cones']/2) * dataset_params["num_variables_per_beam"]
-        dataset_params["num_beam_groups"] = int(facility_spec['num_cones']/2)
+        facility_spec, dataset_params = idg.import_lmj_config(sys_params, dataset_params)
     elif (dataset_params["facility"]=="custom_facility") or (dataset_params["facility"]=="omega"):
         facility_spec = idg.import_direct_drive_config(sys_params, dataset_params)
-        dataset_params["num_beam_groups"] = 1
+    elif (dataset_params["facility"] == "omega"):
+        facility_spec = idg.import_direct_drive_config(sys_params)
 
-    dataset_params["num_input_params"] = dataset_params["num_beam_groups"] * dataset_params["num_variables_per_beam"]
+    dataset_params["num_input_params"] = dataset_params['num_beam_groups'] * dataset_params["num_variables_per_beam"]
 
     return dataset_params, facility_spec
 
@@ -103,9 +100,13 @@ def define_scan_parameters(dataset_params):
 
     num_variables_per_beam = 0
     # pointings
+    dataset_params["theta_bool"] = False
     dataset_params["pointing_bool"] = False
     dataset_params["surface_cover_radians"] = np.radians(30.0)
-    if dataset_params["pointing_bool"]:
+    if dataset_params["theta_bool"]:
+        dataset_params["theta_index"] = num_variables_per_beam
+        num_variables_per_beam += 1
+    elif dataset_params["pointing_bool"]:
         dataset_params["theta_index"] = num_variables_per_beam
         num_variables_per_beam += 1
         dataset_params["phi_index"] = num_variables_per_beam
@@ -262,6 +263,9 @@ def copy_python_files(sys_params):
                      path_bash_file)
     st = os.stat(path_bash_file)
     os.chmod(path_bash_file, st.st_mode | stat.S_IEXEC)
+
+    shutil.copytree(sys_params["root_dir"]+"/"+sys_params["ifriit_run_files_dir"],
+                    sys_params["data_dir"]+"/"+sys_params["ifriit_run_files_dir"], dirs_exist_ok=True)
 
     files = glob.iglob(os.path.join(sys_params["root_dir"]+"/"+sys_params["python_dir"], "*.py"))
 
