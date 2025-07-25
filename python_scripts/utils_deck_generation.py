@@ -578,7 +578,7 @@ def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params
                     else:
                         new_file.write("    CBET = .FALSE.,\n")
                 elif "RMAX                    = 6000.d0," in line:
-                    new_file.write("    RMAX                    = {:.5f}d0,\n".format(dataset_params['target_radius'] * 8.0))
+                    new_file.write("    RMAX                    = {:.5f}d0,\n".format(dataset_params['target_radius'] * 5.0))
                 else:
                     new_file.write(line)
 
