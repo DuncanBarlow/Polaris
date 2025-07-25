@@ -329,6 +329,14 @@ def main(argv):
         dataset, dataset_params, deck_gen_params, facility_spec = idg.load_data_dicts_from_file(sys_params)
         generate_training_data(dataset, dataset_params, sys_params, facility_spec)
 
+    if (run_type=="reload"):
+        dataset, dataset_params, deck_gen_params, facility_spec = idg.load_data_dicts_from_file(sys_params)
+        min_parallel = int(argv[2])
+        max_parallel = dataset_params["num_examples"]
+        dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
+        idg.save_data_dicts_to_file(sys_params, dataset, dataset_params, deck_gen_params, facility_spec)
+
+
     return dataset, dataset_params, sys_params, facility_spec
 
 
