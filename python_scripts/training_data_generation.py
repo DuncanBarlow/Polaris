@@ -264,6 +264,9 @@ def copy_python_files(sys_params):
     st = os.stat(path_bash_file)
     os.chmod(path_bash_file, st.st_mode | stat.S_IEXEC)
 
+    shutil.copytree(sys_params["root_dir"]+"/"+sys_params["ifriit_run_files_dir"],
+                    sys_params["data_dir"]+"/"+sys_params["ifriit_run_files_dir"], dirs_exist_ok=True)
+
     files = glob.iglob(os.path.join(sys_params["root_dir"]+"/"+sys_params["python_dir"], "*.py"))
 
     file_exists = os.path.exists(sys_params["data_dir"]+"/"+sys_params["python_dir"])
