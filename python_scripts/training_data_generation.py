@@ -63,6 +63,7 @@ def define_dataset_params(num_examples, sys_params,
     dataset_params["sampling_method"] = "random" #"random", "lhs", "linear"
     dataset_params["run_with_cbet"] = False
     dataset_params["run_plasma_profile"] = False
+    dataset_params["bool_group_beams_by_cone"] = False
 
     target_radius = 2307.0
     dataset_params['default_power'] = 1.0 # default power per beam TW
@@ -81,19 +82,15 @@ def define_dataset_params(num_examples, sys_params,
 
     # facility specifications
     if dataset_params["facility"] == "nif":
-        facility_spec = idg.import_nif_config(sys_params)
-        # assume hemisphere symmetry
-        dataset_params["num_input_params"] = int(facility_spec['num_cones']/2) * dataset_params["num_variables_per_beam"]
-        dataset_params["num_beam_groups"] = int(facility_spec['num_cones']/2)
+        facility_spec, dataset_params = idg.import_nif_config(sys_params, dataset_params)
     elif (dataset_params["facility"] == "lmj") or (dataset_params["facility"] == "test"):
-        facility_spec = idg.import_lmj_config(sys_params, dataset_params["quad_split_bool"])
-        dataset_params["num_input_params"] = int(facility_spec['num_cones']/2) * dataset_params["num_variables_per_beam"]
-        dataset_params["num_beam_groups"] = int(facility_spec['num_cones']/2)
+        facility_spec, dataset_params = idg.import_lmj_config(sys_params, dataset_params)
     elif (dataset_params["facility"]=="custom_facility") or (dataset_params["facility"]=="omega"):
         facility_spec = idg.import_direct_drive_config(sys_params, dataset_params)
-        dataset_params["num_beam_groups"] = 1
+    elif (dataset_params["facility"] == "omega"):
+        facility_spec = idg.import_direct_drive_config(sys_params)
 
-    dataset_params["num_input_params"] = dataset_params["num_beam_groups"] * dataset_params["num_variables_per_beam"]
+    dataset_params["num_input_params"] = dataset_params['num_beam_groups'] * dataset_params["num_variables_per_beam"]
 
     return dataset_params, facility_spec
 
