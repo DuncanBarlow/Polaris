@@ -65,14 +65,14 @@ def define_dataset_params(num_examples, sys_params,
     dataset_params["run_plasma_profile"] = False
     dataset_params["bool_group_beams_by_cone"] = False
 
-    target_radius = 2307.0
+    dataset_params['target_radius'] = 2307.0
     dataset_params['default_power'] = 1.0 # default power per beam TW
 
     dataset_params["plasma_profile_source"] = "default" #"multi" # "default"
     dataset_params["num_profiles_per_config"] = 4
     dataset_params["plasma_profile_times"] = np.linspace(0.5,14.,int(dataset_params["num_profiles_per_config"]))
-    dataset_params['target_radius'] = target_radius
-    dataset_params['illumination_evaluation_radii'] = np.zeros((dataset_params["num_profiles_per_config"])) + target_radius
+    dataset_params['illumination_evaluation_radii'] = np.zeros((dataset_params["num_profiles_per_config"])) \
+                                                     + dataset_params['target_radius']
 
     dataset_params["imap_nside"] = 256
     dataset_params["LMAX"] = 30
@@ -141,19 +141,48 @@ def define_scan_parameters(dataset_params):
         else:
             num_variables_per_beam += 1
     # beamspot
-    dataset_params["beamspot_bool"] = False
-    dataset_params["beamspot_order_default"] = 5.0
-    dataset_params["beamspot_radius_min"] = dataset_params['target_radius'] / 10.
-    dataset_params["beamspot_radius_max"] = dataset_params['target_radius'] * 1.1
-    if dataset_params["beamspot_bool"]:
+    dataset_params["select_beamspot_bool"] = False
+    dataset_params["beamspot_order_default"] = 3.0
+    dataset_params["beamspot_radius_default"] = dataset_params['target_radius']
+    dataset_params["scan_beamspot_bool"] = False
+    dataset_params["beamspot_order_max"] = dataset_params["beamspot_order_default"] * 2.0
+    dataset_params["beamspot_radius_min"] = dataset_params["beamspot_radius_default"] * 0.25
+    dataset_params["beamspot_radius_max"] = dataset_params["beamspot_radius_default"] * 1.2
+    if (dataset_params["select_beamspot_bool"] or dataset_params["scan_beamspot_bool"]):
+        dataset_params["beamspot_bool"] = True
+    else:
+        dataset_params["beamspot_bool"] = False
+    if (dataset_params["select_beamspot_bool"] and dataset_params["scan_beamspot_bool"]):
+        sys.exit("Either scan or select a specific beamspot. Can't do both.")
+    if dataset_params["scan_beamspot_bool"]:
         dataset_params["beamspot_order_index"] = num_variables_per_beam
         num_variables_per_beam += 1
         dataset_params["beamspot_radius_index"] = num_variables_per_beam
         num_variables_per_beam += 1
+    # bandwidth
+    dataset_params["select_bandwidth_bool"] = False
+    dataset_params["bandwidth_num_spectral_lines_default"] = 20
+    dataset_params["bandwidth_percentage_width_default"] = 1.
+    dataset_params["scan_bandwidth_bool"] = False
+    dataset_params["bandwidth_num_spectral_lines_max"] = dataset_params["bandwidth_num_spectral_lines_default"] * 2
+    dataset_params["bandwidth_percentage_width_max"] = dataset_params["bandwidth_percentage_width_default"] * 10.0
+    if (dataset_params["scan_bandwidth_bool"] or dataset_params["select_bandwidth_bool"]):
+        dataset_params["bandwidth_bool"] = True
+    else:
+        dataset_params["bandwidth_bool"] = False
+    if (dataset_params["bandwidth_bool"] and not dataset_params["run_with_cbet"]):
+        sys.exit("Trying to run bandwidth without CBET?!")
+    if (dataset_params["scan_bandwidth_bool"] and dataset_params["select_bandwidth_bool"]):
+        sys.exit("Either scan or select a specific bandwidth. Can't do both.")
+    if dataset_params["scan_bandwidth_bool"]:
+        dataset_params["bandwidth_lines_index"] = num_variables_per_beam
+        num_variables_per_beam += 1
+        dataset_params["bandwidth_percentage_index"] = num_variables_per_beam
+        num_variables_per_beam += 1
 
     dataset_params["num_variables_per_beam"] = num_variables_per_beam
-
     return dataset_params
+
 
 
 def populate_dataset_random_inputs(dataset_params, dataset):
@@ -299,6 +328,14 @@ def main(argv):
     if (run_type=="restart") or (run_type=="full"):
         dataset, dataset_params, deck_gen_params, facility_spec = idg.load_data_dicts_from_file(sys_params)
         generate_training_data(dataset, dataset_params, sys_params, facility_spec)
+
+    if (run_type=="reload"):
+        dataset, dataset_params, deck_gen_params, facility_spec = idg.load_data_dicts_from_file(sys_params)
+        min_parallel = int(argv[2])
+        max_parallel = dataset_params["num_examples"]
+        dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
+        idg.save_data_dicts_to_file(sys_params, dataset, dataset_params, deck_gen_params, facility_spec)
+
 
     return dataset, dataset_params, sys_params, facility_spec
 
