@@ -10,7 +10,7 @@ import utils_multi as um
 def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec):
     if (dataset_params["facility"]=="lmj") or (dataset_params["facility"]=="nif"):
         deck_gen_params = create_run_files_pdd(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
-    elif (dataset_params["facility"]=="omega"):
+    elif (dataset_params["facility"]=="omega") or (dataset_params['facility']=="custom_facility"):
         deck_gen_params = create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_params, facility_spec)
 
     generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_gen_params)
@@ -31,7 +31,8 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
         if dataset_params["beamspot_bool"]:
             deck_gen_params["beamspot_order"][iconfig,:] = (dataset_params["beamspot_order_default"] - 1.0) \
                                                            * ex_params[dataset_params["beamspot_order_index"]] + 1.0
-            deck_gen_params["beamspot_major_radius"][iconfig,:] = dataset_params["beamspot_radius_default"] \
+            deck_gen_params["beamspot_major_radius"][iconfig,:] = (dataset_params["beamspot_radius_max"]
+                                                                  - dataset_params["beamspot_radius_min"]) \
                                                                   * ex_params[dataset_params["beamspot_radius_index"]] \
                                                                   + dataset_params["beamspot_radius_min"]
             deck_gen_params["beamspot_minor_radius"][iconfig,:] = deck_gen_params["beamspot_major_radius"][iconfig,:]
@@ -198,19 +199,69 @@ def define_deck_generation_params(dataset_params, facility_spec):
     return deck_gen_params
 
 
-def import_direct_drive_config(sys_params):
+def import_direct_drive_config(sys_params, dataset_params):
     facility_spec = dict()
 
-    facility_spec['nbeams'] = 60
-    facility_spec['ifriit_facility_name'] = "OMEGA60"
     facility_spec['num_quads'] = 0
     facility_spec['num_cones'] = 0
     facility_spec['beams_per_ifriit_beam'] = 1
 
-    facility_spec['Beam'] = [None] * facility_spec['nbeams']
-    for ibeam in range(facility_spec['nbeams']):
-        facility_spec['Beam'][ibeam] = str(int(10 + ibeam))
+    if (dataset_params['facility']=="custom_facility"):
+        facility_spec['ifriit_facility_name'] = "cpm48" #"cpm48" #"cpm72" #"t11_b72" #"ico80"
+        if facility_spec['ifriit_facility_name'] == "cpm48":
+            facility_spec = generate_facility_cpm48(facility_spec)
+        else:
+            facility_spec = load_facility_csv(sys_params, facility_spec)
+        facility_spec["focal_length_metres"] = 10.0
+    else:
+        facility_spec['nbeams'] = 60
+        facility_spec['ifriit_facility_name'] = "OMEGA60"
 
+        facility_spec['Beam'] = [None] * facility_spec['nbeams']
+        for ibeam in range(facility_spec['nbeams']):
+            facility_spec['Beam'][ibeam] = str(int(10 + ibeam))
+
+    return facility_spec
+
+
+def generate_facility_cpm48(facility_spec):
+    facility_spec['nbeams'] = 48
+    facility_spec["Theta"] = np.zeros((facility_spec['nbeams']))
+    facility_spec["Phi"] = np.zeros((facility_spec['nbeams']))
+
+    theta_i = [21.24302, 43.64296, 51.30717, 69.91959, 72.99624, 83.35323]
+    phi_i = [0.0, 43.69981, 86.62623, 25.70934, 59.45306, 88.40802]
+    num_i = 6
+    num_m = 2
+    num_l = 4
+    j = 0
+    for i in range(num_i):
+        for m in range(num_m):
+            for l in range(num_l):
+                facility_spec["Theta"][j] = (-1.0)**m * theta_i[i] + 180.0 * m
+                facility_spec["Phi"][j] = (-1.0)**m * phi_i[i] + 37.2604 * m + 90.0 * l
+                j+=1
+    facility_spec["Theta"] = np.radians(facility_spec["Theta"])
+    facility_spec["Phi"] = np.radians(facility_spec["Phi"])
+    return facility_spec
+
+
+def load_facility_csv(sys_params, facility_spec):
+    path_facility_configs = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/"
+    f=open(path_facility_configs + facility_spec['ifriit_facility_name']+"_theta_phi_rad.txt", "r")
+    reader = csv.reader(f, delimiter=' ')
+
+    facility_spec["Theta"] = []
+    facility_spec["Phi"] = []
+    j = 0
+    for row in reader:
+        facility_spec["Theta"].append(float(row[0]))
+        facility_spec["Phi"].append(float(row[1]))
+        j=j+1
+    f.close()
+    facility_spec["Theta"] = np.array(facility_spec["Theta"])
+    facility_spec["Phi"] = np.array(facility_spec["Phi"])
+    facility_spec['nbeams'] = np.shape(facility_spec["Theta"])[0]
     return facility_spec
 
 
@@ -470,10 +521,10 @@ def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, f
             else:
                 f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iconfig,j,pwr_ind]))
 
-            if (dataset_params['facility'] == "custom"):
-                f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_theta'][j])))
-                f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(deck_gen_params['port_centre_phi'][j])))
-                f.write('    FOCAL_M             = 10.0d0,\n')
+            if (dataset_params['facility'] == "custom_facility"):
+                f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(facility_spec["Theta"][j])))
+                f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(facility_spec["Phi"][j])))
+                f.write('    FOCAL_M             = {:.10f}d0,\n'.format(facility_spec["focal_length_metres"]))
             else:
                 if (dataset_params['facility'] == "nif"):
                     beam = facility_spec["Beam"][j]
