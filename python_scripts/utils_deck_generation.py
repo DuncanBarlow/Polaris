@@ -225,7 +225,7 @@ def import_direct_drive_config(sys_params, dataset_params):
     facility_spec['num_quads'] = 0
     facility_spec['num_cones'] = 0
     facility_spec['beams_per_ifriit_beam'] = 1
-    facility_spec["num_beam_groups"] = 1
+    dataset_params['num_beam_groups'] = 1
 
     if (dataset_params['facility']=="custom_facility"):
         facility_spec['ifriit_facility_name'] = "cpm48" #"cpm48" #"cpm72" #"t11_b72" #"ico80"
@@ -234,13 +234,19 @@ def import_direct_drive_config(sys_params, dataset_params):
         else:
             facility_spec = load_facility_csv(sys_params, facility_spec)
         facility_spec["focal_length_metres"] = 10.0
+        facility_spec['Beam'] = list(map(str, np.arange(facility_spec['nbeams'])))
     else:
         facility_spec['nbeams'] = 60
         facility_spec['ifriit_facility_name'] = "OMEGA60"
+        facility_spec = load_facility_csv(sys_params, facility_spec)
+        facility_spec["Theta"] = np.radians(facility_spec["Theta"])
+        facility_spec["Phi"] = np.radians(facility_spec["Phi"])
 
         facility_spec['Beam'] = [None] * facility_spec['nbeams']
         for ibeam in range(facility_spec['nbeams']):
             facility_spec['Beam'][ibeam] = str(int(10 + ibeam))
+    dataset_params['beamgroup_name'] = np.array(np.zeros((int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"]))), dtype='<U20')
+    dataset_params['beamgroup_name'][:] = "group1"
 
     return facility_spec
 
@@ -356,7 +362,7 @@ def import_lmj_config(sys_params, dataset_params):
 def group_beams_by_cone(facility_spec, dataset_params):
     dataset_params['num_beam_groups'] = int(facility_spec['num_cones'] / 2) # hemisphere symmetry
     dataset_params['beams_per_group'] = np.array(np.zeros((int(dataset_params['num_beam_groups']))), dtype='int8')
-    dataset_params['beamgroup_name'] = np.array(np.zeros((int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"]))), dtype='<U5')
+    dataset_params['beamgroup_name'] = np.array(np.zeros((int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"]))), dtype='<U20')
 
     for igroup in range(dataset_params['num_beam_groups']):
         quad_name = dataset_params['quad_from_each_group'][igroup]
@@ -486,6 +492,7 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                 multi_nc, ncells, nmat = um.multi2ifriit_inputs(multi_data, itime_multi, ind_interface_dt_ch)
 
                 n_crit = um.critical_density(wavelength_l=multi_data["wavelength"])
+                dataset_params['laser_wavelength_nm'] = multi_data["wavelength"]
                 zero_crossings = np.where(np.diff(np.sign(multi_nc["ne"][0,:] - n_crit)))[0]
                 if len(zero_crossings)==0:
                     ind_critical = len(multi_nc["ne"][0,:])-1
@@ -591,7 +598,7 @@ def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, f
     with open(run_location+'/ifriit_inputs.txt','a') as f:
         for j in range(int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])):
             f.write('&BEAM\n')
-            f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(dataset_params['laser_wavelength']))
+            f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(dataset_params['laser_wavelength_nm']))
             f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iconfig,j][0],deck_gen_params['pointings'][iconfig,j][1],deck_gen_params['pointings'][iconfig,j][2]))
             if dataset_params["plasma_profile_source"] == "multi":
                 f.write('    POWER_PROFILE_FILE_TW_NS = "'+sys_params["ifriit_pulse_name"]+'"\n')

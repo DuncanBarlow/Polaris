@@ -15,7 +15,7 @@ import stat
 def define_system_params(data_dir):
     sys_params = {}
     sys_params["num_parallel_ifriits"] = 4
-    sys_params["num_openmp_parallel"] = 10
+    sys_params["num_openmp_parallel"] = 1
     sys_params["num_ex_checkpoint"] = 1
 
     sys_params["run_sims"] = True
@@ -69,7 +69,8 @@ def define_dataset_params(num_examples, sys_params,
     dataset_params['default_power'] = 1.0 # default power per beam TW
 
     dataset_params["plasma_profile_source"] = "default" #"multi" # "default"
-    dataset_params["num_profiles_per_config"] = 4
+    dataset_params['laser_wavelength_nm'] = 351.0 # multi inputs over-ride this
+    dataset_params["num_profiles_per_config"] = 1
     dataset_params["plasma_profile_times"] = np.linspace(0.5,14.,int(dataset_params["num_profiles_per_config"]))
     dataset_params['illumination_evaluation_radii'] = np.zeros((dataset_params["num_profiles_per_config"])) \
                                                      + dataset_params['target_radius']
