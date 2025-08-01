@@ -95,31 +95,28 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
 
     theta_pointings_quad = np.zeros(facility_spec['nbeams'])
     cone_phi_offset = np.zeros(facility_spec['nbeams'])
-    quad_list = list(set(facility_spec["Quad"]))
+    beam_list = list(set(facility_spec["Beam"]))
+    list_group_names = list(set(dataset_params['beamgroup_name']))
 
-    for quad_name in quad_list:
-        quad_slice = np.where(quad_name == facility_spec["Quad"])[0]
+    for igroup in range(dataset_params['num_beam_groups']):
+        group_name = list_group_names[igroup]
+        group_slice = np.where(dataset_params['beamgroup_name'] == group_name)[0]
+        beam_ind = group_slice[0]
+        beam_name = facility_spec["Beam"][beam_ind]
+        beams_per_group = int(len(group_slice) * facility_spec["beams_per_ifriit_beam"])
 
+        """
         quad_centre = np.sum(deck_gen_params['pointings'][iex,quad_slice],axis=0) / 4.0
         radius = np.sqrt(np.sum(quad_centre**2))
         theta_pointings_quad[quad_slice] = np.arccos(quad_centre[2] / radius)
         phi_pointings_quad = np.arctan2(quad_centre[1], quad_centre[0])
-
         cone_phi_offset[quad_slice] = phi_pointings_quad%(2*np.pi)-deck_gen_params["port_centre_phi"][quad_slice[0]]
-    for igroup in range(dataset_params['num_beam_groups']):
-        quad_name = dataset_params['quad_from_each_group'][igroup]
-        quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
-        quad_start_ind = quad_slice[0]
-        beams_per_group = int(np.count_nonzero(dataset_params['beamgroup_name'] == dataset_params['beamgroup_name'][quad_start_ind]) * facility_spec["beams_per_ifriit_beam"])
+        """
 
-        cone_defocus = deck_gen_params["defocus"][iex,quad_start_ind]
-        if dataset_params["time_varying_pulse"]:
-            cone_powers = deck_gen_params["p0"][iex,quad_start_ind,ind_profile] / (
-                          dataset_params['default_power'] * facility_spec["beams_per_ifriit_beam"])
-        else:
-            cone_powers = deck_gen_params["p0"][iex,quad_start_ind,0] / (
-                          dataset_params['default_power'] * facility_spec["beams_per_ifriit_beam"])
+        cone_defocus = deck_gen_params["defocus"][iex,beam_ind]
+        cone_powers = deck_gen_params["power_multiplier"][iex,beam_ind,ind_profile]
 
+        """
         if ("quad_split_bool" in dataset_params.keys()) and dataset_params["quad_split_bool"]:
             quad_split_radius = 2. * dataset_params['target_radius'] / 1000 * np.sin(deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["quad_split_index"]]/2.0)
             if dataset_params["quad_split_skew_bool"]:
@@ -129,22 +126,23 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
         else:
             quad_split_radius = 0.0
             quad_split_skew = 0.0
+        """
 
-        print_line.append("For group " + dataset_params['beamgroup_name'][quad_start_ind] +
-              ": {:.2f}\N{DEGREE SIGN}, ".format(np.degrees(theta_pointings_quad[quad_start_ind])) +
-              "{:.2f}\N{DEGREE SIGN}, ".format(np.degrees(cone_phi_offset[quad_start_ind])) +
+        print_line.append("For group '" + group_name + "': " +
+              #": {:.2f}\N{DEGREE SIGN}, ".format(np.degrees(theta_pointings_quad[quad_start_ind])) +
+              #"{:.2f}\N{DEGREE SIGN}, ".format(np.degrees(cone_phi_offset[quad_start_ind])) +
               "{:.2f}mm, ".format(cone_defocus) +
-              "{:.2f}% power, ".format(cone_powers * 100) +
-              "{:.2f}mm qsplit,".format(quad_split_radius) +
-              "{:.2f}\N{DEGREE SIGN} qsplit".format(np.degrees(quad_split_skew)))
-        total_power += cone_powers * beams_per_group
+              "{:.2f}% power, ".format(cone_powers * 100))# +
+              #"{:.2f}mm qsplit,".format(quad_split_radius) +
+              #"{:.2f}\N{DEGREE SIGN} qsplit".format(np.degrees(quad_split_skew)))
+        total_power += cone_powers * beams_per_group * dataset_params['default_power'][ind_profile]
 
-    mean_power_fraction = total_power / (facility_spec['nbeams'] * dataset_params['default_power'])
+    mean_power_fraction = total_power / (facility_spec['nbeams'] * dataset_params['default_power'][ind_profile])
     print_line.append('The optimization selected a mean power percentage, {:.2f}%, '.format(mean_power_fraction * 100.0))
 
     print_line.append('Total power emitted {:.2f}TW, '.format(total_power))
     if not dataset_params["run_plasma_profile"]:
-        print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * dataset_params['default_power'] * mean_power_fraction) * 100.0))
+        print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * dataset_params['default_power'][ind_profile] * mean_power_fraction) * 100.0))
 
     return print_line
 

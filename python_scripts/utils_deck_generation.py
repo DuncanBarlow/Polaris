@@ -24,7 +24,7 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
     num_vars = dataset_params["num_variables_per_beam"]
 
     deck_gen_params['pointings'][:,:] = np.zeros(3)
-    deck_gen_params["p0"][:,:] = dataset_params['default_power']
+    deck_gen_params["power_multiplier"][:,:,:] = facility_spec['beams_per_ifriit_beam']
 
     for iconfig in range(dataset["num_evaluated"], num_examples):
         ex_params = dataset["input_parameters"][iconfig,:]
@@ -100,15 +100,15 @@ def create_run_files_pdd(dataset, deck_gen_params, dataset_params, sys_params, f
                 cone_defocus = dataset_params["defocus_default"]
             deck_gen_params["defocus"][iex,group_slice] = cone_defocus
 
-            cone_power = np.zeros((dataset_params["num_powers_per_cone"]))
+            cone_power = np.zeros((dataset_params["num_profiles_per_config"]))
             if dataset_params["power_bool"]:
-                for tind in range(dataset_params["num_powers_per_cone"]):
+                for tind in range(dataset_params["num_profiles_per_config"]):
                     pind = dataset_params["power_index"] + tind
                     cone_power[tind] = (cone_params[pind] * (1.0 - dataset_params["min_power"]) + dataset_params["min_power"])
-                    deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["power_index"] + tind] = cone_power[tind]
-                    deck_gen_params["p0"][iex,group_slice,tind] = dataset_params['default_power'] * cone_power[tind] * facility_spec['beams_per_ifriit_beam']
+                    deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["power_index"] + tind] = cone_power[tind] * facility_spec['beams_per_ifriit_beam']
+                    deck_gen_params["power_multiplier"][iex,group_slice,tind] = cone_power[tind] * facility_spec['beams_per_ifriit_beam']
             else:
-                deck_gen_params["p0"][iex,group_slice,0] = dataset_params['default_power'] * facility_spec['beams_per_ifriit_beam']
+                deck_gen_params["power_multiplier"][iex,group_slice,:] = facility_spec['beams_per_ifriit_beam']
 
             for quad_name in quad_list_in_group:
                 quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
@@ -208,7 +208,7 @@ def define_deck_generation_params(dataset_params, facility_spec):
     deck_gen_params["theta_pointings"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["phi_pointings"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["defocus"] = np.zeros((num_examples, num_ifriit_beams))
-    deck_gen_params["p0"] = np.zeros((num_examples, num_ifriit_beams, dataset_params["num_powers_per_cone"]))
+    deck_gen_params["power_multiplier"] = np.zeros((num_examples, num_ifriit_beams, dataset_params["num_profiles_per_config"]))
     deck_gen_params["sim_params"] = np.zeros((num_examples, dataset_params["num_input_params"]*2))
     deck_gen_params["beamspot_order"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["beamspot_major_radius"] = np.zeros((num_examples, num_ifriit_beams))
@@ -225,7 +225,7 @@ def import_direct_drive_config(sys_params, dataset_params):
     facility_spec['num_quads'] = 0
     facility_spec['num_cones'] = 0
     facility_spec['beams_per_ifriit_beam'] = 1
-    facility_spec["num_beam_groups"] = 1
+    dataset_params['num_beam_groups'] = 1
 
     if (dataset_params['facility']=="custom_facility"):
         facility_spec['ifriit_facility_name'] = "cpm48" #"cpm48" #"cpm72" #"t11_b72" #"ico80"
@@ -234,13 +234,19 @@ def import_direct_drive_config(sys_params, dataset_params):
         else:
             facility_spec = load_facility_csv(sys_params, facility_spec)
         facility_spec["focal_length_metres"] = 10.0
+        facility_spec['Beam'] = list(map(str, np.arange(facility_spec['nbeams'])))
     else:
         facility_spec['nbeams'] = 60
         facility_spec['ifriit_facility_name'] = "OMEGA60"
+        facility_spec = load_facility_csv(sys_params, facility_spec)
+        facility_spec["Theta"] = np.radians(facility_spec["Theta"])
+        facility_spec["Phi"] = np.radians(facility_spec["Phi"])
 
         facility_spec['Beam'] = [None] * facility_spec['nbeams']
         for ibeam in range(facility_spec['nbeams']):
             facility_spec['Beam'][ibeam] = str(int(10 + ibeam))
+    dataset_params['beamgroup_name'] = np.array(np.zeros((int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"]))), dtype='<U20')
+    dataset_params['beamgroup_name'][:] = "group1"
 
     return facility_spec
 
@@ -356,7 +362,7 @@ def import_lmj_config(sys_params, dataset_params):
 def group_beams_by_cone(facility_spec, dataset_params):
     dataset_params['num_beam_groups'] = int(facility_spec['num_cones'] / 2) # hemisphere symmetry
     dataset_params['beams_per_group'] = np.array(np.zeros((int(dataset_params['num_beam_groups']))), dtype='int8')
-    dataset_params['beamgroup_name'] = np.array(np.zeros((int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"]))), dtype='<U5')
+    dataset_params['beamgroup_name'] = np.array(np.zeros((int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"]))), dtype='<U20')
 
     for igroup in range(dataset_params['num_beam_groups']):
         quad_name = dataset_params['quad_from_each_group'][igroup]
@@ -486,6 +492,7 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                 multi_nc, ncells, nmat = um.multi2ifriit_inputs(multi_data, itime_multi, ind_interface_dt_ch)
 
                 n_crit = um.critical_density(wavelength_l=multi_data["wavelength"])
+                dataset_params['laser_wavelength_nm'] = multi_data["wavelength"]
                 zero_crossings = np.where(np.diff(np.sign(multi_nc["ne"][0,:] - n_crit)))[0]
                 if len(zero_crossings)==0:
                     ind_critical = len(multi_nc["ne"][0,:])-1
@@ -499,7 +506,7 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                     nrw.save_general_netcdf(multi_nc, run_location + "/" + sys_params["plasma_profile_nc"],
                                             extra_dimension={'x': ncells, 'z':1, 'nel':nmat})
 
-                multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec)
+                multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset_params)
       else:
         config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
         file_exists = os.path.exists(config_location)
@@ -510,15 +517,11 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
 
       for tind in range(dataset_params["num_profiles_per_config"]):
           generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params)
-          if dataset_params["time_varying_pulse"]:
-              pwr_ind = tind
-          else:
-              pwr_ind = 0
-          generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, facility_spec, sys_params, deck_gen_params)
+          generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params)
 
 
 
-def multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec):
+def multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset_params):
     nbeams = facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam']
 
     path = sys_params["data_dir"] + "/" + sys_params["multi_dir"]
@@ -542,6 +545,14 @@ def multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec):
 
     new_pulse_time = old_pulse_time
     new_pulse_power = old_pulse_power / nbeams
+
+    normalised_timings = new_pulse_time - dataset_params["plasma_profile_times"][tind]
+    normalised_timings2 = abs(normalised_timings)-normalised_timings
+    interp_ind = np.argmin(normalised_timings2[np.nonzero(normalised_timings2)])
+
+    interp_length = abs(normalised_timings[interp_ind]) + abs(normalised_timings[interp_ind+1])
+    dataset_params['default_power'][tind] = (abs(normalised_timings[interp_ind]) / interp_length * new_pulse_power[interp_ind+1] +
+                                            abs(normalised_timings[interp_ind+1]) / interp_length * new_pulse_power[interp_ind])
 
     config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
     run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
@@ -584,20 +595,16 @@ def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params
 
 
 
-def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, facility_spec, sys_params, deck_gen_params):
+def generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params):
     config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
     run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
 
     with open(run_location+'/ifriit_inputs.txt','a') as f:
         for j in range(int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])):
             f.write('&BEAM\n')
-            f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(dataset_params['laser_wavelength']))
+            f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(dataset_params['laser_wavelength_nm']))
             f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iconfig,j][0],deck_gen_params['pointings'][iconfig,j][1],deck_gen_params['pointings'][iconfig,j][2]))
-            if dataset_params["plasma_profile_source"] == "multi":
-                f.write('    POWER_PROFILE_FILE_TW_NS = "'+sys_params["ifriit_pulse_name"]+'"\n')
-                f.write('    T_0_NS              = {:.10f}d0,\n'.format(dataset_params["plasma_profile_times"][tind]))
-            else:
-                f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['p0'][iconfig,j,pwr_ind]))
+            f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['power_multiplier'][iconfig,j,tind] * dataset_params['default_power'][tind]))
 
             if (dataset_params['facility'] == "custom_facility"):
                 f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(facility_spec["Theta"][j])))

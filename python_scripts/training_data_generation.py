@@ -15,7 +15,7 @@ import stat
 def define_system_params(data_dir):
     sys_params = {}
     sys_params["num_parallel_ifriits"] = 4
-    sys_params["num_openmp_parallel"] = 10
+    sys_params["num_openmp_parallel"] = 1
     sys_params["num_ex_checkpoint"] = 1
 
     sys_params["run_sims"] = True
@@ -66,10 +66,11 @@ def define_dataset_params(num_examples, sys_params,
     dataset_params["bool_group_beams_by_cone"] = False
 
     dataset_params['target_radius'] = 2307.0
-    dataset_params['default_power'] = 1.0 # default power per beam TW
 
     dataset_params["plasma_profile_source"] = "default" #"multi" # "default"
-    dataset_params["num_profiles_per_config"] = 4
+    dataset_params['laser_wavelength_nm'] = 351.0 # multi inputs over-ride this
+    dataset_params["num_profiles_per_config"] = 1
+    dataset_params['default_power'] = np.zeros((dataset_params["num_profiles_per_config"])) + 1.0 # default power per beam TW
     dataset_params["plasma_profile_times"] = np.linspace(0.5,14.,int(dataset_params["num_profiles_per_config"]))
     dataset_params['illumination_evaluation_radii'] = np.zeros((dataset_params["num_profiles_per_config"])) \
                                                      + dataset_params['target_radius']
@@ -132,11 +133,9 @@ def define_scan_parameters(dataset_params):
     dataset_params["min_power"] = 0.5 # fraction of full power
     dataset_params["power_bool"] = False
     dataset_params["time_varying_pulse"] = False
-    dataset_params["num_powers_per_cone"] = 1
     if dataset_params["power_bool"]:
         dataset_params["power_index"] = num_variables_per_beam
         if dataset_params["time_varying_pulse"]:
-            dataset_params["num_powers_per_cone"] = dataset_params["num_profiles_per_config"]
             num_variables_per_beam += dataset_params["num_profiles_per_config"]
         else:
             num_variables_per_beam += 1
