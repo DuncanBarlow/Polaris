@@ -82,7 +82,7 @@ def define_dataset_params(num_examples, sys_params,
 
     dataset_params["num_perturbations"] = 1
     dataset_params["target_offset_bool"] = False
-    dataset_params["target_offset_amplitude_max"] = 0.01 # fraction of target radius
+    dataset_params["target_offset_amplitude_mean"] = 0.01 # fraction of target radius
 
     dataset_params = define_scan_parameters(dataset_params)
 
