@@ -105,6 +105,9 @@ def create_run_files_pdd(dataset, deck_gen_params, dataset_params, sys_params, f
                 for tind in range(dataset_params["num_powers_per_cone"]):
                     pind = dataset_params["power_index"] + tind
                     cone_power[tind] = (cone_params[pind] * (1.0 - dataset_params["min_power"]) + dataset_params["min_power"])
+                    condition = (dataset_params["facility"] == 'lmj') and not(dataset_params["bool_group_beams_by_cone"]) and not(dataset_params['bool_turn_on_subcones'][igroup])
+                    if condition :
+                        cone_power[tind] = 1.e-8
                     deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["power_index"] + tind] = cone_power[tind]
                     deck_gen_params["p0"][iex,group_slice,tind] = dataset_params['default_power'] * cone_power[tind] * facility_spec['beams_per_ifriit_beam']
             else:
@@ -375,13 +378,14 @@ def group_beams_by_cone(facility_spec, dataset_params):
 def group_beams_subcones_lmj(facility_spec, dataset_params):
     # hemisphere symmetry
     dataset_params['num_beam_groups'] = 4
+    dataset_params['bool_turn_on_subcones'] = np.array([True, True, False, False], dtype=bool)
     sub_cone_list = np.array(np.zeros((4, 5)), dtype='<U4')
     dataset_params['beams_per_group'] = np.array(np.zeros((int(dataset_params['num_beam_groups']))), dtype='int8')
     dataset_params['beamgroup_name'] = np.array(np.zeros((int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"]))), dtype='<U20')
-    sub_cone_list[0,:] = ["06", "11", "17", "24", "28"]
-    sub_cone_list[1,:] = ["03", "07", "14", "20", "25"]
-    sub_cone_list[2,:] = ["02", "09", "13", "21", "26"]
-    sub_cone_list[3,:] = ["05", "10", "18", "22", "29"]
+    sub_cone_list[0,:] = ["06", "11", "17", "24", "28"] # Quads hauts a 33, quads Bas a 131 (49)
+    sub_cone_list[1,:] = ["03", "07", "14", "20", "25"] # Quads hauts a 49, quads Bas a 147 (33)
+    sub_cone_list[2,:] = ["02", "09", "13", "21", "26"] # Quads hauts a 33, quads Bas a 131 (49)
+    sub_cone_list[3,:] = ["05", "10", "18", "22", "29"] # Quads hauts a 49, quads Bas a 147 (33)
     cone_list = list(set(facility_spec['Cone']))
     cone_index_upper = np.where(np.array(cone_list) < 90)[0]
 
@@ -402,6 +406,7 @@ def group_beams_subcones_lmj(facility_spec, dataset_params):
     for isubcone in range(len(subcone_list_unique_names)):
         iquad = np.where(dataset_params['beamgroup_name'] == subcone_list_unique_names[isubcone])[0][0]
         dataset_params['quad_from_each_group'][isubcone] = facility_spec["Quad"][iquad]
+    dataset_params['sub_cone_list'] = sub_cone_list
     return facility_spec, dataset_params
 
 
@@ -591,7 +596,8 @@ def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, f
     with open(run_location+'/ifriit_inputs.txt','a') as f:
         for j in range(int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])):
             f.write('&BEAM\n')
-            f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(dataset_params['laser_wavelength']))
+#            f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(dataset_params['laser_wavelength']))
+            f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(1052.85/3.))
             f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iconfig,j][0],deck_gen_params['pointings'][iconfig,j][1],deck_gen_params['pointings'][iconfig,j][2]))
             if dataset_params["plasma_profile_source"] == "multi":
                 f.write('    POWER_PROFILE_FILE_TW_NS = "'+sys_params["ifriit_pulse_name"]+'"\n')
