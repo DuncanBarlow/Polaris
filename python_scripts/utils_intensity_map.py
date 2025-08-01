@@ -114,12 +114,7 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
         """
 
         cone_defocus = deck_gen_params["defocus"][iex,beam_ind]
-        if dataset_params["time_varying_pulse"]:
-            cone_powers = deck_gen_params["p0"][iex,beam_ind,ind_profile] / (
-                          dataset_params['default_power'] * facility_spec["beams_per_ifriit_beam"])
-        else:
-            cone_powers = deck_gen_params["p0"][iex,beam_ind,0] / (
-                          dataset_params['default_power'] * facility_spec["beams_per_ifriit_beam"])
+        cone_powers = deck_gen_params["power_multiplier"][iex,beam_ind,ind_profile]
 
         """
         if ("quad_split_bool" in dataset_params.keys()) and dataset_params["quad_split_bool"]:
@@ -140,14 +135,14 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
               "{:.2f}% power, ".format(cone_powers * 100))# +
               #"{:.2f}mm qsplit,".format(quad_split_radius) +
               #"{:.2f}\N{DEGREE SIGN} qsplit".format(np.degrees(quad_split_skew)))
-        total_power += cone_powers * beams_per_group
+        total_power += cone_powers * beams_per_group * dataset_params['default_power'][ind_profile]
 
-    mean_power_fraction = total_power / (facility_spec['nbeams'] * dataset_params['default_power'])
+    mean_power_fraction = total_power / (facility_spec['nbeams'] * dataset_params['default_power'][ind_profile])
     print_line.append('The optimization selected a mean power percentage, {:.2f}%, '.format(mean_power_fraction * 100.0))
 
     print_line.append('Total power emitted {:.2f}TW, '.format(total_power))
     if not dataset_params["run_plasma_profile"]:
-        print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * dataset_params['default_power'] * mean_power_fraction) * 100.0))
+        print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * dataset_params['default_power'][ind_profile] * mean_power_fraction) * 100.0))
 
     return print_line
 

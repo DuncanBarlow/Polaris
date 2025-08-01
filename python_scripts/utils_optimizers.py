@@ -29,7 +29,7 @@ def define_optimizer_parameters(run_dir, num_init_examples, n_iter,
     opt_params["run_clean"] = sys_params["run_clean"]
     opt_params["random_generator"] = np.random.default_rng(dataset_params["random_seed"])
     opt_params["fitness_desired_power_per_steradian"] = facility_spec['nbeams'] \
-        * dataset_params['default_power'] * 1.0e12 / (4.0 * np.pi)
+        * 1.0e12 / (4.0 * np.pi) # assuming 1TW per beam for now
     opt_params["fitness_desired_pressure_mbar"] = 70.0
     opt_params["fitness_limit_broken_pressure_mbar"] = 500.0
     opt_params["fitness_desired_rms"] = 0.05
