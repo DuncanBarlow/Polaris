@@ -453,71 +453,71 @@ def config_read_csv(facility_spec, filename1, filename2):
 def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_gen_params):
 
     for iconfig in range(dataset["num_evaluated"], dataset_params["num_examples"]):
-      if (iconfig==dataset["num_evaluated"]):
-        config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
-        file_exists = os.path.exists(config_location)
-        if not file_exists:
-            os.makedirs(config_location)
+        if (iconfig==dataset["num_evaluated"]):
+            config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
+            file_exists = os.path.exists(config_location)
+            if not file_exists:
+                os.makedirs(config_location)
 
-        for tind in range(dataset_params["num_profiles_per_config"]):
-            run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
-            isExist = os.path.exists(run_location)
-
-            if not isExist:
-                os.makedirs(run_location)
-
-            loc_ifriit_runfiles = sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
-            if dataset_params["bandwidth_bool"]:
-                shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"] + "_bandwidth",
-                                run_location + "/" + sys_params["ifriit_binary_filename"])
-            else:
-                shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"],
-                                run_location + "/" + sys_params["ifriit_binary_filename"])
-
-        if (dataset_params["plasma_profile_source"] == "default") and dataset_params["run_plasma_profile"]:
             for tind in range(dataset_params["num_profiles_per_config"]):
                 run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
-                shutil.copyfile(sys_params["root_dir"] + "/" +
-                                sys_params["plasma_profile_dir"] + "/" +
-                                sys_params["plasma_profile_nc"],
-                                run_location + "/" + sys_params["plasma_profile_nc"])
-        elif dataset_params["plasma_profile_source"] == "multi":
-            ind_interface_dt_ch = [0]
-            print("!!! Hardcoded hydro evaluation time DT-CH interface at cell:" + str(ind_interface_dt_ch)+" !!!")
-            path = sys_params["data_dir"] + "/" + sys_params["multi_dir"]
-            multi_data = um.multi_read_ascii(path+"/"+sys_params["multi_output_ascii_filename"])
-            multi_data = um.read_inputs(path+"/"+sys_params["multi_input_filename"], multi_data)
-            for tind in range(dataset_params["num_profiles_per_config"]):
-                itime_multi = np.argmin(np.abs(multi_data["time"]*1.e9-dataset_params["plasma_profile_times"][tind]))
-                multi_nc, ncells, nmat = um.multi2ifriit_inputs(multi_data, itime_multi, ind_interface_dt_ch)
+                isExist = os.path.exists(run_location)
 
-                n_crit = um.critical_density(wavelength_l=multi_data["wavelength"])
-                dataset_params['laser_wavelength_nm'] = multi_data["wavelength"]
-                zero_crossings = np.where(np.diff(np.sign(multi_nc["ne"][0,:] - n_crit)))[0]
-                if len(zero_crossings)==0:
-                    ind_critical = len(multi_nc["ne"][0,:])-1
+                if not isExist:
+                    os.makedirs(run_location)
+
+                loc_ifriit_runfiles = sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
+                if dataset_params["bandwidth_bool"]:
+                    shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"] + "_bandwidth",
+                                    run_location + "/" + sys_params["ifriit_binary_filename"])
                 else:
-                    ind_critical = zero_crossings[-1]
-                dataset_params['illumination_evaluation_radii'][tind] = multi_nc["xs"][ind_critical]
+                    shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"],
+                                    run_location + "/" + sys_params["ifriit_binary_filename"])
 
-                if dataset_params["run_plasma_profile"]:
-                    config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
+            if (dataset_params["plasma_profile_source"] == "default") and dataset_params["run_plasma_profile"]:
+                for tind in range(dataset_params["num_profiles_per_config"]):
                     run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
-                    nrw.save_general_netcdf(multi_nc, run_location + "/" + sys_params["plasma_profile_nc"],
-                                            extra_dimension={'x': ncells, 'z':1, 'nel':nmat})
+                    shutil.copyfile(sys_params["root_dir"] + "/" +
+                                    sys_params["plasma_profile_dir"] + "/" +
+                                    sys_params["plasma_profile_nc"],
+                                    run_location + "/" + sys_params["plasma_profile_nc"])
+            elif dataset_params["plasma_profile_source"] == "multi":
+                ind_interface_dt_ch = [0]
+                print("!!! Hardcoded hydro evaluation time DT-CH interface at cell:" + str(ind_interface_dt_ch)+" !!!")
+                path = sys_params["data_dir"] + "/" + sys_params["multi_dir"]
+                multi_data = um.multi_read_ascii(path+"/"+sys_params["multi_output_ascii_filename"])
+                multi_data = um.read_inputs(path+"/"+sys_params["multi_input_filename"], multi_data)
+                for tind in range(dataset_params["num_profiles_per_config"]):
+                    itime_multi = np.argmin(np.abs(multi_data["time"]*1.e9-dataset_params["plasma_profile_times"][tind]))
+                    multi_nc, ncells, nmat = um.multi2ifriit_inputs(multi_data, itime_multi, ind_interface_dt_ch)
 
-                multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset_params)
-      else:
-        config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
-        file_exists = os.path.exists(config_location)
-        if file_exists:
-            shutil.rmtree(config_location)
-        shutil.copytree(sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(dataset["num_evaluated"]),
-                        config_location)
+                    n_crit = um.critical_density(wavelength_l=multi_data["wavelength"])
+                    dataset_params['laser_wavelength_nm'] = multi_data["wavelength"]
+                    zero_crossings = np.where(np.diff(np.sign(multi_nc["ne"][0,:] - n_crit)))[0]
+                    if len(zero_crossings)==0:
+                        ind_critical = len(multi_nc["ne"][0,:])-1
+                    else:
+                        ind_critical = zero_crossings[-1]
+                    dataset_params['illumination_evaluation_radii'][tind] = multi_nc["xs"][ind_critical]
 
-      for tind in range(dataset_params["num_profiles_per_config"]):
-          generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params)
-          generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params)
+                    if dataset_params["run_plasma_profile"]:
+                        config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
+                        run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
+                        nrw.save_general_netcdf(multi_nc, run_location + "/" + sys_params["plasma_profile_nc"],
+                                                extra_dimension={'x': ncells, 'z':1, 'nel':nmat})
+
+                    multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset_params)
+        else:
+            config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
+            file_exists = os.path.exists(config_location)
+            if file_exists:
+                shutil.rmtree(config_location)
+            shutil.copytree(sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(dataset["num_evaluated"]),
+                            config_location)
+
+        for tind in range(dataset_params["num_profiles_per_config"]):
+            generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params)
+            generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params)
 
 
 
