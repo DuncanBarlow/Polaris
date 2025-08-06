@@ -56,7 +56,7 @@ def readout_intensity(facility_spec, intensity_map, dataset_params, ind_profile)
 
     print_line = []
     print_line.append('Number of beams ' + str(n_beams))
-    #print_line.append('Max power per beam {:.2f}TW, '.format(facility_spec['default_power']))
+    #print_line.append('Max power per beam {:.2f}TW, '.format(facility_spec['default_power_TW']))
     print_line.append('Evaluation radius {:.2f}um, '.format(dataset_params['illumination_evaluation_radii'][ind_profile]))
 
     print_line.append('RMS is {:.4f}%, '.format(intensity_map_rms))
@@ -73,6 +73,40 @@ def readout_intensity(facility_spec, intensity_map, dataset_params, ind_profile)
         print_line.append('The total power deposited is {:.2f}TW, '.format(total_TW))
 
     return print_line, total_TW
+
+
+
+def power_deposited(hs_and_modes):
+
+    theta_edges = (hs_and_modes["theta"][1:] + hs_and_modes["theta"][:-1]) / 2.0
+    theta_edges = np.append(0.0, theta_edges)
+    theta_edges = np.append(theta_edges, np.pi)
+    phi_edges = (hs_and_modes["phi"][1:] + hs_and_modes["phi"][:-1]) / 2.0
+    phi_edges = np.append(0.0, phi_edges)
+    phi_edges = np.append(phi_edges, 2.0*np.pi)
+
+    theta_grid, phi_grid = np.meshgrid(theta_edges, phi_edges)
+
+    dphi = phi_grid[1:,1:] - phi_grid[:-1,1:]
+    d_cos_theta = np.cos(theta_grid[1:,1:]) - np.cos(theta_grid[1:,:-1])
+    domega = np.abs(dphi * d_cos_theta)
+
+    total_pwr = np.sum(hs_and_modes["heat_source"] * domega)
+
+    return total_pwr
+
+
+
+def power_emitted(iex, ind_profile, dataset_params, facility_spec, deck_gen_params):
+
+    total_power = 0.0
+    for beam_ind in range(facility_spec['nbeams']):
+        beam_power = (deck_gen_params["power_multiplier"][iex,beam_ind,ind_profile]
+                      * dataset_params['default_power_TW'][ind_profile] * 1.0e12)
+        total_power += beam_power
+    total_power = total_power
+
+    return total_power
 
 
 
@@ -135,14 +169,14 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
               "{:.2f}% power, ".format(cone_powers * 100))# +
               #"{:.2f}mm qsplit,".format(quad_split_radius) +
               #"{:.2f}\N{DEGREE SIGN} qsplit".format(np.degrees(quad_split_skew)))
-        total_power += cone_powers * beams_per_group * dataset_params['default_power'][ind_profile]
+        total_power += cone_powers * beams_per_group * dataset_params['default_power_TW'][ind_profile]
 
-    mean_power_fraction = total_power / (facility_spec['nbeams'] * dataset_params['default_power'][ind_profile])
+    mean_power_fraction = total_power / (facility_spec['nbeams'] * dataset_params['default_power_TW'][ind_profile])
     print_line.append('The optimization selected a mean power percentage, {:.2f}%, '.format(mean_power_fraction * 100.0))
 
     print_line.append('Total power emitted {:.2f}TW, '.format(total_power))
     if not dataset_params["run_plasma_profile"]:
-        print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * dataset_params['default_power'][ind_profile] * mean_power_fraction) * 100.0))
+        print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * dataset_params['default_power_TW'][ind_profile] * mean_power_fraction) * 100.0))
 
     return print_line
 

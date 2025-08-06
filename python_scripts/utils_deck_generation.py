@@ -6,6 +6,7 @@ import sys
 import healpy_pointings as hpoint
 import netcdf_read_write as nrw
 import utils_multi as um
+import utils_intensity_map as uim
 
 
 def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec):
@@ -516,6 +517,7 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                             config_location)
 
         for tind in range(dataset_params["num_profiles_per_config"]):
+            dataset["power_emitted"][iconfig,tind] = uim.power_emitted(iconfig, tind, dataset_params, facility_spec, deck_gen_params)
             generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params)
             generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params)
 
@@ -551,7 +553,7 @@ def multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset
     interp_ind = np.argmin(normalised_timings2[np.nonzero(normalised_timings2)])
 
     interp_length = abs(normalised_timings[interp_ind]) + abs(normalised_timings[interp_ind+1])
-    dataset_params['default_power'][tind] = (abs(normalised_timings[interp_ind]) / interp_length * new_pulse_power[interp_ind+1] +
+    dataset_params['default_power_TW'][tind] = (abs(normalised_timings[interp_ind]) / interp_length * new_pulse_power[interp_ind+1] +
                                             abs(normalised_timings[interp_ind+1]) / interp_length * new_pulse_power[interp_ind])
 
     config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
@@ -604,7 +606,7 @@ def generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_s
             f.write('&BEAM\n')
             f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(dataset_params['laser_wavelength_nm']))
             f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iconfig,j][0],deck_gen_params['pointings'][iconfig,j][1],deck_gen_params['pointings'][iconfig,j][2]))
-            f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['power_multiplier'][iconfig,j,tind] * dataset_params['default_power'][tind]))
+            f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['power_multiplier'][iconfig,j,tind] * dataset_params['default_power_TW'][tind]))
 
             if (dataset_params['facility'] == "custom_facility"):
                 f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(facility_spec["Theta"][j])))
