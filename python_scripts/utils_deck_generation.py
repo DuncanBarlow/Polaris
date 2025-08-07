@@ -2,6 +2,7 @@ import os
 import shutil
 import numpy as np
 import csv
+import sys
 import healpy_pointings as hpoint
 import netcdf_read_write as nrw
 import utils_multi as um
@@ -28,15 +29,28 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
     for iconfig in range(dataset["num_evaluated"], num_examples):
         ex_params = dataset["input_parameters"][iconfig,:]
 
-        if dataset_params["beamspot_bool"]:
-            deck_gen_params["beamspot_order"][iconfig,:] = (dataset_params["beamspot_order_default"] - 1.0) \
+        if dataset_params["scan_beamspot_bool"]:
+            deck_gen_params["beamspot_order"][iconfig,:] = (dataset_params["beamspot_order_max"] - 1.0) \
                                                            * ex_params[dataset_params["beamspot_order_index"]] + 1.0
             deck_gen_params["beamspot_major_radius"][iconfig,:] = (dataset_params["beamspot_radius_max"]
                                                                   - dataset_params["beamspot_radius_min"]) \
                                                                   * ex_params[dataset_params["beamspot_radius_index"]] \
                                                                   + dataset_params["beamspot_radius_min"]
             deck_gen_params["beamspot_minor_radius"][iconfig,:] = deck_gen_params["beamspot_major_radius"][iconfig,:]
+        elif dataset_params["select_beamspot_bool"]:
+            deck_gen_params["beamspot_order"][iconfig,:] = dataset_params["beamspot_order_default"]
+            deck_gen_params["beamspot_major_radius"][iconfig,:] = dataset_params["beamspot_radius_default"]
+            deck_gen_params["beamspot_minor_radius"][iconfig,:] = dataset_params["beamspot_radius_default"]
 
+        if dataset_params["scan_bandwidth_bool"]:
+            deck_gen_params["bandwidth_num_spectral_lines"][iconfig] = int((dataset_params["bandwidth_num_spectral_lines_max"] - 2)
+                                                                      * ex_params[dataset_params["bandwidth_lines_index"]] + 2)
+            deck_gen_params["bandwidth_percentage_width"][iconfig,:] = dataset_params["bandwidth_percentage_width_max"] \
+                                                                       ** (ex_params[dataset_params["bandwidth_percentage_index"]]
+                                                                       * 2.0 - 1.0)
+        elif dataset_params["select_bandwidth_bool"]:
+            deck_gen_params["bandwidth_num_spectral_lines"][iconfig] = dataset_params["bandwidth_num_spectral_lines_default"]
+            deck_gen_params["bandwidth_percentage_width"][iconfig,:] = dataset_params["bandwidth_percentage_width_default"]
     return deck_gen_params
 
 
@@ -52,71 +66,78 @@ def create_run_files_pdd(dataset, deck_gen_params, dataset_params, sys_params, f
 
     for iex in range(dataset["num_evaluated"], num_examples):
         ex_params = dataset["input_parameters"][iex,:]
-        for icone in range(facility_spec['num_cones']):
-            quad_name = facility_spec['quad_from_each_cone'][icone]
+        for igroup in range(dataset_params['num_beam_groups']):
+            quad_name = dataset_params['quad_from_each_group'][igroup]
             quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
             quad_start_ind = quad_slice[0]
-            cone_name = facility_spec['Cone'][quad_start_ind]
-            cone_slice = np.where(facility_spec['Cone'] == cone_name)[0]
-            if icone > int(facility_spec['num_cones']/2.0-1):
-                bottom_hemisphere = True
-                quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "B" in t or "L" in t]
-            else:
-                bottom_hemisphere = False
-                quad_list_in_cone = [t for t in facility_spec["Quad"][cone_slice] if "T" in t or "U" in t or "H" in t]
-            quad_list_in_cone = list(set(quad_list_in_cone))
+            group_name = dataset_params['beamgroup_name'][quad_start_ind]
+            group_slice = np.where(dataset_params['beamgroup_name'] == group_name)[0]
+            quad_list_in_group = list(set(facility_spec["Quad"][group_slice]))
 
-            il = (icone*num_vars) % num_input_params
-            iu = ((icone+1)*num_vars-1) % num_input_params + 1
+            il = (igroup*num_vars) % num_input_params
+            iu = ((igroup+1)*num_vars-1) % num_input_params + 1
             cone_params = ex_params[il:iu]
 
-            if dataset_params["pointing_bool"]:
+            if dataset_params["theta_bool"]:
+                offset_phi_group = 0.0
+                offset_theta_group = (cone_params[dataset_params["theta_index"]] * 2.0 - 1.0) * dataset_params["surface_cover_radians"]
+                deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["theta_index"]] = offset_theta_group
+            elif dataset_params["pointing_bool"]:
                 x = cone_params[dataset_params["theta_index"]] * 2.0 - 1.0
                 y = cone_params[dataset_params["phi_index"]] * 2.0 - 1.0
-                r, offset_phi = hpoint.square2disk(x, y)
-                if bottom_hemisphere:
-                    if dataset_params["hemisphere_symmetric"]:
-                        offset_phi = np.pi - offset_phi # Symmetric
-                    else:
-                        offset_phi = (offset_phi + np.pi) % (2.0 * np.pi) # anti-symmetric
-                offset_theta = r * dataset_params["surface_cover_radians"]
-                deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["theta_index"]] = offset_theta
-                deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["phi_index"]] = offset_phi
+                r, offset_phi_group = hpoint.square2disk(x, y)
+                offset_theta_group = r * dataset_params["surface_cover_radians"]
+                deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["theta_index"]] = offset_theta_group
+                deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["phi_index"]] = offset_phi_group
             else:
-                offset_phi = 0.0
-                offset_theta = 0.0
+                offset_phi_group = 0.0
+                offset_theta_group = 0.0
 
             if dataset_params["defocus_bool"]:
                 cone_defocus = cone_params[dataset_params["defocus_index"]] * dataset_params["defocus_range"]
-                deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["defocus_index"]] = cone_defocus
+                deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["defocus_index"]] = cone_defocus
             else:
                 cone_defocus = dataset_params["defocus_default"]
-            deck_gen_params["defocus"][iex,cone_slice] = cone_defocus
+            deck_gen_params["defocus"][iex,group_slice] = cone_defocus
 
             cone_power = np.zeros((dataset_params["num_powers_per_cone"]))
             if dataset_params["power_bool"]:
                 for tind in range(dataset_params["num_powers_per_cone"]):
                     pind = dataset_params["power_index"] + tind
                     cone_power[tind] = (cone_params[pind] * (1.0 - dataset_params["min_power"]) + dataset_params["min_power"])
-                    deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["power_index"] + tind] = cone_power[tind]
-                    deck_gen_params["p0"][iex,cone_slice,tind] = dataset_params['default_power'] * cone_power[tind] * facility_spec['beams_per_ifriit_beam']
+                    condition = (dataset_params["facility"] == 'lmj') and not(dataset_params["bool_group_beams_by_cone"]) and not(dataset_params['bool_turn_on_subcones'][igroup])
+                    if condition :
+                        cone_power[tind] = 1.e-8
+                    deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["power_index"] + tind] = cone_power[tind]
+                    deck_gen_params["p0"][iex,group_slice,tind] = dataset_params['default_power'] * cone_power[tind] * facility_spec['beams_per_ifriit_beam']
             else:
-                deck_gen_params["p0"][iex,cone_slice,0] = dataset_params['default_power'] * facility_spec['beams_per_ifriit_beam']
+                deck_gen_params["p0"][iex,group_slice,0] = dataset_params['default_power'] * facility_spec['beams_per_ifriit_beam']
 
-            for quad_name in quad_list_in_cone:
+            for quad_name in quad_list_in_group:
                 quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
                 beam_names = facility_spec['Beam'][quad_slice]
 
                 deck_gen_params["port_centre_theta"][quad_slice] = np.mean(facility_spec["Theta"][quad_slice])
                 deck_gen_params["port_centre_phi"][quad_slice] = np.mean(facility_spec["Phi"][quad_slice])
 
+                offset_theta = offset_theta_group
+                offset_phi = offset_phi_group
+                if (deck_gen_params["port_centre_theta"][quad_slice[0]] < (np.pi / 2.)):
+                    if dataset_params["theta_bool"]:
+                        offset_theta = - offset_theta_group
+                    elif dataset_params["pointing_bool"]:
+                        if dataset_params["hemisphere_symmetric"]:
+                            offset_phi = np.pi - offset_phi_group # Symmetric
+                        else:
+                            offset_phi = (offset_phi_group + np.pi) % (2.0 * np.pi) # anti-symmetric
+
                 if dataset_params["quad_split_bool"]:
                     quad_split_default = (np.sqrt(np.var(facility_spec["Phi"][quad_slice])) + np.sqrt(np.var(facility_spec["Theta"][quad_slice])))
                     quad_split_magnitude = cone_params[dataset_params["quad_split_index"]] * dataset_params["quad_split_range"] * quad_split_default
-                    deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_index"]] = quad_split_magnitude
+                    deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["quad_split_index"]] = quad_split_magnitude
                     if dataset_params["quad_split_skew_bool"]:
                         skew_factor = np.pi / 4.0 - np.pi / 2.0 * cone_params[dataset_params["quad_split_skew_index"]]
-                        deck_gen_params["sim_params"][iex,icone*num_vars+dataset_params["quad_split_skew_index"]] = skew_factor
+                        deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["quad_split_skew_index"]] = skew_factor
                     else:
                         skew_factor = 0.0
 
@@ -195,6 +216,8 @@ def define_deck_generation_params(dataset_params, facility_spec):
     deck_gen_params["beamspot_order"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["beamspot_major_radius"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["beamspot_minor_radius"] = np.zeros((num_examples, num_ifriit_beams))
+    deck_gen_params["bandwidth_num_spectral_lines"] = np.zeros(num_examples, dtype=np.uint32)
+    deck_gen_params["bandwidth_percentage_width"] = np.zeros((num_examples, num_ifriit_beams))
 
     return deck_gen_params
 
@@ -205,6 +228,7 @@ def import_direct_drive_config(sys_params, dataset_params):
     facility_spec['num_quads'] = 0
     facility_spec['num_cones'] = 0
     facility_spec['beams_per_ifriit_beam'] = 1
+    facility_spec["num_beam_groups"] = 1
 
     if (dataset_params['facility']=="custom_facility"):
         facility_spec['ifriit_facility_name'] = "cpm48" #"cpm48" #"cpm72" #"t11_b72" #"ico80"
@@ -265,17 +289,28 @@ def load_facility_csv(sys_params, facility_spec):
     return facility_spec
 
 
-def import_nif_config(sys_params):
+def config_formatting(facility_spec):
+    facility_spec["PR"] = np.array(facility_spec["PR"], dtype='i')
+    condition = ((facility_spec['ifriit_facility_name'] == "LMJ") and (len(facility_spec["Beam"]) == 160))
+    if condition :
+        facility_spec["Beam"] = np.array(facility_spec["Beam"], dtype='<U5')
+    else :
+        facility_spec["Beam"] = np.array(facility_spec["Beam"], dtype='<U4')
+    facility_spec["Quad"] = np.array(facility_spec["Quad"], dtype='<U4')
+    facility_spec["Cone"] = np.array(facility_spec["Cone"])
+    facility_spec["Theta"] = np.radians(facility_spec["Theta"])
+    facility_spec["Phi"] = np.radians(facility_spec["Phi"])
+
+    return facility_spec
+
+
+def import_nif_config(sys_params, dataset_params):
     facility_spec = dict()
 
     facility_spec['nbeams'] = 192
     facility_spec['ifriit_facility_name'] = "NIF"
     facility_spec['num_quads'] = 48
     facility_spec['num_cones'] = 8
-
-    facility_spec['cone_names'] = np.array((23.5, 30, 44.5, 50, 23.5, 30, 44.5, 50))
-    # The order of these is important (top-to-equator, then bottom-to-equator)
-    facility_spec['quad_from_each_cone'] = np.array(('Q15T', 'Q13T', 'Q14T', 'Q11T', 'Q15B', 'Q16B', 'Q14B', 'Q13B'), dtype='<U4')
     facility_spec["beams_per_ifriit_beam"] = 1 # fuse quads?
 
     filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/NIF_UpperBeams.txt"
@@ -283,9 +318,16 @@ def import_nif_config(sys_params):
     facility_spec = config_read_csv(facility_spec, filename1, filename2)
     facility_spec = config_formatting(facility_spec)
 
-    return facility_spec
+    if dataset_params["bool_group_beams_by_cone"]:
+        dataset_params['quad_from_each_group'] = np.array(('Q15T', 'Q13T', 'Q14T', 'Q11T'), dtype='<U4')
+        facility_spec, dataset_params = group_beams_by_cone(facility_spec, dataset_params)
+    else:
+        sys.exit("Must 'use_group_by_cone' for NIF, no other option written yet")
 
-def import_lmj_config(sys_params, quad_split_bool):
+    return facility_spec, dataset_params
+
+def import_lmj_config(sys_params, dataset_params):
+
     facility_spec = dict()
 
     facility_spec['nbeams'] = 160
@@ -293,12 +335,8 @@ def import_lmj_config(sys_params, quad_split_bool):
     facility_spec['num_quads'] = 40
     facility_spec['num_cones'] = 4
 
-    # The order of these is important (top-to-equator, then bottom-to-equator)
-    facility_spec['quad_from_each_cone'] = np.array(('Q28H', 'Q10H', 'Q10B', 'Q28B'), dtype='<U4')
-
-    if quad_split_bool:
+    if dataset_params["quad_split_bool"]:
         facility_spec["beams_per_ifriit_beam"] = 1
-        list_beam_keys = ["Beam", "Quad", "Cone", "Theta", "Phi", "PR"]
         filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_UpperBeams.txt"
         filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_LowerBeams.txt"
         facility_spec = config_read_csv(facility_spec, filename1, filename2)
@@ -309,7 +347,70 @@ def import_lmj_config(sys_params, quad_split_bool):
         facility_spec = config_read_csv(facility_spec, filename1, filename2)
 
     facility_spec = config_formatting(facility_spec)
-    return facility_spec
+
+    if dataset_params["bool_group_beams_by_cone"]:
+        dataset_params['quad_from_each_group'] = np.array(('Q28H', 'Q10H'), dtype='<U4')
+        facility_spec, dataset_params = group_beams_by_cone(facility_spec, dataset_params)
+    else:
+        facility_spec, dataset_params = group_beams_subcones_lmj(facility_spec, dataset_params)
+
+    return facility_spec, dataset_params
+
+
+def group_beams_by_cone(facility_spec, dataset_params):
+    dataset_params['num_beam_groups'] = int(facility_spec['num_cones'] / 2) # hemisphere symmetry
+    dataset_params['beams_per_group'] = np.array(np.zeros((int(dataset_params['num_beam_groups']))), dtype='int8')
+    dataset_params['beamgroup_name'] = np.array(np.zeros((int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"]))), dtype='<U5')
+
+    for igroup in range(dataset_params['num_beam_groups']):
+        quad_name = dataset_params['quad_from_each_group'][igroup]
+        quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
+        quad_start_ind = quad_slice[0]
+        cone_name = facility_spec['Cone'][quad_start_ind]
+        for ibeam in range(int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"])):
+            check_cone_name = facility_spec['Cone'][ibeam]
+            if (abs(cone_name - check_cone_name) < 1.0) or (abs(cone_name + check_cone_name - 180.) < 1.0):
+                dataset_params['beamgroup_name'][ibeam] = cone_name
+        dataset_params['beams_per_group'][igroup] = int(np.count_nonzero(dataset_params['beamgroup_name'] == str(cone_name)) * facility_spec["beams_per_ifriit_beam"])
+
+    return facility_spec, dataset_params
+
+
+def group_beams_subcones_lmj(facility_spec, dataset_params):
+    # hemisphere symmetry
+    dataset_params['num_beam_groups'] = 4
+    dataset_params['bool_turn_on_subcones'] = np.array([False, False, True, True], dtype=bool)
+    sub_cone_list = np.array(np.zeros((4, 5)), dtype='<U4')
+    dataset_params['beams_per_group'] = np.array(np.zeros((int(dataset_params['num_beam_groups']))), dtype='int8')
+    dataset_params['beamgroup_name'] = np.array(np.zeros((int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"]))), dtype='<U20')
+    sub_cone_list[0,:] = ["06", "11", "17", "24", "28"] # Quads hauts a 33, quads Bas a 131 (49)
+    sub_cone_list[1,:] = ["03", "07", "14", "20", "25"] # Quads hauts a 49, quads Bas a 147 (33)
+    sub_cone_list[2,:] = ["02", "09", "13", "21", "26"] # Quads hauts a 33, quads Bas a 131 (49)
+    sub_cone_list[3,:] = ["05", "10", "18", "22", "29"] # Quads hauts a 49, quads Bas a 147 (33)
+    cone_list = list(set(facility_spec['Cone']))
+    cone_index_upper = np.where(np.array(cone_list) < 90)[0]
+
+    for igroup in range(dataset_params['num_beam_groups']):
+        cone_name = cone_list[cone_index_upper[igroup%(int(facility_spec['num_cones']/2))]]
+        group_label = str(cone_name) + "_subcone" + str(igroup)
+        for ibeam in range(int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"])):
+            check_cone_name = facility_spec['Cone'][ibeam]
+            for iquad_name in range(len(sub_cone_list[igroup])):
+                if (abs(cone_name - check_cone_name) < 1.0) and (sub_cone_list[igroup][iquad_name] in facility_spec['Quad'][ibeam]):
+                    dataset_params['beamgroup_name'][ibeam] = group_label
+                elif (abs(cone_name + check_cone_name - 180.) < 1.0) and (sub_cone_list[(igroup+1)%dataset_params['num_beam_groups']][iquad_name] in facility_spec['Quad'][ibeam]):
+                    dataset_params['beamgroup_name'][ibeam] = group_label
+        dataset_params['beams_per_group'][igroup] = int(np.count_nonzero(dataset_params['beamgroup_name'] == group_label) * facility_spec["beams_per_ifriit_beam"])
+
+    subcone_list_unique_names = list(set(dataset_params['beamgroup_name']))
+    dataset_params['quad_from_each_group'] = np.array(np.zeros(len(subcone_list_unique_names)), dtype='<U4')
+    for isubcone in range(len(subcone_list_unique_names)):
+        iquad = np.where(dataset_params['beamgroup_name'] == subcone_list_unique_names[isubcone])[0][0]
+        dataset_params['quad_from_each_group'][isubcone] = facility_spec["Quad"][iquad]
+    dataset_params['sub_cone_list'] = sub_cone_list
+    dataset_params['quad_from_each_group'] = np.array(['Q06H', 'Q03H', 'Q02H', 'Q05H'], dtype='<U4')
+    return facility_spec, dataset_params
+
 
 def config_read_csv(facility_spec, filename1, filename2):
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
@@ -348,32 +449,6 @@ def config_read_csv(facility_spec, filename1, filename2):
     f.close()
     return facility_spec
 
-
-def config_formatting(facility_spec):
-    facility_spec["PR"] = np.array(facility_spec["PR"], dtype='i')
-    condition = ((facility_spec['ifriit_facility_name'] == "LMJ") and (len(facility_spec["Beam"]) == 160))
-    if condition :
-        facility_spec["Beam"] = np.array(facility_spec["Beam"], dtype='<U5')
-    else :
-        facility_spec["Beam"] = np.array(facility_spec["Beam"], dtype='<U4')
-    facility_spec["Quad"] = np.array(facility_spec["Quad"], dtype='<U4')
-    facility_spec["Cone"] = np.array(facility_spec["Cone"])
-    facility_spec["Theta"] = np.radians(facility_spec["Theta"])
-    facility_spec["Phi"] = np.radians(facility_spec["Phi"])
-
-    facility_spec['beams_per_cone'] = [0] * facility_spec['num_cones']
-    for icone in range(facility_spec['num_cones']):
-        quad_name = facility_spec['quad_from_each_cone'][icone]
-        quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
-        quad_start_ind = quad_slice[0]
-        cone_name = facility_spec['Cone'][quad_start_ind]
-        facility_spec['beams_per_cone'][icone] = int(np.count_nonzero(facility_spec["Cone"] == cone_name) / 2 * facility_spec["beams_per_ifriit_beam"])
-    facility_spec['beams_per_cone'] = np.array(facility_spec['beams_per_cone'], dtype='int8')
-
-    return facility_spec
-
-
-
 def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_gen_params):
 
     for iconfig in range(dataset["num_evaluated"], dataset_params["num_examples"]):
@@ -391,8 +466,12 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                 os.makedirs(run_location)
 
             loc_ifriit_runfiles = sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
-            shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"],
-                            run_location + "/" + sys_params["ifriit_binary_filename"])
+            if dataset_params["bandwidth_bool"]:
+                shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"] + "_bandwidth",
+                                run_location + "/" + sys_params["ifriit_binary_filename"])
+            else:
+                shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"],
+                                run_location + "/" + sys_params["ifriit_binary_filename"])
 
         if (dataset_params["plasma_profile_source"] == "default") and dataset_params["run_plasma_profile"]:
             for tind in range(dataset_params["num_profiles_per_config"]):
@@ -433,9 +512,9 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
             shutil.rmtree(config_location)
         shutil.copytree(sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(dataset["num_evaluated"]),
                         config_location)
- 
+
       for tind in range(dataset_params["num_profiles_per_config"]):
-          generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params)
+          generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params)
           if dataset_params["time_varying_pulse"]:
               pwr_ind = tind
           else:
@@ -481,7 +560,7 @@ def multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec):
 
 
 
-def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params):
+def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params, deck_gen_params):
     config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
     run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
 
@@ -499,8 +578,12 @@ def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params
                 elif "CBET = .FALSE.," in line:
                     if dataset_params["run_with_cbet"]:
                         new_file.write("    CBET = .TRUE.,\n")
+                        if dataset_params["bandwidth_bool"]:
+                            new_file.write("    BANDWIDTH_NLINES = {},\n".format(deck_gen_params["bandwidth_num_spectral_lines"][iconfig]))
                     else:
                         new_file.write("    CBET = .FALSE.,\n")
+                elif "RMAX                    = 6000.d0," in line:
+                    new_file.write("    RMAX                    = {:.5f}d0,\n".format(dataset_params['target_radius'] * 5.0))
                 else:
                     new_file.write(line)
 
@@ -513,6 +596,7 @@ def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, f
     with open(run_location+'/ifriit_inputs.txt','a') as f:
         for j in range(int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])):
             f.write('&BEAM\n')
+#            f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(dataset_params['laser_wavelength']))
             f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(1052.85/3.))
             f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iconfig,j][0],deck_gen_params['pointings'][iconfig,j][1],deck_gen_params['pointings'][iconfig,j][2]))
             if dataset_params["plasma_profile_source"] == "multi":
@@ -529,24 +613,28 @@ def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, f
                 if (dataset_params['facility'] == "nif"):
                     beam = facility_spec["Beam"][j]
                     cone_name = facility_spec["Cone"][j]
-                    if (cone_name == 23.5):
-                        cpp="inner-23"
-                    elif (cone_name == 30):
-                        cpp="inner-30"
-                    elif (cone_name == 44.5):
-                        cpp="outer-44"
+                    if ((abs(cone_name - 23.5) <= 1.0)) or (abs(cone_name - 156.5) <= 1.0):
+                        cpp="NIF-inner-23"
+                    elif ((abs(cone_name - 30) <= 1.0)) or (abs(cone_name - 150) <= 1.0):
+                        cpp="NIF-inner-30"
+                    elif ((abs(cone_name - 44.5) <= 1.0)) or (abs(cone_name - 135.5) <= 1.0):
+                        cpp="NIF-outer-44"
+                    elif ((abs(cone_name - 50) <= 1.0)) or ((abs(cone_name - 130) <= 1.0)):
+                        cpp="NIF-outer-50"
                     else:
-                        cpp="outer-50"
+                        sys.exit("Unrecognised cpp/cone name ", cone_name)
                 elif (dataset_params['facility'] == "lmj"):
                     if dataset_params["quad_split_bool"] :
                         beam = facility_spec["Beam"][j]
                     else :
                         beam = facility_spec["Quad"][j]
                     cone_name = facility_spec["Cone"][j]
-                    if (cone_name == 49.0) or (cone_name == 131.0):
+                    if (abs(cone_name - 49.0) <= 1.0) or (abs(cone_name - 131.0) <= 1.0):
                         cpp="LMJ-A"
-                    else:
+                    elif (abs(cone_name - 33.0) <= 1.0) or (abs(cone_name - 147.0) <= 1.0):
                         cpp="LMJ-B"
+                    else:
+                        sys.exit("Unrecognised cpp/cone name ", cone_name)
                 elif (dataset_params['facility'] == "omega"):
                     beam = facility_spec["Beam"][j]
                     cpp="SG5"
@@ -562,6 +650,8 @@ def generate_input_pointing_and_pulses(iconfig, tind, pwr_ind, dataset_params, f
                 f.write('    PREDEF_CPP          = "'+cpp+'",\n')
                 f.write('    CPP_ROTATION_MODE   = 1,\n')
                 f.write('    DEFOCUS_MM          = {:.10f}d0,\n'.format(deck_gen_params['defocus'][iconfig,j]))
+            if dataset_params["bandwidth_bool"]:
+                f.write('    BANDWIDTH_DELTA_OM_OM_PERCENT = {:.10f}d0,\n'.format(deck_gen_params["bandwidth_percentage_width"][iconfig,j]))
 
             if 'fuse' in deck_gen_params.keys() and deck_gen_params['fuse'][j]:
                 f.write('    FUSE_QUADS          = .TRUE.,\n')

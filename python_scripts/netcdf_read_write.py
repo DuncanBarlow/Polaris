@@ -61,7 +61,8 @@ def save_general_netcdf(parameters, filename, extra_dimension={}):
             var_type = 'f4'
         if isinstance(item, np.ndarray):
             #print(item.dtype)
-            if item.dtype == "i":
+            if ((item.dtype == "i") or (item.dtype == "i4") or
+                (item.dtype == "int8") or (item.dtype == "int4")):
                 var_type = 'i4'
             if "float" in str(item.dtype):# == "float64":
                 var_type = 'f4'
