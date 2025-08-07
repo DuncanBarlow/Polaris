@@ -378,7 +378,7 @@ def group_beams_by_cone(facility_spec, dataset_params):
 def group_beams_subcones_lmj(facility_spec, dataset_params):
     # hemisphere symmetry
     dataset_params['num_beam_groups'] = 4
-    dataset_params['bool_turn_on_subcones'] = np.array([True, True, False, False], dtype=bool)
+    dataset_params['bool_turn_on_subcones'] = np.array([False, False, True, True], dtype=bool)
     sub_cone_list = np.array(np.zeros((4, 5)), dtype='<U4')
     dataset_params['beams_per_group'] = np.array(np.zeros((int(dataset_params['num_beam_groups']))), dtype='int8')
     dataset_params['beamgroup_name'] = np.array(np.zeros((int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"]))), dtype='<U20')
@@ -407,6 +407,7 @@ def group_beams_subcones_lmj(facility_spec, dataset_params):
         iquad = np.where(dataset_params['beamgroup_name'] == subcone_list_unique_names[isubcone])[0][0]
         dataset_params['quad_from_each_group'][isubcone] = facility_spec["Quad"][iquad]
     dataset_params['sub_cone_list'] = sub_cone_list
+    dataset_params['quad_from_each_group'] = np.array(['Q06H', 'Q03H', 'Q02H', 'Q05H'], dtype='<U4')
     return facility_spec, dataset_params
 
 
