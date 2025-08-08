@@ -70,7 +70,7 @@ def define_dataset_params(num_examples, sys_params,
     dataset_params["plasma_profile_source"] = "default" #"multi" # "default"
     dataset_params['laser_wavelength_nm'] = 351.0 # multi inputs over-ride this
     dataset_params["num_profiles_per_config"] = 1
-    dataset_params['default_power'] = np.zeros((dataset_params["num_profiles_per_config"])) + 1.0 # default power per beam TW
+    dataset_params['default_beam_power_TW'] = np.zeros((dataset_params["num_profiles_per_config"])) + 1.0 # default power per beam TW
     dataset_params["plasma_profile_times"] = np.linspace(0.5,14.,int(dataset_params["num_profiles_per_config"]))
     dataset_params['illumination_evaluation_radii'] = np.zeros((dataset_params["num_profiles_per_config"])) \
                                                      + dataset_params['target_radius']
@@ -226,6 +226,8 @@ def define_dataset(dataset_params):
     dataset["imag_modes"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"], dataset_params["num_coeff"]))
     dataset["avg_flux"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"]))
     dataset["rms"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"]))
+    dataset["power_deposited"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"]))
+    dataset["power_emitted"] = np.zeros((dataset_params["num_examples"], dataset_params["num_profiles_per_config"]))
     return dataset
 
 
