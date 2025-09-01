@@ -493,7 +493,7 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                     multi_nc, ncells, nmat = um.multi2ifriit_inputs(multi_data, itime_multi, ind_interface_dt_ch)
 
                     n_crit = um.critical_density(wavelength_l=multi_data["wavelength"])
-                    dataset_params['laser_wavelength_nm'] = multi_data["wavelength"]
+                    dataset_params['laser_wavelength_nm'] = multi_data["wavelength"] * 1.0e9 # m to nm
                     zero_crossings = np.where(np.diff(np.sign(multi_nc["ne"][0,:] - n_crit)))[0]
                     if len(zero_crossings)==0:
                         ind_critical = len(multi_nc["ne"][0,:])-1
