@@ -339,16 +339,10 @@ def import_lmj_config(sys_params, dataset_params):
     facility_spec['num_quads'] = 40
     facility_spec['num_cones'] = 4
 
-    if dataset_params["quad_split_bool"]:
-        facility_spec["beams_per_ifriit_beam"] = 1
-        filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_UpperBeams.txt"
-        filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_LowerBeams.txt"
-        facility_spec = config_read_csv(facility_spec, filename1, filename2)
-    else :
-        facility_spec["beams_per_ifriit_beam"] = 4 # fuse quads?
-        filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_UpperQuads.txt"
-        filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_LowerQuads.txt"
-        facility_spec = config_read_csv(facility_spec, filename1, filename2)
+    facility_spec["beams_per_ifriit_beam"] = 1
+    filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_UpperBeams.txt"
+    filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_LowerBeams.txt"
+    facility_spec = config_read_csv(facility_spec, filename1, filename2)
     facility_spec = config_formatting(facility_spec)
 
     if dataset_params["bool_group_beams_by_cone"]:
@@ -613,8 +607,8 @@ def generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_s
                 f.write('    PHI_DEG              = {:.10f}d0,\n'.format(np.degrees(facility_spec["Phi"][j])))
                 f.write('    FOCAL_M             = {:.10f}d0,\n'.format(facility_spec["focal_length_metres"]))
             else:
+                beam = facility_spec["Beam"][j]
                 if (dataset_params['facility'] == "nif"):
-                    beam = facility_spec["Beam"][j]
                     cone_name = facility_spec["Cone"][j]
                     if ((abs(cone_name - 23.5) <= 1.0)) or (abs(cone_name - 156.5) <= 1.0):
                         cpp="NIF-inner-23"
@@ -627,10 +621,6 @@ def generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_s
                     else:
                         sys.exit("Unrecognised cpp/cone name ", cone_name)
                 elif (dataset_params['facility'] == "lmj"):
-                    if dataset_params["quad_split_bool"] :
-                        beam = facility_spec["Beam"][j]
-                    else :
-                        beam = facility_spec["Quad"][j]
                     cone_name = facility_spec["Cone"][j]
                     if (abs(cone_name - 49.0) <= 1.0) or (abs(cone_name - 131.0) <= 1.0):
                         cpp="LMJ-A"
@@ -639,7 +629,6 @@ def generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_s
                     else:
                         sys.exit("Unrecognised cpp/cone name ", cone_name)
                 elif (dataset_params['facility'] == "omega"):
-                    beam = facility_spec["Beam"][j]
                     cpp="SG5"
                 f.write('    PREDEF_FACILITY     = "'+facility_spec['ifriit_facility_name']+'"\n')
                 f.write('    PREDEF_BEAM         = "'+beam+'",\n')
