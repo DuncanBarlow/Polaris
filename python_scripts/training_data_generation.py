@@ -64,6 +64,7 @@ def define_dataset_params(num_examples, sys_params,
     dataset_params["run_with_cbet"] = False
     dataset_params["run_plasma_profile"] = False
     dataset_params["bool_group_beams_by_cone"] = False
+    dataset_params["fuse_quad_bool"] = False
 
     dataset_params['target_radius'] = 2307.0
 
@@ -123,6 +124,8 @@ def define_scan_parameters(dataset_params):
     dataset_params["quad_split_range"] = 3.0 # multiples of angular beam seperation within port
     dataset_params["quad_split_bool"] = False
     dataset_params["quad_split_skew_bool"] = False
+    if dataset_params["fuse_quad_bool"] and dataset_params["quad_split_bool"]:
+        sys.exit("Cannot use 'fuse quads' and 'quad split' at same time")
     if dataset_params["quad_split_bool"]:
         dataset_params["quad_split_index"] = num_variables_per_beam
         num_variables_per_beam += 1
@@ -274,6 +277,8 @@ def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_para
 
         if dataset_params["run_plasma_profile"]:
             num_mpi_parallel = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
+            if dataset_params["fuse_quad_bool"]:
+                num_mpi_parallel = int(facility_spec['nbeams'] / 4 / facility_spec['beams_per_ifriit_beam'])
         else:
             num_mpi_parallel = 1
 

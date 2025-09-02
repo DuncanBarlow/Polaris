@@ -199,11 +199,10 @@ def define_deck_generation_params(dataset_params, facility_spec):
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
 
     deck_gen_params = dict()
-    deck_gen_params["non_expand_keys"] = ["non_expand_keys", "port_centre_theta", "port_centre_phi", "fuse_quads"]
+    deck_gen_params["non_expand_keys"] = ["non_expand_keys", "port_centre_theta", "port_centre_phi"]
 
     deck_gen_params["port_centre_theta"] = np.zeros(num_ifriit_beams)
     deck_gen_params["port_centre_phi"] = np.zeros(num_ifriit_beams)
-    deck_gen_params["fuse_quads"] = [False]*num_ifriit_beams
 
     deck_gen_params['pointings'] = np.zeros((num_examples, num_ifriit_beams, 3))
     deck_gen_params["theta_pointings"] = np.zeros((num_examples, num_ifriit_beams))
@@ -645,7 +644,7 @@ def generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_s
             if dataset_params["bandwidth_bool"]:
                 f.write('    BANDWIDTH_DELTA_OM_OM_PERCENT = {:.10f}d0,\n'.format(deck_gen_params["bandwidth_percentage_width"][iconfig,j]))
 
-            if 'fuse' in deck_gen_params.keys() and deck_gen_params['fuse'][j]:
+            if dataset_params["fuse_quad_bool"]:
                 f.write('    FUSE_QUADS          = .TRUE.,\n')
                 f.write('    FUSE_BY_POINTINGS   = .TRUE.,\n')
             else:
