@@ -21,13 +21,17 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
     num_input_params = dataset_params["num_input_params"]
     num_examples = dataset_params["num_examples"]
     num_vars = dataset_params["num_variables_per_beam"]
-
-    deck_gen_params['pointings'][:,:] = np.zeros(3)
-    deck_gen_params["p0"][:,:] = dataset_params['default_power']
-
+   
+    deck_gen_params['pointings'][:,:,:] = np.zeros(3)
+    deck_gen_params["p0"][:,:,:,:] = dataset_params['default_power']
+   
     if dataset_params["target_offset_bool"]:
-        deck_gen_params = populate_dataset_random_perturbations(dataset_params, deck_gen_params)
-
+        deck_gen_params = populate_dataset_random_perturbations_TO(dataset_params, deck_gen_params, sys_params, facility_spec)
+    if dataset_params["beam_mispointing_bool"]: 
+        deck_gen_params = populate_dataset_random_perturbations_BM(dataset_params, deck_gen_params, sys_params, facility_spec)
+    if dataset_params["power_imbalance_bool"]:
+        deck_gen_params = populate_dataset_random_perturbations_PI(dataset_params, deck_gen_params, sys_params, facility_spec)
+   
     for iconfig in range(dataset["num_evaluated"], num_examples):
         ex_params = dataset["input_parameters"][iconfig,:]
 
@@ -55,17 +59,54 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
             deck_gen_params["bandwidth_percentage_width"][iconfig,:] = dataset_params["bandwidth_percentage_width_default"]
     return deck_gen_params
 
+def populate_dataset_random_perturbations_TO(dataset_params, deck_gen_params,sys_params,facility_spec):
+    """ 
+    TO stands for target offset. This function introduces random perturbations in the target position
+    by applying Gaussian noise to each spatial component.
 
-def populate_dataset_random_perturbations(dataset_params, deck_gen_params):
-    print("Not sure this is correct 3D normal distribution")
-
-    sigma = dataset_params["target_offset_amplitude_mean"] * dataset_params['target_radius'] / np.sqrt(3)
+   Specifically:
+    - The components deck_gen_params["target_offset_xyz"][:, 0], [:, 1], and [:, 2] correspond to x, y, and z offsets.
+    - Each component is modeled as an independent random variable following a normal distribution
+      with mean 0 and standard deviation sigma.
+    - Their joint distribution is a multivariate normal distribution with zero mean and diagonal covariance matrix.
+    - The resulting radial displacement (norm of the offset vector) follows a second-order Rayleigh distribution.
+    """
     npoints = dataset_params["num_perturbations"]
+    sigma = dataset_params["target_offset_amplitude_mean"] * dataset_params['target_radius']
     deck_gen_params["target_offset_xyz"][:,0] = np.random.normal(0.0,sigma,npoints)
     deck_gen_params["target_offset_xyz"][:,1] = np.random.normal(0.0,sigma,npoints)
     deck_gen_params["target_offset_xyz"][:,2] = np.random.normal(0.0,sigma,npoints)
 
-    return deck_gen_params
+    return deck_gen_params 
+
+
+def populate_dataset_random_perturbations_BM(dataset_params, deck_gen_params, sys_params, facility_spec): 
+    """
+    BM stands for beam_mispointing. In the plane normal to the beam passing through the origin, 
+    a normal perturbation is introduced.
+    Specifically:
+    -   x_mis and y_mis are independant random variables and each follow a normal distribution. 
+    -   Their joint distribution is a multivariate normal distribution.
+    -   The radius follows a first-order Rayleigh distribution.
+    """
+    npoints = dataset_params["num_perturbations"]
+    sigma_beam_mispointing = dataset_params["beam_mispointing_amplitude_mean"] * dataset_params["target_radius"]
+    for j in range(facility_spec["nbeams"]):
+        x_mis = np.random.normal(0,sigma_beam_mispointing,npoints)
+        y_mis = np.random.normal(0,sigma_beam_mispointing,npoints)
+        deck_gen_params["xy-mispoint"][:,j,:] = np.column_stack((x_mis, y_mis))
+    return deck_gen_params 
+
+def populate_dataset_random_perturbations_PI(dataset_params, deck_gen_params, sys_params, facility_spec):
+    """
+    PI stands for power_imbalance. We introduce a normal perturbation on the amplitude of the laser's power. 
+    Thus, each laser should have, for 68% of the shots, a power between p0 - sigma and p0 + sigma
+    """
+    npoints = dataset_params["num_perturbations"]
+    sigma = dataset_params["power_imbalance_amplitude_mean"] * dataset_params["default_power"]
+    for j in range(facility_spec["nbeams"]):
+        deck_gen_params["p0"][:,j,:] = np.random.normal(dataset_params["default_power"],sigma,npoints)
+    return deck_gen_params 
 
 
 def create_run_files_pdd(dataset, deck_gen_params, dataset_params, sys_params, facility_spec):
@@ -215,11 +256,11 @@ def define_deck_generation_params(dataset_params, facility_spec):
     deck_gen_params["port_centre_phi"] = np.zeros(num_ifriit_beams)
     deck_gen_params["fuse_quads"] = [False]*num_ifriit_beams
 
-    deck_gen_params['pointings'] = np.zeros((num_examples, num_ifriit_beams, 3))
+    deck_gen_params['pointings'] = np.zeros((num_examples, num_ifriit_beams,num_perturbs, 3)) 
     deck_gen_params["theta_pointings"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["phi_pointings"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["defocus"] = np.zeros((num_examples, num_ifriit_beams))
-    deck_gen_params["p0"] = np.zeros((num_examples, num_ifriit_beams, dataset_params["num_powers_per_cone"]))
+    deck_gen_params["p0"] = np.zeros((num_examples, num_ifriit_beams,dataset_params["num_profiles_per_config"], num_perturbs))
     deck_gen_params["sim_params"] = np.zeros((num_examples, dataset_params["num_input_params"]*2))
     deck_gen_params["beamspot_order"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["beamspot_major_radius"] = np.zeros((num_examples, num_ifriit_beams))
@@ -227,7 +268,7 @@ def define_deck_generation_params(dataset_params, facility_spec):
     deck_gen_params["bandwidth_num_spectral_lines"] = np.zeros(num_examples, dtype=np.uint32)
     deck_gen_params["bandwidth_percentage_width"] = np.zeros((num_examples, num_ifriit_beams))
     deck_gen_params["target_offset_xyz"] = np.zeros((num_perturbs, 3))
-
+    deck_gen_params["xy-mispoint"] = np.zeros((num_examples, num_ifriit_beams, num_perturbs,2))
     return deck_gen_params
 
 
@@ -630,7 +671,7 @@ def generate_input_pointing_and_pulses(iconfig, tind, ipert, pwr_ind, dataset_pa
                 f.write('    FUSE_QUADS          = .FALSE.,\n')
 
             if 'xy-mispoint' in deck_gen_params.keys():
-                f.write('    XY_MISPOINT_UM      = {:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['xy-mispoint'][iconfig,j][0],deck_gen_params['xy-mispoint'][iconfig,j][1]))
+                f.write('    XY_MISPOINT_UM      = {:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['xy-mispoint'][iconfig,j,ipert][0],deck_gen_params['xy-mispoint'][iconfig,j,ipert][1]))
             ##
             f.write('/\n')
             f.write('\n')
