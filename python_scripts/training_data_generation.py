@@ -204,12 +204,18 @@ def populate_dataset_random_inputs(dataset_params, dataset):
         sample = np.zeros((dataset_params["num_examples"], dataset_params["num_input_params"]))
         num_samples_per_param = int((dataset_params["num_examples"])**(1.0/dataset_params["num_input_params"]))
         val_samples_per_param = np.linspace(0.,1.,num_samples_per_param)
+        print(val_samples_per_param)
         iconfig = 0
         for val_param1 in val_samples_per_param:
             for val_param2 in val_samples_per_param:
                 sample[iconfig, 0] = val_param1
                 sample[iconfig, 1] = val_param2
                 iconfig+=1
+    elif (dataset_params["sampling_method"] == "linear") and (num_input_params==1):
+        sample = np.zeros((dataset_params["num_examples"], dataset_params["num_input_params"]))
+        num_samples_per_param = int(dataset_params["num_examples"])
+        sample[:,0] = np.linspace(0.,1.,num_samples_per_param)
+        print(sample)
     else:
         sys.exit("dataset_params['sampling_method'] not recognised or see source code for type 'linear'")
 

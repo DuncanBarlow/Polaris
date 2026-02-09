@@ -332,7 +332,6 @@ def multi_data_units(multi_data):
     return multi_data
 
 
-
 def multi_find_interfaces(multi_data):
     electron_number_density = multi_data["electron_number_density"]
     threshold = np.min(electron_number_density[0,:]) * 0.01
@@ -343,7 +342,6 @@ def multi_find_interfaces(multi_data):
     return multi_data
 
 
-
 def multi_mean_laser_dep_radius(multi_data):
     n_351 = critical_density()
     mean_deposition_radius = np.zeros(multi_data["ntimes"])
@@ -351,18 +349,19 @@ def multi_mean_laser_dep_radius(multi_data):
     mean_deposition_charge_state = np.zeros(multi_data["ntimes"])
 
     for tind in range(multi_data["ntimes"]):
-        total_energy_deposited = np.sum(multi_data["power_laser_deposited_spatial"][tind,:]) #np.sum(multi_data["D"][tind,:])
+        total_energy_deposited = np.sum(multi_data["power_laser_deposited_spatial"][tind,:])
         mean_deposition_radius[tind] = np.sum(multi_data["power_laser_deposited_spatial"][tind,:] * multi_data["XC"][tind,:]) / np.max([total_energy_deposited, tiny])
         mean_deposition_density[tind] = np.sum(multi_data["power_laser_deposited_spatial"][tind,:] * multi_data["electron_number_density"][tind,:] / multi_data["ZI"][tind,:]) / np.max([total_energy_deposited, tiny])
         mean_deposition_charge_state[tind] = np.sum(multi_data["power_laser_deposited_spatial"][tind,:] * multi_data["ZI"][tind,:]) / np.max([total_energy_deposited, tiny])
 
+    intensity_14 = np.sum(multi_data["power_laser_deposited_spatial"][1:] / (4 * np.pi * multi_data["XC"][1:,]**2), axis=1) / 1.0e14
+
     multi_data["mean_deposition_radius"] = mean_deposition_radius
-    multi_data["mean_deposition_density"] = mean_deposition_density
+    multi_data["mean_deposition_density"] = mean_deposition_density[1:]
     multi_data["mean_deposition_charge_state"] = mean_deposition_charge_state
 
     surface_area = 4 * np.pi * np.max([multi_data["mean_deposition_radius"][1:], multi_data["radius_n_crit"]][1:], axis=0)**2
-    intensity_14 = np.sum(multi_data["power_laser_deposited_spatial"][1:] / (4 * np.pi * multi_data["XC"][1:,]**2), axis=1) / 1.0e14
-    pressure_estimate = 20.7 * (multi_data["mean_deposition_density"][1:] / n_351)**(1./9.) * (intensity_14)**(7./9.)
+    pressure_estimate = 18.0 * (multi_data["mean_deposition_density"] / n_351)**(1./9.) * (intensity_14)**(7./9.)
 
     multi_data["surface_area"] = surface_area
     multi_data["intensity"] = intensity_14 * 1.0e14
