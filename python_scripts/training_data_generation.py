@@ -343,6 +343,13 @@ def main(argv):
         idg.save_data_dicts_to_file(sys_params, dataset, dataset_params, deck_gen_params, facility_spec)
         copy_python_files(sys_params)
 
+    if (run_type=="single_config"):
+        print("Running file setup for ", int(argv[2]))
+        dataset, dataset_params, deck_gen_params, facility_spec = idg.load_data_dicts_from_file(sys_params)
+        dataset["num_evaluated"] = int(argv[2])
+        dataset_params["num_examples"] = int(argv[2])+1
+        idg.generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_gen_params)
+
     if (run_type=="restart") or (run_type=="full"):
         dataset, dataset_params, deck_gen_params, facility_spec = idg.load_data_dicts_from_file(sys_params)
         generate_training_data(dataset, dataset_params, sys_params, facility_spec)
