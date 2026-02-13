@@ -603,7 +603,7 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                         nrw.save_general_netcdf(multi_nc, run_location + "/" + sys_params["plasma_profile_nc"],
                                                 extra_dimension={'x': ncells, 'z':1, 'nel':nmat})
 
-                    multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset_params)
+                    multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset_params, multi_data)
         else:
             config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
             file_exists = os.path.exists(config_location)
@@ -619,7 +619,7 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
 
 
 
-def multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset_params):
+def multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset_params, multi_data):
     nbeams = facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam']
 
     path = sys_params["data_dir"] + "/" + sys_params["multi_dir"]
@@ -641,6 +641,9 @@ def multi_laser_pulse_per_beam(iconfig, tind, sys_params, facility_spec, dataset
         old_pulse_power[i] = old_pulse_data[1]
         i+=1
 
+    #print("Using laser multiplier {} for ifriit. Appropriate for scaling, not for CBET".format(multi_data["laser_time_multiplier"]))
+    #new_pulse_time = old_pulse_time * multi_data["laser_time_multiplier"]
+    #new_pulse_power = old_pulse_power / nbeams * multi_data["laser_power_multiplier"]
     new_pulse_time = old_pulse_time
     new_pulse_power = old_pulse_power / nbeams
 
