@@ -186,7 +186,7 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
 
     print_line.append('Total power emitted {:.2f}TW, '.format(total_power))
     if not dataset_params["run_plasma_profile"]:
-        print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * dataset_params['default_power'] * mean_power_fraction) * 100.0))
+        print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * dataset_params['default_beam_power_TW'][ind_profile] * mean_power_fraction) * 100.0))
 
     return print_line
 
