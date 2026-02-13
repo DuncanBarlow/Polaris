@@ -709,7 +709,11 @@ def generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_s
                 f.write('&BEAM\n')
                 f.write('    LAMBDA_NM           = {:.10f}d0,\n'.format(dataset_params['laser_wavelength_nm']))
                 f.write('    FOC_UM              = {:.10f}d0,{:.10f}d0,{:.10f}d0,\n'.format(deck_gen_params['pointings'][iconfig,j][0],deck_gen_params['pointings'][iconfig,j][1],deck_gen_params['pointings'][iconfig,j][2]))
-                f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['power_multiplier'][iconfig,j,tind] * dataset_params['default_beam_power_TW'][tind]))
+                if dataset_params["plasma_profile_source"] == "multi":
+                    f.write('    POWER_PROFILE_FILE_TW_NS = "'+sys_params["ifriit_pulse_name"]+'"\n')
+                    f.write('    T_0_NS              = {:.10f}d0,\n'.format(dataset_params["plasma_profile_times"][tind]))
+                else:
+                    f.write('    P0_TW               = {:.10f}d0,\n'.format(deck_gen_params['power_multiplier'][iconfig,j,tind] * dataset_params['default_beam_power_TW'][tind]))
 
                 if (dataset_params['facility'] == "custom_facility"):
                     f.write('    THETA_DEG            = {:.10f}d0,\n'.format(np.degrees(facility_spec["Theta"][j])))
