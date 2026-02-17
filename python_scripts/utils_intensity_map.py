@@ -2,6 +2,59 @@ import numpy as np
 import os
 
 
+def FindLineSphereIntersections(coord1, coord2, coord_sphere_centre, sphere_radius):
+    #https://www.codeproject.com/articles/Simple-Ray-Tracing-in-C-Part-II-Triangles-Intersec#comments-section
+    #https://stackoverflow.com/questions/5883169/intersection-between-a-line-and-a-sphere
+    coord_intersection = np.zeros((2,3))
+
+    cx = coord_sphere_centre[0]
+    cy = coord_sphere_centre[1]
+    cz = coord_sphere_centre[2]
+
+    px = coord1[0]
+    py = coord1[1]
+    pz = coord1[2]
+
+    vx = coord2[0] - px
+    vy = coord2[1] - py
+    vz = coord2[2] - pz
+
+    A = vx**2 + vy**2 + vz**2
+    B = 2.0 * (px * vx + py * vy + pz * vz - vx * cx - vy * cy - vz * cz)
+    C = (px**2 - 2 * px * cx + cx**2 + py**2 - 2 * py * cy + cy**2
+         + pz**2 - 2 * pz * cz + cz**2 - sphere_radius**2)
+
+    # discriminant
+    D = B**2 - 4 * A * C
+
+    if (D < 0):
+        coord_intersection[:] = 0.0
+
+    t1 = (-B - np.sqrt(np.abs(D))) / (2.0 * A)
+    #if (D == 0) or (np.abs(t1 - 0.5) < np.abs(t2 - 0.5)):
+    coord_intersection[0,0] = coord1[0] * (1 - t1) + t1 * coord2[0]
+    coord_intersection[0,1] = coord1[1] * (1 - t1) + t1 * coord2[1]
+    coord_intersection[0,2] = coord1[2] * (1 - t1) + t1 * coord2[2]
+
+    t2 = (-B + np.sqrt(np.abs(D))) / (2.0 * A)
+    #if (np.abs(t1 - 0.5) < np.abs(t2 - 0.5)):
+    coord_intersection[1,0] = coord1[0] * ( 1 - t2 ) + t2 * coord2[0]
+    coord_intersection[1,1] = coord1[1] * ( 1 - t2 ) + t2 * coord2[1]
+    coord_intersection[1,2] = coord1[2] * ( 1 - t2 ) + t2 * coord2[2]
+    #print(np.sqrt(np.sum(coord_intersection**2, axis=1)), D, D < 0, D == 0, t1, t2, np.abs(t1 - 0.5) < np.abs(t2 - 0.5))
+
+    if ((t1 > t2) and (np.abs(np.sqrt(np.sum(coord_intersection[0,:]**2)) - sphere_radius) < (sphere_radius / 100.0))):
+        coord_intersection_near_port = coord_intersection[0,:]
+    elif (np.abs(np.sqrt(np.sum(coord_intersection[1,:]**2)) - sphere_radius) < (sphere_radius / 100.0)):
+        coord_intersection_near_port = coord_intersection[1,:]
+    else:
+        print("Pointing outside sphere radius ",sphere_radius, " microns")
+        coord_intersection_near_port = np.zeros(3)
+
+    return coord_intersection_near_port
+
+
+
 def angle2moll(theta, phi):
 
     latitude = np.pi / 2.0 - theta
