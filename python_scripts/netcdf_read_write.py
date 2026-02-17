@@ -68,7 +68,7 @@ def save_general_netcdf(parameters, filename, extra_dimension={}):
                 var_type = 'f4'
             if "<U" in str(item.dtype):
                 # this is designed to catch strings use np.array(my_array, dtype='<U*')
-                str_length = len(item[0])
+                str_length = len(max(item, key=len))
                 item = np.array(item, dtype='S'+str(str_length))
                 var_type = 'S1'
                 dims = dims + (str_length,)
