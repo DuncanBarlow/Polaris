@@ -57,9 +57,10 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
         coord_o[2] = dataset_params['target_radius']
         if dataset_params['custom_beam_groups_bool']:
             num_groups = dataset_params['beams_per_group'][0]
-            group_name = dataset_params['beamgroup_name'][0]
+            group_name = dataset_params['beam_group_name_list'][0]
             deck_gen_params['power_multiplier'][:,:,:] = 0.0
             ibeams_in_group = np.where(dataset_params['beamgroup_name'] == group_name)[0]
+            print("Group name: '", group_name, "', Beams: ", ibeams_in_group, " with length ", len(ibeams_in_group))
             deck_gen_params['power_multiplier'][:,ibeams_in_group,:] = 1.0
         elif dataset_params["pointing_per_beam_bool"]:
             num_groups = facility_spec['nbeams']
@@ -308,10 +309,10 @@ def import_direct_drive_config(sys_params, dataset_params):
 
 
 def group_beams_by_group(facility_spec, dataset_params):
+    dataset_params['beamgroup_name'][:] = "None"
     if dataset_params["custom_beam_groups_name"] == "24+36":
         set_group_36 = [30,45,19,50,62,54,39,23,69,51,38,21,27,18,53,42,49,34,37,24,59,60,41,15,20,66,58,65,52,33,31,11,26,17,56,61]
         set_group_24 = [10,12,13,14,16,22,25,28,29,32,35,36,40,43,44,46,47,48,55,57,63,64,67,68]
-
         for idx in range(10, 10 + facility_spec['nbeams']):
             if idx in set_group_36:
                 dataset_params['beamgroup_name'][idx - 10] = "group_36"
@@ -320,28 +321,29 @@ def group_beams_by_group(facility_spec, dataset_params):
                 dataset_params['beamgroup_name'][idx - 10] = "group_24"
                 dataset_params["beamspot_predef_beam_name"][idx - 10] = "SG5"
 
+    set_group_40 = np.concatenate((np.linspace(10,29,20), np.linspace(40,59,20)))
+    set_group_20 = np.concatenate((np.linspace(30,39,10), np.linspace(60,69,10)))
     if dataset_params["custom_beam_groups_name"] == "20+40":
-        set_group_40 = np.concatenate((np.linspace(10,29,20), np.linspace(40,59,20)))
-        set_group_20 = np.concatenate((np.linspace(30,39,10), np.linspace(60,69,10)))
-
         for idx in range(10, 10 + facility_spec['nbeams']):
             if idx in set_group_40:
                 dataset_params['beamgroup_name'][idx - 10] = "group_40"
                 dataset_params["beamspot_predef_beam_name"][idx - 10] = "SG5"
             else:
                 dataset_params['beamgroup_name'][idx - 10] = "group_20"
-                dataset_params["beamspot_predef_beam_name"][idx - 10] = "SG5"
-
+                dataset_params["beamspot_predef_beam_name"][idx - 10] = "PD-R1"
     if dataset_params["custom_beam_groups_name"] == "just_40":
-        set_group_40 = np.concatenate((np.linspace(10,29,20), np.linspace(40,59,20)))
-
         for idx in range(10, 10 + facility_spec['nbeams']):
             if idx in set_group_40:
                 dataset_params['beamgroup_name'][idx - 10] = "group_40"
                 dataset_params["beamspot_predef_beam_name"][idx - 10] = "SG5"
+    if dataset_params["custom_beam_groups_name"] == "just_20":
+        for idx in range(10, 10 + facility_spec['nbeams']):
+            if idx in set_group_20:
+                dataset_params['beamgroup_name'][idx - 10] = "group_20"
+                dataset_params["beamspot_predef_beam_name"][idx - 10] = "PD-R1"
 
     beam_group_name_list = list(set(dataset_params['beamgroup_name']))
-    #beam_group_name_list = [i for i in beam_group_name_list if i != "None"]
+    beam_group_name_list = [i for i in beam_group_name_list if i != "None"]
     dataset_params['beam_group_name_list'] = np.array(beam_group_name_list, dtype='<U20')
 
     dataset_params['num_beam_groups'] = len(dataset_params['beam_group_name_list'])
@@ -746,7 +748,7 @@ def generate_input_pointing_and_pulses(iconfig, tind, dataset_params, facility_s
                         else:
                             sys.exit("Unrecognised cpp/cone name ", cone_name)
                     elif (dataset_params['facility'] == "omega"):
-                        cpp="SG5"
+                        cpp=dataset_params["beamspot_predef_beam_name"][j]
                     f.write('    PREDEF_FACILITY     = "'+facility_spec['ifriit_facility_name']+'"\n')
                     f.write('    PREDEF_BEAM         = "'+beam+'",\n')
 
