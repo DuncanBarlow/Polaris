@@ -29,6 +29,15 @@ def read_inputs(path, multi_data):
                 multi_input_line = line.split()[2]
                 multi_input_line = re.sub(',', '', multi_input_line)
                 multi_data["wavelength"] = float(multi_input_line) / 1.0e2
+            if re.search("pimax", line, re.IGNORECASE):
+                multi_input_line = line.split()[2]
+                multi_input_line = re.sub(',', '', multi_input_line)
+                multi_data["laser_power_multiplier"] = float(multi_input_line) / 1.0e19
+                print("Laser multiplier: ",multi_data["laser_power_multiplier"])
+            if re.search("pitime", line, re.IGNORECASE):
+                multi_input_line = line.split()[2]
+                multi_input_line = re.sub(',', '', multi_input_line)
+                multi_data["laser_time_multiplier"] = float(multi_input_line)  / 1.0e-9
 
     return multi_data
 
