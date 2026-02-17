@@ -67,6 +67,9 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
         else:
             num_groups = dataset_params['num_beam_groups']
 
+        if dataset_params["pointings_zooming_bool"] == True :
+            pointings_zooming_20_40(iconfig, facility_spec, deck_gen_params)
+
         if (dataset_params["pointing_bool"] or dataset_params["theta_bool"]):
             for igroup in range(num_groups):
                 if dataset_params["pointing_per_beam_bool"] and dataset_params['custom_beam_groups_bool']:
@@ -270,7 +273,6 @@ def define_deck_generation_params(dataset_params, facility_spec):
 
     return deck_gen_params
 
-
 def import_direct_drive_config(sys_params, dataset_params):
     facility_spec = dict()
 
@@ -355,6 +357,43 @@ def group_beams_by_group(facility_spec, dataset_params):
     print(dataset_params['beam_group_name_list'], dataset_params['num_beam_groups'],  dataset_params['beams_per_group'])
     return facility_spec, dataset_params
 
+def pointings_zooming_20_40(iconfig,facility_spec,deck_gen_params):
+    """moi j'importe un r pointing, un theta pointing et un phi pointing"""
+
+    path = "../facility_config_files/pointing_zooming_20_40_energy.csv"
+    num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
+
+    phi = []
+    theta = []
+    r = []
+    power = []
+    with open(path) as f:
+        reader = csv.DictReader(f,delimiter=";")
+        for row in reader:
+            row_ptg_phi = row['ptg_phi'].replace(',', '.')
+            phi.append(float(row_ptg_phi))
+            row_ptg_theta = row['ptg_theta'].replace(',', '.')
+            theta.append(float(row_ptg_theta))
+            row_ptg_radius = row['ptg_radius'].replace(',', '.')
+            r.append(float(row_ptg_radius))
+            row_energy = row['energy'].replace(',', '.')
+            power.append(float(row_energy))
+
+    phi = np.array(phi)
+    theta = np.array(theta)
+    r = np.array(r)
+    power = np.array(power)
+    power = power/np.sum(power)
+
+    phi = np.deg2rad(phi)
+    theta  = np.deg2rad(theta)
+
+    for j in range(num_ifriit_beams):
+        deck_gen_params['pointings'][iconfig,j][0] = r[j]*np.cos(phi[j])*np.sin(theta[j])
+        deck_gen_params['pointings'][iconfig,j][1] = r[j]*np.sin(phi[j])*np.sin(theta[j])
+        deck_gen_params['pointings'][iconfig,j][2] = r[j]*np.cos(theta[j])
+        deck_gen_params['power_multiplier'][iconfig,j,:] = deck_gen_params['power_multiplier'][iconfig,j,:] * power[j]
+    return deck_gen_params
 
 def generate_facility_cpm48(facility_spec):
     facility_spec['nbeams'] = 48
