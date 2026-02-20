@@ -1,6 +1,7 @@
 from netCDF4 import Dataset
 import numpy as np
 import os
+import csv
 import glob
 import shutil
 from healpy_pointings import rot_mat
@@ -135,8 +136,8 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
 
                 print(dir_illumination)
                 print("With density profiles:")
-                print('Total power emitted   {:.2f}TW, '.format(dataset["power_emitted"][iex,tind] / 1.0e12))
-                print('Total power deposited {:.2f}TW, '.format(dataset["power_deposited"][iex,tind] / 1.0e12))
+                print('Total power emitted:    {:.2f}TW, '.format(dataset["power_emitted"][iex,tind] / 1.0e12))
+                print('Total power deposited:  {:.2f}TW, '.format(dataset["power_deposited"][iex,tind] / 1.0e12))
                 print('Mean ablation pressure: {:.2f}Mbar'.format(dataset["avg_flux"][iex, tind]))
                 print("The rms is: {:.2f} %".format(dataset["rms"][iex,tind]*100.0))
 
@@ -153,10 +154,11 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
 
                     print(dir_illumination)
                     print("Without density profiles:")
-                    print('Total power emitted   {:.2f}TW, '.format(dataset["power_emitted"][iex,tind] / 1.0e12))
-                    print('Total power deposited {:.2f}TW, '.format(dataset["power_deposited"][iex,tind] / 1.0e12))
-                    print('Intensity per steradian, {:.2e}W/sr'.format(dataset["avg_flux"][iex, tind]))
-                    print("The rms is: {:.2f} %".format(dataset["rms"][iex,tind]*100.0))
+                    print('Evaluation radius:        {:.2f}µm, '.format(dataset_params['illumination_evaluation_radii'][tind]))
+                    print('Total power emitted:      {:.2f}TW, '.format(dataset["power_emitted"][iex,tind] / 1.0e12))
+                    print('beam-target intersection: {:.2f} %'.format(dataset["power_deposited"][iex,tind] /dataset["power_emitted"][iex,tind] *100.0))
+                    print('Intensity per steradian:  {:.2e}W/sr'.format(dataset["avg_flux"][iex, tind]))
+                    print("The rms is:               {:.2f} %".format(dataset["rms"][iex,tind]*100.0))
                 else:
                     print("Broken illumination!")
 
@@ -308,3 +310,127 @@ def import_training_data(sys_params):
     training_data.close()
 
     return X_all, Y_all, avg_powers_all
+
+
+def import_pointings(iconfig, pointings_file_name, facility_spec, deck_gen_params):
+
+    path = pointings_file_name
+    num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
+
+    beam_names = []
+    coordx = []
+    coordy = []
+    coordz = []
+    with open(path) as f:
+        reader = csv.DictReader(f,delimiter=" ")
+        for row in reader:
+            beam_name = row['nbeam']
+            beam_names.append(float(beam_name))
+            x = row['xfoc(cm)']
+            coordx.append(float(x))
+            y = row['yfoc(cm)']
+            coordy.append(float(y))
+            z = row['zfoc(cm)']
+            coordz.append(float(z))
+
+    for j in range(num_ifriit_beams):
+        deck_gen_params['pointings'][iconfig,j][0] = coordx[j] * 10000 # cm to microns
+        deck_gen_params['pointings'][iconfig,j][1] = coordy[j] * 10000
+        deck_gen_params['pointings'][iconfig,j][2] = coordz[j] * 10000
+    return deck_gen_params
+
+
+def pointings_zooming_20_40(iconfig, pointings_file_name, facility_spec, deck_gen_params):
+    """moi j'importe un r pointing, un theta pointing et un phi pointing"""
+
+    path = pointings_zooming_name
+    num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
+
+    phi = []
+    theta = []
+    r = []
+    power = []
+    with open(path) as f:
+        reader = csv.DictReader(f,delimiter=";")
+        for row in reader:
+            row_ptg_phi = row['ptg_phi'].replace(',', '.')
+            phi.append(float(row_ptg_phi))
+            row_ptg_theta = row['ptg_theta'].replace(',', '.')
+            theta.append(float(row_ptg_theta))
+            row_ptg_radius = row['ptg_radius'].replace(',', '.')
+            r.append(float(row_ptg_radius))
+            row_energy = row['energy'].replace(',', '.')
+            power.append(float(row_energy))
+
+    phi = np.array(phi)
+    theta = np.array(theta)
+    r = np.array(r)
+    power = np.array(power)
+    power = power/np.sum(power)
+
+    phi = np.deg2rad(phi)
+    theta  = np.deg2rad(theta)
+
+    for j in range(num_ifriit_beams):
+        deck_gen_params['pointings'][iconfig,j][0] = r[j]*np.cos(phi[j])*np.sin(theta[j])
+        deck_gen_params['pointings'][iconfig,j][1] = r[j]*np.sin(phi[j])*np.sin(theta[j])
+        deck_gen_params['pointings'][iconfig,j][2] = r[j]*np.cos(theta[j])
+        deck_gen_params['power_multiplier'][iconfig,j,:] = deck_gen_params['power_multiplier'][iconfig,j,:] * power[j]
+    return deck_gen_params
+
+
+def config_read_csv(facility_spec, filename1, filename2):
+    num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
+    j = -1
+    f=open(filename1, "r")
+    reader = csv.reader(f, delimiter='\t')
+    for row in reader:
+        if j==-1:
+            key = row
+            for i in range(len(row)):
+                facility_spec[row[i]] = [None] * int(num_ifriit_beams)
+        else:
+            for i in range(len(row)):
+                if i < 2:
+                    facility_spec[key[i]][j] = row[i]
+                elif i < 5:
+                    facility_spec[key[i]][j] = float(row[i])
+                else:
+                    facility_spec[key[i]][j] = int(row[i])
+        j=j+1
+    f.close()
+    f=open(filename2, "r")
+    reader = csv.reader(f, delimiter='\t')
+    for row in reader:
+        if j==int(num_ifriit_beams/2.0):
+            key = row
+        else:
+            for i in range(len(row)):
+                if i < 2:
+                    facility_spec[key[i]][j-1] = row[i]
+                elif i < 5:
+                    facility_spec[key[i]][j-1] = float(row[i])
+                else:
+                    facility_spec[key[i]][j-1] = int(row[i])
+        j=j+1
+    f.close()
+    return facility_spec
+
+
+def load_facility_csv(sys_params, facility_spec):
+    path_facility_configs = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/"
+    f=open(path_facility_configs + facility_spec['ifriit_facility_name']+"_theta_phi_rad.txt", "r")
+    reader = csv.reader(f, delimiter=' ')
+
+    facility_spec["Theta"] = []
+    facility_spec["Phi"] = []
+    j = 0
+    for row in reader:
+        facility_spec["Theta"].append(float(row[0]))
+        facility_spec["Phi"].append(float(row[1]))
+        j=j+1
+    f.close()
+    facility_spec["Theta"] = np.array(facility_spec["Theta"])
+    facility_spec["Phi"] = np.array(facility_spec["Phi"])
+    facility_spec['nbeams'] = np.shape(facility_spec["Theta"])[0]
+    return facility_spec

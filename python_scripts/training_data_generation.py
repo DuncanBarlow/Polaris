@@ -70,6 +70,7 @@ def define_dataset_params(num_examples, sys_params,
     dataset_params['custom_beam_groups_bool'] = False
     dataset_params["custom_beam_groups_name"] = "just_40"
     dataset_params["pointings_zooming_bool"] = False
+    dataset_params["pointings_file_name"] = "point_Theobald2012.txt"
 
     dataset_params["plasma_profile_source"] = "default" #"multi" # "default"
     dataset_params['laser_wavelength_nm'] = 351.0 # multi inputs over-ride this

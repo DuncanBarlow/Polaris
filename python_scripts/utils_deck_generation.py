@@ -56,22 +56,35 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
         coord_o = np.zeros(3)
         coord_o[2] = dataset_params['target_radius']
         if dataset_params['custom_beam_groups_bool']:
-            num_groups = dataset_params['beams_per_group'][0]
-            group_name = dataset_params['beam_group_name_list'][0]
             deck_gen_params['power_multiplier'][:,:,:] = 0.0
-            ibeams_in_group = np.where(dataset_params['beamgroup_name'] == group_name)[0]
-            print("Group name: '", group_name, "', Beams: ", ibeams_in_group, " with length ", len(ibeams_in_group))
-            deck_gen_params['power_multiplier'][:,ibeams_in_group,:] = 1.0
+            if dataset_params["pointing_per_beam_bool"]:
+                num_pointing_groups = dataset_params['beams_per_group'][0]
+                num_groups = 1
+            else:
+                num_pointing_groups = dataset_params['num_beam_groups']
+                num_groups = dataset_params['num_beam_groups']
+            for igroup in range(num_groups):
+                group_name = dataset_params['beam_group_name_list'][igroup]
+                ibeams_in_group = np.where(dataset_params['beamgroup_name'] == group_name)[0]
+                print("Group name: '", group_name, "', Beams: ", ibeams_in_group, " with length ", len(ibeams_in_group))
+                deck_gen_params['power_multiplier'][:,ibeams_in_group,:] = 1.0
         elif dataset_params["pointing_per_beam_bool"]:
             num_groups = facility_spec['nbeams']
         else:
             num_groups = dataset_params['num_beam_groups']
 
-        if dataset_params["pointings_zooming_bool"] == True :
-            pointings_zooming_20_40(iconfig, facility_spec, deck_gen_params)
+        if dataset_params["pointings_import_bool"] == True :
+            if dataset_params["pointings_file_name"] == "pointing_zooming_20_40_energy.csv":
+                nrw.pointings_zooming_20_40(iconfig, sys_params["root_dir"]+"/"+dataset_params["pointings_file_name"],
+                                            facility_spec, deck_gen_params)
+            else:
+                deck_gen_params = nrw.import_pointings(iconfig, sys_params["root_dir"]+"/"+
+                                                       sys_params["facility_config_files_dir"]+"/"+
+                                                       dataset_params["pointings_file_name"],
+                                                       facility_spec, deck_gen_params)
 
         if (dataset_params["pointing_bool"] or dataset_params["theta_bool"]):
-            for igroup in range(num_groups):
+            for igroup in range(num_pointing_groups):
                 if dataset_params["pointing_per_beam_bool"] and dataset_params['custom_beam_groups_bool']:
                     group_name = facility_spec['Beam'][igroup]
                     group_slice = [ibeams_in_group[igroup]]
@@ -286,13 +299,13 @@ def import_direct_drive_config(sys_params, dataset_params):
         if facility_spec['ifriit_facility_name'] == "cpm48":
             facility_spec = generate_facility_cpm48(facility_spec)
         else:
-            facility_spec = load_facility_csv(sys_params, facility_spec)
+            facility_spec = nrw.load_facility_csv(sys_params, facility_spec)
         facility_spec["focal_length_metres"] = 10.0
         facility_spec['Beam'] = list(map(str, np.arange(facility_spec['nbeams'])))
     else:
         facility_spec['nbeams'] = 60
         facility_spec['ifriit_facility_name'] = "OMEGA60"
-        facility_spec = load_facility_csv(sys_params, facility_spec)
+        facility_spec = nrw.load_facility_csv(sys_params, facility_spec)
         facility_spec["Theta"] = np.radians(facility_spec["Theta"])
         facility_spec["Phi"] = np.radians(facility_spec["Phi"])
 
@@ -312,14 +325,24 @@ def import_direct_drive_config(sys_params, dataset_params):
 
 def group_beams_by_group(facility_spec, dataset_params):
     dataset_params['beamgroup_name'][:] = "None"
+    set_group_36 = [30,45,19,50,62,54,39,23,69,51,38,21,27,18,53,42,49,34,37,24,59,60,41,15,20,66,58,65,52,33,31,11,26,17,56,61]
+    set_group_24 = [10,12,13,14,16,22,25,28,29,32,35,36,40,43,44,46,47,48,55,57,63,64,67,68]
     if dataset_params["custom_beam_groups_name"] == "24+36":
-        set_group_36 = [30,45,19,50,62,54,39,23,69,51,38,21,27,18,53,42,49,34,37,24,59,60,41,15,20,66,58,65,52,33,31,11,26,17,56,61]
-        set_group_24 = [10,12,13,14,16,22,25,28,29,32,35,36,40,43,44,46,47,48,55,57,63,64,67,68]
         for idx in range(10, 10 + facility_spec['nbeams']):
             if idx in set_group_36:
                 dataset_params['beamgroup_name'][idx - 10] = "group_36"
                 dataset_params["beamspot_predef_beam_name"][idx - 10] = "PD-R1"
             else:
+                dataset_params['beamgroup_name'][idx - 10] = "group_24"
+                dataset_params["beamspot_predef_beam_name"][idx - 10] = "SG5"
+    if dataset_params["custom_beam_groups_name"] == "just_36":
+        for idx in range(10, 10 + facility_spec['nbeams']):
+            if idx in set_group_36:
+                dataset_params['beamgroup_name'][idx - 10] = "group_36"
+                dataset_params["beamspot_predef_beam_name"][idx - 10] = "PD-R1"#"SG5"
+    if dataset_params["custom_beam_groups_name"] == "just_24":
+        for idx in range(10, 10 + facility_spec['nbeams']):
+            if idx in set_group_24:
                 dataset_params['beamgroup_name'][idx - 10] = "group_24"
                 dataset_params["beamspot_predef_beam_name"][idx - 10] = "SG5"
 
@@ -342,7 +365,7 @@ def group_beams_by_group(facility_spec, dataset_params):
         for idx in range(10, 10 + facility_spec['nbeams']):
             if idx in set_group_20:
                 dataset_params['beamgroup_name'][idx - 10] = "group_20"
-                dataset_params["beamspot_predef_beam_name"][idx - 10] = "PD-R1"
+                dataset_params["beamspot_predef_beam_name"][idx - 10] = "PD-R1"#"SG5-650"
 
     beam_group_name_list = list(set(dataset_params['beamgroup_name']))
     beam_group_name_list = [i for i in beam_group_name_list if i != "None"]
@@ -356,44 +379,6 @@ def group_beams_by_group(facility_spec, dataset_params):
         dataset_params['beams_per_group'][igroup] = len(np.where(dataset_params['beamgroup_name'] == group_name)[0])
     print(dataset_params['beam_group_name_list'], dataset_params['num_beam_groups'],  dataset_params['beams_per_group'])
     return facility_spec, dataset_params
-
-def pointings_zooming_20_40(iconfig,facility_spec,deck_gen_params):
-    """moi j'importe un r pointing, un theta pointing et un phi pointing"""
-
-    path = "../facility_config_files/pointing_zooming_20_40_energy.csv"
-    num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
-
-    phi = []
-    theta = []
-    r = []
-    power = []
-    with open(path) as f:
-        reader = csv.DictReader(f,delimiter=";")
-        for row in reader:
-            row_ptg_phi = row['ptg_phi'].replace(',', '.')
-            phi.append(float(row_ptg_phi))
-            row_ptg_theta = row['ptg_theta'].replace(',', '.')
-            theta.append(float(row_ptg_theta))
-            row_ptg_radius = row['ptg_radius'].replace(',', '.')
-            r.append(float(row_ptg_radius))
-            row_energy = row['energy'].replace(',', '.')
-            power.append(float(row_energy))
-
-    phi = np.array(phi)
-    theta = np.array(theta)
-    r = np.array(r)
-    power = np.array(power)
-    power = power/np.sum(power)
-
-    phi = np.deg2rad(phi)
-    theta  = np.deg2rad(theta)
-
-    for j in range(num_ifriit_beams):
-        deck_gen_params['pointings'][iconfig,j][0] = r[j]*np.cos(phi[j])*np.sin(theta[j])
-        deck_gen_params['pointings'][iconfig,j][1] = r[j]*np.sin(phi[j])*np.sin(theta[j])
-        deck_gen_params['pointings'][iconfig,j][2] = r[j]*np.cos(theta[j])
-        deck_gen_params['power_multiplier'][iconfig,j,:] = deck_gen_params['power_multiplier'][iconfig,j,:] * power[j]
-    return deck_gen_params
 
 def generate_facility_cpm48(facility_spec):
     facility_spec['nbeams'] = 48
@@ -414,25 +399,6 @@ def generate_facility_cpm48(facility_spec):
                 j+=1
     facility_spec["Theta"] = np.radians(facility_spec["Theta"])
     facility_spec["Phi"] = np.radians(facility_spec["Phi"])
-    return facility_spec
-
-
-def load_facility_csv(sys_params, facility_spec):
-    path_facility_configs = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/"
-    f=open(path_facility_configs + facility_spec['ifriit_facility_name']+"_theta_phi_rad.txt", "r")
-    reader = csv.reader(f, delimiter=' ')
-
-    facility_spec["Theta"] = []
-    facility_spec["Phi"] = []
-    j = 0
-    for row in reader:
-        facility_spec["Theta"].append(float(row[0]))
-        facility_spec["Phi"].append(float(row[1]))
-        j=j+1
-    f.close()
-    facility_spec["Theta"] = np.array(facility_spec["Theta"])
-    facility_spec["Phi"] = np.array(facility_spec["Phi"])
-    facility_spec['nbeams'] = np.shape(facility_spec["Theta"])[0]
     return facility_spec
 
 
@@ -462,7 +428,7 @@ def import_nif_config(sys_params, dataset_params):
 
     filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/NIF_UpperBeams.txt"
     filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/NIF_LowerBeams.txt"
-    facility_spec = config_read_csv(facility_spec, filename1, filename2)
+    facility_spec = nrw.config_read_csv(facility_spec, filename1, filename2)
     facility_spec = config_formatting(facility_spec)
 
     if dataset_params["bool_group_beams_by_cone"]:
@@ -485,7 +451,7 @@ def import_lmj_config(sys_params, dataset_params):
     facility_spec["beams_per_ifriit_beam"] = 1
     filename1 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_UpperBeams.txt"
     filename2 = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/LMJ_LowerBeams.txt"
-    facility_spec = config_read_csv(facility_spec, filename1, filename2)
+    facility_spec = nrw.config_read_csv(facility_spec, filename1, filename2)
     facility_spec = config_formatting(facility_spec)
 
     if dataset_params["bool_group_beams_by_cone"]:
@@ -547,45 +513,6 @@ def group_beams_subcones_lmj(facility_spec, dataset_params):
         iquad = np.where(dataset_params['beamgroup_name'] == subcone_list_unique_names[isubcone])[0][0]
         dataset_params['quad_from_each_group'][isubcone] = facility_spec["Quad"][iquad]
     return facility_spec, dataset_params
-
-
-def config_read_csv(facility_spec, filename1, filename2):
-    num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
-    j = -1
-    f=open(filename1, "r")
-    reader = csv.reader(f, delimiter='\t')
-    for row in reader:
-        if j==-1:
-            key = row
-            for i in range(len(row)):
-                facility_spec[row[i]] = [None] * int(num_ifriit_beams)
-        else:
-            for i in range(len(row)):
-                if i < 2:
-                    facility_spec[key[i]][j] = row[i]
-                elif i < 5:
-                    facility_spec[key[i]][j] = float(row[i])
-                else:
-                    facility_spec[key[i]][j] = int(row[i])
-        j=j+1
-    f.close()
-    f=open(filename2, "r")
-    reader = csv.reader(f, delimiter='\t')
-    for row in reader:
-        if j==int(num_ifriit_beams/2.0):
-            key = row
-        else:
-            for i in range(len(row)):
-                if i < 2:
-                    facility_spec[key[i]][j-1] = row[i]
-                elif i < 5:
-                    facility_spec[key[i]][j-1] = float(row[i])
-                else:
-                    facility_spec[key[i]][j-1] = int(row[i])
-        j=j+1
-    f.close()
-    return facility_spec
-
 
 
 def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_gen_params):
