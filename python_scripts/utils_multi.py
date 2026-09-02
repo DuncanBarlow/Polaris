@@ -99,6 +99,9 @@ def multi2ifriit_inputs(multi_data, itime, ind_interfaces):
     ifriit_input_format["frac"][0,:,:ind_interfaces[0]] = 0.05
     ifriit_input_format["frac"][3,:,:ind_interfaces[0]] = 0.05
     """
+    # pure DT layer
+    ifriit_input_format["frac"][1,:,:ind_interfaces[0]] = 0.5
+    ifriit_input_format["frac"][2,:,:ind_interfaces[0]] = 0.5
     # Plastic CH layer
     ifriit_input_format["frac"][0,:,ind_interfaces[0]:] = 0.5
     ifriit_input_format["frac"][3,:,ind_interfaces[0]:] = 0.5
