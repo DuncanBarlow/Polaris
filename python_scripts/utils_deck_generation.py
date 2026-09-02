@@ -286,7 +286,8 @@ def define_deck_generation_params(dataset_params, facility_spec):
 
     return deck_gen_params
 
-def import_direct_drive_config(sys_params, dataset_params):
+
+def import_direct_drive_config(sys_params, dataset_params, ifriit_facility_name):
     facility_spec = dict()
 
     facility_spec['num_quads'] = 0
@@ -295,7 +296,7 @@ def import_direct_drive_config(sys_params, dataset_params):
     dataset_params['num_beam_groups'] = 1
 
     if (dataset_params['facility']=="custom_facility"):
-        facility_spec['ifriit_facility_name'] = "cpm48" #"cpm48" #"cpm72" #"t11_b72" #"ico80"
+        facility_spec['ifriit_facility_name'] = ifriit_facility_name
         if facility_spec['ifriit_facility_name'] == "cpm48":
             facility_spec = generate_facility_cpm48(facility_spec)
         else:
@@ -547,11 +548,11 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                                     sys_params["plasma_profile_nc"],
                                     run_location + "/" + sys_params["plasma_profile_nc"])
             elif dataset_params["plasma_profile_source"] == "multi":
-                ind_interface_dt_ch = [0]
-                print("!!! Hardcoded hydro evaluation time DT-CH interface at cell:" + str(ind_interface_dt_ch)+" !!!")
                 path = sys_params["data_dir"] + "/" + sys_params["multi_dir"]
                 multi_data = um.multi_read_ascii(path+"/"+sys_params["multi_output_ascii_filename"])
                 multi_data = um.read_inputs(path+"/"+sys_params["multi_input_filename"], multi_data)
+                ind_interface_dt_ch = [multi_data["fuel_boundary"]]
+                print("!!! Hardcoded hydro evaluation time DT-CH interface at cell:" + str(ind_interface_dt_ch)+" !!!")
                 for tind in range(dataset_params["num_profiles_per_config"]):
                     itime_multi = np.argmin(np.abs(multi_data["time"]*1.e9-dataset_params["plasma_profile_times"][tind]))
                     multi_nc, ncells, nmat = um.multi2ifriit_inputs(multi_data, itime_multi, ind_interface_dt_ch)
