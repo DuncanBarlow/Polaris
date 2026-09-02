@@ -115,7 +115,7 @@ def multi_read_bin(filename, data_set):
     param_counter = 0
     ind_geo = 0
     old_label = ""
-    max_num_times = 1000
+    max_num_times = 100000
 
     list_labels = []
     list_num_per_label = []
