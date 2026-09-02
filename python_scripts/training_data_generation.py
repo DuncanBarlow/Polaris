@@ -58,6 +58,8 @@ def define_dataset_params(num_examples, sys_params,
                           random_seed=12345):
     dataset_params = {}
     dataset_params["facility"] = "omega" #"custom_facility" #"nif" #"lmj" # "omega"
+    # ifriit_facility_name only used for "custom_facility"
+    ifriit_facility_name = "ico80" #"cpm768" #"cpm200" #"cpm48" #"cpm72" #"t11_b72" #"ico80"
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
     dataset_params["sampling_method"] = "random" #"random", "lhs", "linear"
@@ -92,9 +94,7 @@ def define_dataset_params(num_examples, sys_params,
     elif (dataset_params["facility"] == "lmj") or (dataset_params["facility"] == "test"):
         facility_spec, dataset_params = idg.import_lmj_config(sys_params, dataset_params)
     elif (dataset_params["facility"]=="custom_facility") or (dataset_params["facility"]=="omega"):
-        facility_spec = idg.import_direct_drive_config(sys_params, dataset_params)
-    elif (dataset_params["facility"] == "omega"):
-        facility_spec = idg.import_direct_drive_config(sys_params)
+        facility_spec = idg.import_direct_drive_config(sys_params, dataset_params, ifriit_facility_name)
 
     if dataset_params["pointing_per_beam_bool"]:
         dataset_params["num_input_params"] = facility_spec['nbeams'] * dataset_params["num_variables_per_beam"]

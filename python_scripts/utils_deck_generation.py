@@ -286,7 +286,8 @@ def define_deck_generation_params(dataset_params, facility_spec):
 
     return deck_gen_params
 
-def import_direct_drive_config(sys_params, dataset_params):
+
+def import_direct_drive_config(sys_params, dataset_params, ifriit_facility_name):
     facility_spec = dict()
 
     facility_spec['num_quads'] = 0
@@ -295,7 +296,7 @@ def import_direct_drive_config(sys_params, dataset_params):
     dataset_params['num_beam_groups'] = 1
 
     if (dataset_params['facility']=="custom_facility"):
-        facility_spec['ifriit_facility_name'] = "cpm48" #"cpm48" #"cpm72" #"t11_b72" #"ico80"
+        facility_spec['ifriit_facility_name'] = ifriit_facility_name
         if facility_spec['ifriit_facility_name'] == "cpm48":
             facility_spec = generate_facility_cpm48(facility_spec)
         else:
