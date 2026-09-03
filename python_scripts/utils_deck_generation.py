@@ -299,8 +299,6 @@ def import_direct_drive_config(sys_params, dataset_params, ifriit_facility_name)
         facility_spec['ifriit_facility_name'] = ifriit_facility_name
         if facility_spec['ifriit_facility_name'] == "cpm48":
             facility_spec = generate_facility_cpm48(facility_spec)
-        elif facility_spec['ifriit_facility_name'] == "xavier_ico80":
-            facility_spec = nrw.load_facility_csv(sys_params, facility_spec)
         else:
             facility_spec = nrw.load_facility_csv(sys_params, facility_spec)
         facility_spec["focal_length_metres"] = 10.0
