@@ -39,9 +39,9 @@ def create_run_files_direct_drive(dataset, deck_gen_params, dataset_params, sys_
                                                                   + dataset_params["beamspot_radius_min"]
             deck_gen_params["beamspot_minor_radius"][iconfig,:] = deck_gen_params["beamspot_major_radius"][iconfig,:]
         elif dataset_params["select_beamspot_bool"]:
-            deck_gen_params["beamspot_order"][iconfig,:] = dataset_params["beamspot_order_default"]
-            deck_gen_params["beamspot_major_radius"][iconfig,:] = dataset_params["beamspot_radius_default"]
-            deck_gen_params["beamspot_minor_radius"][iconfig,:] = dataset_params["beamspot_radius_default"]
+            deck_gen_params["beamspot_order"][iconfig,:] = dataset_params["beamspot_SG_order"]
+            deck_gen_params["beamspot_major_radius"][iconfig,:] = dataset_params["beamspot_radius"]
+            deck_gen_params["beamspot_minor_radius"][iconfig,:] = dataset_params["beamspot_radius"]
 
         if dataset_params["scan_bandwidth_bool"]:
             deck_gen_params["bandwidth_num_spectral_lines"][iconfig] = int((dataset_params["bandwidth_num_spectral_lines_max"] - 2)
@@ -299,6 +299,8 @@ def import_direct_drive_config(sys_params, dataset_params, ifriit_facility_name)
         facility_spec['ifriit_facility_name'] = ifriit_facility_name
         if facility_spec['ifriit_facility_name'] == "cpm48":
             facility_spec = generate_facility_cpm48(facility_spec)
+        elif facility_spec['ifriit_facility_name'] == "xavier_ico80":
+            facility_spec = nrw.load_facility_csv(sys_params, facility_spec)
         else:
             facility_spec = nrw.load_facility_csv(sys_params, facility_spec)
         facility_spec["focal_length_metres"] = 10.0
@@ -313,19 +315,49 @@ def import_direct_drive_config(sys_params, dataset_params, ifriit_facility_name)
         facility_spec['Beam'] = [None] * facility_spec['nbeams']
         for ibeam in range(facility_spec['nbeams']):
             facility_spec['Beam'][ibeam] = str(int(10 + ibeam))
-        dataset_params['beamgroup_name'] = np.array(np.zeros(int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"])), dtype='<U20')
         #inconvenient en le laissant ici : on risque d'avoir des problèmes avec le "num?
         dataset_params["beamspot_predef_beam_name"] = np.array(np.zeros(int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"])), dtype='<U20')
         dataset_params["beamspot_predef_beam_name"][:] = "SG5"
-        if dataset_params['custom_beam_groups_bool']==True:
-            facility_spec, dataset_params  = group_beams_by_group(facility_spec,dataset_params)
-        else:
-            dataset_params['beamgroup_name'][:] = "group1"
+
+    dataset_params['beamgroup_name'] = np.array(np.zeros(int(facility_spec['nbeams'] / facility_spec["beams_per_ifriit_beam"])), dtype='<U20')
+    dataset_params["beamspot_SG_order"] = np.zeros(int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])) + dataset_params["beamspot_SG_order_default"]
+    dataset_params["beamspot_radius"] = np.zeros(int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])) + dataset_params["beamspot_radius_default"]
+
+    if dataset_params['custom_beam_groups_bool']==True:
+        facility_spec, dataset_params  = group_beams_by_group(facility_spec,dataset_params)
+    else:
+        dataset_params['beamgroup_name'][:] = "group1"
     return facility_spec
 
 
 def group_beams_by_group(facility_spec, dataset_params):
     dataset_params['beamgroup_name'][:] = "None"
+
+    if dataset_params["custom_beam_groups_name"] == "xavier_ico80_a2":
+        dataset_params["select_beamspot_bool"] = True
+        dataset_params["beamspot_SG_order"] = 3.6
+        factor = 0.78
+        dataset_params['beamgroup_name'][:60] = "60_group"
+        dataset_params["beamspot_radius"][:60] = dataset_params['target_radius'] * factor / np.sqrt(1.187)
+        dataset_params['beamgroup_name'][60:] = "20_group"
+        dataset_params["beamspot_radius"][60:] = dataset_params['target_radius'] * factor
+    if dataset_params["custom_beam_groups_name"] == "xavier_ico80_b1":
+        dataset_params["select_beamspot_bool"] = True
+        dataset_params["beamspot_SG_order"] = 3.6
+        factor = 0.7
+        dataset_params['beamgroup_name'][:60] = "60_group"
+        dataset_params["beamspot_radius"][:60] = dataset_params['target_radius'] * factor / np.sqrt(1.187)
+        dataset_params['beamgroup_name'][60:] = "20_group"
+        dataset_params["beamspot_radius"][60:] = dataset_params['target_radius'] * factor
+    if dataset_params["custom_beam_groups_name"] == "xavier_ico80_b2":
+        dataset_params["select_beamspot_bool"] = True
+        dataset_params["beamspot_SG_order"] = 3.6
+        factor = 0.4
+        dataset_params['beamgroup_name'][:60] = "60_group"
+        dataset_params["beamspot_radius"][:60] = dataset_params['target_radius'] * factor / np.sqrt(1.187)
+        dataset_params['beamgroup_name'][60:] = "20_group"
+        dataset_params["beamspot_radius"][60:] = dataset_params['target_radius'] * factor
+
     set_group_36 = [30,45,19,50,62,54,39,23,69,51,38,21,27,18,53,42,49,34,37,24,59,60,41,15,20,66,58,65,52,33,31,11,26,17,56,61]
     set_group_24 = [10,12,13,14,16,22,25,28,29,32,35,36,40,43,44,46,47,48,55,57,63,64,67,68]
     if dataset_params["custom_beam_groups_name"] == "24+36":

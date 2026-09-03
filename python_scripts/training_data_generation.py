@@ -59,7 +59,7 @@ def define_dataset_params(num_examples, sys_params,
     dataset_params = {}
     dataset_params["facility"] = "omega" #"custom_facility" #"nif" #"lmj" # "omega"
     # ifriit_facility_name only used for "custom_facility"
-    ifriit_facility_name = "ico80" #"cpm768" #"cpm200" #"cpm48" #"cpm72" #"t11_b72" #"ico80"
+    ifriit_facility_name = "ico80" #"xavier_ico80" #"cpm768" #"cpm200" #"cpm48" #"cpm72" #"t11_b72" #"ico80"
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
     dataset_params["sampling_method"] = "random" #"random", "lhs", "linear"
@@ -70,8 +70,8 @@ def define_dataset_params(num_examples, sys_params,
 
     dataset_params['target_radius'] = 2307.0
     dataset_params['custom_beam_groups_bool'] = False
-    dataset_params["custom_beam_groups_name"] = "just_40"
-    dataset_params["pointings_zooming_bool"] = False
+    dataset_params["custom_beam_groups_name"] = "xavier_ico80_b1" #"40+20" #"xavier_ico80_b1" # "24+36" #"just_24" # "just_36"
+    dataset_params["pointings_import_bool"] = False
     dataset_params["pointings_file_name"] = "point_Theobald2012.txt"
 
     dataset_params["plasma_profile_source"] = "default" #"multi" # "default"
@@ -86,7 +86,13 @@ def define_dataset_params(num_examples, sys_params,
     dataset_params["LMAX"] = 30
     dataset_params["num_coeff"] = int(((dataset_params["LMAX"] + 2) * (dataset_params["LMAX"] + 1))/2.0)
 
-    dataset_params = define_scan_parameters(dataset_params)
+    dataset_params["select_beamspot_bool"] = False
+    dataset_params["beamspot_SG_order_default"] = 3.0 # 3.0
+    dataset_params["beamspot_radius_default"] = dataset_params['target_radius'] * 0.7 #  * 0.75
+
+    dataset_params["select_bandwidth_bool"] = False
+    dataset_params["bandwidth_num_spectral_lines_default"] = 20
+    dataset_params["bandwidth_percentage_width_default"] = 1.
 
     # facility specifications
     if dataset_params["facility"] == "nif":
@@ -96,15 +102,12 @@ def define_dataset_params(num_examples, sys_params,
     elif (dataset_params["facility"]=="custom_facility") or (dataset_params["facility"]=="omega"):
         facility_spec = idg.import_direct_drive_config(sys_params, dataset_params, ifriit_facility_name)
 
-    if dataset_params["pointing_per_beam_bool"]:
-        dataset_params["num_input_params"] = facility_spec['nbeams'] * dataset_params["num_variables_per_beam"]
-    else:
-        dataset_params["num_input_params"] = dataset_params['num_beam_groups'] * dataset_params["num_variables_per_beam"]
+    dataset_params = define_scan_parameters(dataset_params, facility_spec)
 
     return dataset_params, facility_spec
 
 
-def define_scan_parameters(dataset_params):
+def define_scan_parameters(dataset_params, facility_spec):
     dataset_params["hemisphere_symmetric"] = False
 
     num_variables_per_beam = 0
@@ -151,11 +154,8 @@ def define_scan_parameters(dataset_params):
         else:
             num_variables_per_beam += 1
     # beamspot
-    dataset_params["select_beamspot_bool"] = False
-    dataset_params["beamspot_order_default"] = 3.0
-    dataset_params["beamspot_radius_default"] = dataset_params['target_radius']
     dataset_params["scan_beamspot_bool"] = False
-    dataset_params["beamspot_order_max"] = dataset_params["beamspot_order_default"] * 2.0
+    dataset_params["beamspot_order_max"] = dataset_params["beamspot_SG_order_default"] * 2.0
     dataset_params["beamspot_radius_min"] = dataset_params["beamspot_radius_default"] * 0.25
     dataset_params["beamspot_radius_max"] = dataset_params["beamspot_radius_default"] * 1.2
     if (dataset_params["select_beamspot_bool"] or dataset_params["scan_beamspot_bool"]):
@@ -170,9 +170,6 @@ def define_scan_parameters(dataset_params):
         dataset_params["beamspot_radius_index"] = num_variables_per_beam
         num_variables_per_beam += 1
     # bandwidth
-    dataset_params["select_bandwidth_bool"] = False
-    dataset_params["bandwidth_num_spectral_lines_default"] = 20
-    dataset_params["bandwidth_percentage_width_default"] = 1.
     dataset_params["scan_bandwidth_bool"] = False
     dataset_params["bandwidth_num_spectral_lines_max"] = dataset_params["bandwidth_num_spectral_lines_default"] * 2
     dataset_params["bandwidth_percentage_width_max"] = dataset_params["bandwidth_percentage_width_default"] * 10.0
@@ -191,6 +188,12 @@ def define_scan_parameters(dataset_params):
         num_variables_per_beam += 1
 
     dataset_params["num_variables_per_beam"] = num_variables_per_beam
+
+    if dataset_params["pointing_per_beam_bool"]:
+        dataset_params["num_input_params"] = facility_spec['nbeams'] * dataset_params["num_variables_per_beam"]
+    else:
+        dataset_params["num_input_params"] = dataset_params['num_beam_groups'] * dataset_params["num_variables_per_beam"]
+
     return dataset_params
 
 
