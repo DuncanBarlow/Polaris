@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polaris"
+version = "0.1.0"
+description = "Python workflow tools for IFRIIT laser configuration studies"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Polaris developers" }
+]
+dependencies = [
+  "numpy",
+  "scipy",
+  "netCDF4",
+  "xarray"
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
