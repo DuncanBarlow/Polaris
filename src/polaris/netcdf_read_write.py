@@ -4,9 +4,9 @@ import os
 import csv
 import glob
 import shutil
-from src.polaris.healpy_pointings import rot_mat
-import src.polaris.utils_intensity_map as uim
-import src.polaris.utils_healpy as uhp
+from polaris.healpy_pointings import rot_mat
+import polaris.utils_intensity_map as uim
+import polaris.utils_healpy as uhp
 
 
 def read_nn_weights(filename_nn_weights):

@@ -2,9 +2,9 @@
 #some code copied from https://github.com/ahmedfgad/GeneticAlgorithmPython/tree/master/Tutorial%20Project edited by Duncan Barlow
 #from bayes_opt import BayesianOptimization, UtilityFunction
 import numpy as np
-import src.polaris.training_data_generation as tdg
-import src.polaris.netcdf_read_write as nrw
-import src.polaris.utils_deck_generation as idg
+import polaris.training_data_generation as tdg
+import polaris.netcdf_read_write as nrw
+import polaris.utils_deck_generation as idg
 import time
 import sys
 

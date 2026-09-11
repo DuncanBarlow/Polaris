@@ -1,4 +1,4 @@
-import src.polaris.utils_deck_generation as idg
+import polaris.utils_deck_generation as idg
 import numpy as np
 
 small_num = 1.0e-10
