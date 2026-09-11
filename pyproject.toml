@@ -29,6 +29,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 polaris = [
+  "bash_parallel_ifriit",
   "ifriit_run_files/*",
   "facility_config_files/*"
 ]
