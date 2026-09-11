@@ -26,3 +26,9 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+polaris = [
+  "ifriit_run_files/*",
+  "facility_config_files/*"
+]
