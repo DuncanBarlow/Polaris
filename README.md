@@ -8,7 +8,7 @@ Change directory into "python\_scripts".
 
 To generate training data in file "Data/Data\_input" with "10" examples:
 
-     python training_data_generation.py ../Data/Data_input 10 run_type=full
+     python training_data_generation.py ../../Data/Data_input 10 run_type=full
 
 The "input deck" for changing parameters is found in: "python\_scripts/training_data_generation.py" within functions: "define_system_params", "define_dataset_params" and "define_scan_parameters".
 

@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polaris"
+version = "0.1.0"
+description = "Python workflow tools for IFRIIT laser configuration studies"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Duncan Barlow" }
+]
+dependencies = [
+  "numpy",
+  "scipy",
+  "netCDF4",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+polaris = [
+  "bash_parallel_ifriit",
+  "ifriit_run_files/*",
+  "facility_config_files/*"
+]
