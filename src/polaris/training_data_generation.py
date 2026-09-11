@@ -1,8 +1,8 @@
 import numpy as np
-import utils_deck_generation as idg
-import healpy_pointings as hpoint
-import netcdf_read_write as nrw
-import utils_intensity_map as uim
+import src.polaris.utils_deck_generation as idg
+import src.polaris.healpy_pointings as hpoint
+import src.polaris.netcdf_read_write as nrw
+import src.polaris.utils_intensity_map as uim
 import os
 import subprocess
 import sys

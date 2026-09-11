@@ -1,7 +1,7 @@
 import numpy as np
-import utils_deck_generation as idg
-import training_data_generation as tdg
-import utils_beam_pointing as ubp
+import src.polaris.utils_deck_generation as idg
+import src.polaris.training_data_generation as tdg
+import src.polaris.utils_beam_pointing as ubp
 import matplotlib.pyplot as plt
 
 dirname_pulse = "laser_pulse_data_pdd/revolver_wetted_foam/"

@@ -2,14 +2,14 @@
 #some code copied from https://github.com/ahmedfgad/GeneticAlgorithmPython/tree/master/Tutorial%20Project edited by Duncan Barlow
 #from bayes_opt import BayesianOptimization, UtilityFunction
 import numpy as np
-import training_data_generation as tdg
-import netcdf_read_write as nrw
-import utils_deck_generation as idg
+import src.polaris.training_data_generation as tdg
+import src.polaris.netcdf_read_write as nrw
+import src.polaris.utils_deck_generation as idg
 import time
 import sys
 
-
-
+def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
+    dataset["X_all"] = X_all
 def define_optimizer_dataset(X_all, Y_all, avg_powers_all):
     dataset = {}
     dataset["X_all"] = X_all

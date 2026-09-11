@@ -1,9 +1,9 @@
 #some code copied from https://github.com/fmfn/BayesianOptimization edited by Duncan Barlow
 #some code copied from https://github.com/ahmedfgad/GeneticAlgorithmPython/tree/master/Tutorial%20Project edited by Duncan Barlow
-import training_data_generation as tdg
-import netcdf_read_write as nrw
-import utils_optimizers as uopt
-import utils_deck_generation as idg
+import src.polaris.training_data_generation as tdg
+import src.polaris.netcdf_read_write as nrw
+import src.polaris.utils_optimizers as uopt
+import src.polaris.utils_deck_generation as idg
 import numpy as np
 import sys
 import time

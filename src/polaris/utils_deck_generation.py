@@ -3,10 +3,10 @@ import shutil
 import numpy as np
 import csv
 import sys
-import healpy_pointings as hpoint
-import netcdf_read_write as nrw
-import utils_multi as um
-import utils_intensity_map as uim
+import src.polaris.healpy_pointings as hpoint
+import src.polaris.netcdf_read_write as nrw
+import src.polaris.utils_multi as um
+import src.polaris.utils_intensity_map as uim
 
 
 def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec):

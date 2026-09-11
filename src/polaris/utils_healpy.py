@@ -1,7 +1,7 @@
 import numpy as np
 import healpy as hp
 import os
-import utils_intensity_map as uim
+import src.polaris.utils_intensity_map as uim
 
 
 def power_spectrum(intensity_map, LMAX, verbose=True):
