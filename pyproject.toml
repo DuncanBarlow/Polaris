@@ -9,13 +9,12 @@ description = "Python workflow tools for IFRIIT laser configuration studies"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-  { name = "Polaris developers" }
+  { name = "Duncan Barlow" }
 ]
 dependencies = [
   "numpy",
   "scipy",
   "netCDF4",
-  "xarray"
 ]
 
 [tool.setuptools]
