@@ -7,7 +7,7 @@ import shutil
 from polaris.healpy_pointings import rot_mat
 import polaris.utils_intensity_map as uim
 import polaris.utils_healpy as uhp
-
+from polaris import get_facility_config_files_root
 
 def read_nn_weights(filename_nn_weights):
     parameters = {}
@@ -418,8 +418,9 @@ def config_read_csv(facility_spec, filename1, filename2):
 
 
 def load_facility_csv(sys_params, facility_spec):
-    path_facility_configs = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/"
-    f=open(path_facility_configs + facility_spec['ifriit_facility_name']+"_theta_phi_rad.txt", "r")
+    # path_facility_configs = sys_params["root_dir"] + "/" + sys_params["facility_config_files_dir"] + "/"
+    path_facility_configs = get_facility_config_files_root()
+    f=open(path_facility_configs / f"{facility_spec['ifriit_facility_name']}_theta_phi_rad.txt", "r")
     reader = csv.reader(f, delimiter=' ')
 
     facility_spec["Theta"] = []

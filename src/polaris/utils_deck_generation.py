@@ -7,6 +7,7 @@ import polaris.healpy_pointings as hpoint
 import polaris.netcdf_read_write as nrw
 import polaris.utils_multi as um
 import polaris.utils_intensity_map as uim
+from polaris import get_ifriit_run_files_root
 
 
 def create_run_files(dataset, deck_gen_params, dataset_params, sys_params, facility_spec):
@@ -562,12 +563,12 @@ def generate_run_files(dataset, dataset_params, facility_spec, sys_params, deck_
                 if not isExist:
                     os.makedirs(run_location)
 
-                loc_ifriit_runfiles = sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
+                loc_ifriit_runfiles = get_ifriit_run_files_root()#sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
                 if dataset_params["bandwidth_bool"]:
-                    shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"] + "_bandwidth",
+                    shutil.copyfile(loc_ifriit_runfiles / f"{sys_params['ifriit_binary_filename']}_bandwidth",
                                     run_location + "/" + sys_params["ifriit_binary_filename"])
                 else:
-                    shutil.copyfile(loc_ifriit_runfiles + "/" + sys_params["ifriit_binary_filename"],
+                    shutil.copyfile(loc_ifriit_runfiles / f"{sys_params['ifriit_binary_filename']}",
                                     run_location + "/" + sys_params["ifriit_binary_filename"])
 
             if (dataset_params["plasma_profile_source"] == "default") and dataset_params["run_plasma_profile"]:
@@ -670,8 +671,8 @@ def generate_input_deck(iconfig, tind, dataset_params, facility_spec, sys_params
     config_location = sys_params["data_dir"] + "/" + sys_params["config_dir"] + str(iconfig)
     run_location = config_location + "/" + sys_params["sim_dir"] + str(tind)
 
-    loc_ifriit_runfiles = sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
-    base_input_txt_loc = loc_ifriit_runfiles + "/" + sys_params["ifriit_input_name"]
+    loc_ifriit_runfiles = get_ifriit_run_files_root()#sys_params["root_dir"] + "/" + sys_params["ifriit_run_files_dir"]
+    base_input_txt_loc = loc_ifriit_runfiles / sys_params["ifriit_input_name"]
 
     num_ifriit_beams = int(facility_spec['nbeams'] / facility_spec['beams_per_ifriit_beam'])
     with open(base_input_txt_loc) as old_file:
