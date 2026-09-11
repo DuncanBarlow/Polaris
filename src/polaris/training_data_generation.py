@@ -10,7 +10,8 @@ from scipy.stats import qmc
 import shutil
 import glob
 import stat
-
+from polaris import get_bash_parallel_ifriit_path
+from polaris import get_ifriit_run_files_root
 
 def define_system_params(data_dir):
     sys_params = {}
@@ -299,8 +300,8 @@ def run_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_para
         else:
             num_mpi_parallel = 1
 
-        loc_bash_parallel_ifriit = sys_params["root_dir"] + "/" + sys_params["bash_parallel_ifriit"]
-        subprocess.check_call(["./" + loc_bash_parallel_ifriit, config_location, sim_dir, str(min_parallel), str(max_parallel), str(num_mpi_parallel), str(sys_params["num_openmp_parallel"])])
+        loc_bash_parallel_ifriit = get_bash_parallel_ifriit_path()#sys_params["root_dir"] + "/" + sys_params["bash_parallel_ifriit"]
+        subprocess.check_call([str(loc_bash_parallel_ifriit), config_location, sim_dir, str(min_parallel), str(max_parallel), str(num_mpi_parallel), str(sys_params["num_openmp_parallel"])])
 
     dataset = nrw.retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_params, sys_params, facility_spec)
     return dataset
@@ -311,12 +312,12 @@ def copy_python_files(sys_params):
     path_bash_file = sys_params["data_dir"]+"/"+sys_params["bash_parallel_ifriit"]
     file_exists = os.path.exists(sys_params["data_dir"]+"/"+sys_params["bash_parallel_ifriit"])
     if not file_exists:
-        shutil.copy2(sys_params["root_dir"]+"/"+sys_params["bash_parallel_ifriit"],
+        shutil.copy2(get_bash_parallel_ifriit_path(),
                      path_bash_file)
     st = os.stat(path_bash_file)
     os.chmod(path_bash_file, st.st_mode | stat.S_IEXEC)
 
-    shutil.copytree(sys_params["root_dir"]+"/"+sys_params["ifriit_run_files_dir"],
+    shutil.copytree(get_ifriit_run_files_root(),
                     sys_params["data_dir"]+"/"+sys_params["ifriit_run_files_dir"], dirs_exist_ok=True)
 
     files = glob.iglob(os.path.join(sys_params["root_dir"]+"/"+sys_params["python_dir"], "*.py"))
