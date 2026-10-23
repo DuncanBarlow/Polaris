@@ -282,7 +282,7 @@ def main(argv):
     if use_gradient_ascent: # Gradient ascent
         print("Using gradient ascent!")
         gd_n_iter = int(argv[8])
-        line_search_evaluations = 10 #sys_params["num_parallel_ifriits"]
+        line_search_evaluations = 4 # sys_params["num_parallel_ifriits"]
         opt_params = uopt.define_optimizer_parameters(output_dir, num_init_examples, gd_n_iter, dataset_params,
                                                      facility_spec, sys_params)
 
