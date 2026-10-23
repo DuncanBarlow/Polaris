@@ -173,7 +173,7 @@ def heatsource_analysis(hs_and_modes):
 
 
 
-def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, facility_spec, sys_params, deck_gen_params):
+def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, facility_spec, sys_params, deck_gen_params, dataset):
 
     total_power = 0
     print_line = []
@@ -186,11 +186,15 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
     list_group_names = list(set(dataset_params['beamgroup_name']))
 
     for igroup in range(dataset_params['num_beam_groups']):
-        group_name = list_group_names[igroup]
+        quad_name = dataset_params['quad_from_each_group'][igroup]
+        quad_slice = np.where(facility_spec["Quad"] == quad_name)[0]
+        quad_start_ind = quad_slice[0]
+        group_name = dataset_params['beamgroup_name'][quad_start_ind]
         group_slice = np.where(dataset_params['beamgroup_name'] == group_name)[0]
+        quad_list_in_group = list(set(facility_spec["Quad"][group_slice]))
+        beams_per_group = int(len(group_slice) * facility_spec["beams_per_ifriit_beam"])
         beam_ind = group_slice[0]
         beam_name = facility_spec["Beam"][beam_ind]
-        beams_per_group = int(len(group_slice) * facility_spec["beams_per_ifriit_beam"])
 
         if (dataset_params["facility"]=="lmj") or (dataset_params["facility"]=="nif"):
             quad_name = facility_spec["Quad"][beam_ind]
@@ -237,7 +241,7 @@ def extract_run_parameters(iex, ind_profile, power_deposited, dataset_params, fa
     mean_power_fraction = total_power / facility_spec['nbeams']
     print_line.append('The optimization selected a mean power percentage, {:.2f}%, '.format(mean_power_fraction * 100.0))
 
-    print_line.append('Total power emitted {:.2f}TW, '.format(total_power))
+    print_line.append('Total power emitted {:.2f}TW, '.format(dataset["power_emitted"][iex, ind_profile] / 1.0e12))
     if not dataset_params["run_plasma_profile"]:
         print_line.append('Percentage of emitted power deposited was {:.2f}%, '.format(power_deposited / (facility_spec["nbeams"] * dataset_params['default_beam_power_TW'][ind_profile] * mean_power_fraction) * 100.0))
 
