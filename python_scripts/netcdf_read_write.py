@@ -134,6 +134,9 @@ def retrieve_xtrain_and_delete(min_parallel, max_parallel, dataset, dataset_para
                 dataset["rms"][iex,tind] = uim.alms2rms(dataset["real_modes"][iex,tind,:], dataset["imag_modes"][iex,tind,:], dataset_params["LMAX"])
                 dataset["power_deposited"][iex,tind] = uim.power_deposited(hs_and_modes)
 
+                dataset["rms"][iex,tind] = np.nan_to_num(dataset["rms"][iex,tind])
+                dataset["avg_flux"][iex,tind] = np.nan_to_num(dataset["avg_flux"][iex,tind])
+
                 print(dir_illumination)
                 print("With density profiles:")
                 print('Total power emitted:    {:.2f}TW, '.format(dataset["power_emitted"][iex,tind] / 1.0e12))
