@@ -240,7 +240,7 @@ def main(argv):
 
         dataset_params_new = dataset_params_old
         #dataset_params_new["run_plasma_profile"] = True
-        #dataset_params["run_with_cbet"] = True
+        #dataset_params_new["run_with_cbet"] = True
 
         dataset_params_new["num_examples"] = num_new_examples
         dataset_new = tdg.define_dataset(dataset_params_new)
