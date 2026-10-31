@@ -226,6 +226,34 @@ def main(argv):
                         output_dir + "/" + sys_params["trainingdata_filename"])
         shutil.copyfile(input_dir + "/" + sys_params["deck_gen_params_filename"],
                         output_dir + "/" + sys_params["deck_gen_params_filename"])
+    elif data_init_type == 3:
+        print("Re-initialising based on best inputs from: "+input_dir)
+
+        num_new_examples = 1
+        #facility_spec_old = nrw.read_general_netcdf(input_dir + "/" + sys_params["facility_spec_filename"])
+        dataset_params_old = nrw.read_general_netcdf(input_dir + "/" + sys_params["dataset_params_filename"])
+        dataset_old = nrw.read_general_netcdf(input_dir + "/" + sys_params["trainingdata_filename"])
+        _, facility_spec_new = tdg.define_dataset_params(num_new_examples, sys_params)
+        opt_params_init = uopt.define_optimizer_parameters(output_dir, 0, 0, dataset_params_old,
+                                                     facility_spec_new, sys_params)
+        target = uopt.fitness_function(dataset_old, opt_params_init)
+
+        dataset_params_new = dataset_params_old
+        #dataset_params_new["run_plasma_profile"] = True
+        #dataset_params_new["run_with_cbet"] = True
+
+        dataset_params_new["num_examples"] = num_new_examples
+        dataset_new = tdg.define_dataset(dataset_params_new)
+        argmax_fitness = np.argmax(target)
+        dataset_new["input_parameters"][0,:] = dataset_old["input_parameters"][argmax_fitness,:]
+        #uopt.run_ifriit_input(num_new_examples, X_all, opt_params_init)
+
+        deck_gen_params_new = idg.define_deck_generation_params(dataset_params_new, facility_spec_new)
+        deck_gen_params_new = idg.create_run_files(dataset_new, deck_gen_params_new, dataset_params_new, sys_params, facility_spec_new)
+        idg.save_data_dicts_to_file(sys_params, dataset_new, dataset_params_new, deck_gen_params_new, facility_spec_new)
+        tdg.copy_python_files(sys_params)
+        dataset, dataset_params, deck_gen_params, facility_spec = idg.load_data_dicts_from_file(sys_params)
+        tdg.generate_training_data(dataset, dataset_params, sys_params, facility_spec)
     else:
         print("")
         sys.exit("Dataset not properly specified")
@@ -254,7 +282,7 @@ def main(argv):
     if use_gradient_ascent: # Gradient ascent
         print("Using gradient ascent!")
         gd_n_iter = int(argv[8])
-        line_search_evaluations = 10 #sys_params["num_parallel_ifriits"]
+        line_search_evaluations = 4 # sys_params["num_parallel_ifriits"]
         opt_params = uopt.define_optimizer_parameters(output_dir, num_init_examples, gd_n_iter, dataset_params,
                                                      facility_spec, sys_params)
 

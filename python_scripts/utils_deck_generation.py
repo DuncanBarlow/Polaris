@@ -171,11 +171,21 @@ def create_run_files_pdd(dataset, deck_gen_params, dataset_params, sys_params, f
 
             cone_power = np.zeros((dataset_params["num_profiles_per_config"]))
             if dataset_params["power_bool"]:
-                for tind in range(dataset_params["num_profiles_per_config"]):
-                    pind = dataset_params["power_index"] + tind
-                    cone_power[tind] = (cone_params[pind] * (1.0 - dataset_params["min_power"]) + dataset_params["min_power"])
-                    deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["power_index"] + tind] = cone_power[tind] * facility_spec['beams_per_ifriit_beam']
-                    deck_gen_params["power_multiplier"][iex,group_slice,tind] = cone_power[tind] * facility_spec['beams_per_ifriit_beam']
+                if dataset_params["time_varying_pulse"]:
+                    for tind in range(dataset_params["num_profiles_per_config"]):
+                        pind = dataset_params["power_index"] + tind
+                        cone_power[tind] = (cone_params[pind] * (1.0 - dataset_params["min_power"]) + dataset_params["min_power"])
+                        deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["power_index"] + tind] = cone_power[tind] * facility_spec['beams_per_ifriit_beam']
+                        deck_gen_params["power_multiplier"][iex,group_slice,tind] = cone_power[tind] * facility_spec['beams_per_ifriit_beam']
+                else:
+                    for tind in range(dataset_params["num_profiles_per_config"]):
+                        if tind < 2:
+                            pind = dataset_params["power_index"]
+                            cone_power[tind] = (cone_params[pind] * (1.0 - dataset_params["min_power"]) + dataset_params["min_power"])
+                            deck_gen_params["sim_params"][iex,igroup*num_vars+dataset_params["power_index"] + tind] = cone_power[tind] * facility_spec['beams_per_ifriit_beam']
+                            deck_gen_params["power_multiplier"][iex,group_slice,tind] = cone_power[tind] * facility_spec['beams_per_ifriit_beam']
+                        else:
+                            deck_gen_params["power_multiplier"][iex,group_slice,tind] = facility_spec['beams_per_ifriit_beam']
             else:
                 deck_gen_params["power_multiplier"][iex,group_slice,:] = facility_spec['beams_per_ifriit_beam']
 

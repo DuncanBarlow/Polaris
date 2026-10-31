@@ -62,7 +62,7 @@ def define_dataset_params(num_examples, sys_params,
     ifriit_facility_name = "ico80" #"xavier_ico80" #"cpm768" #"cpm200" #"cpm48" #"cpm72" #"t11_b72" #"ico80"
     dataset_params["num_examples"] = num_examples
     dataset_params["random_seed"] = random_seed
-    dataset_params["sampling_method"] = "random" #"random", "lhs", "linear"
+    dataset_params["sampling_method"] = "half" #"random" #"random", "lhs", "linear"
     dataset_params["run_with_cbet"] = False
     dataset_params["run_plasma_profile"] = False
     dataset_params["bool_group_beams_by_cone"] = False
@@ -227,6 +227,8 @@ def populate_dataset_random_inputs(dataset_params, dataset):
         num_samples_per_param = int(dataset_params["num_examples"])
         sample[:,0] = np.linspace(0.,1.,num_samples_per_param)
         print(sample)
+    elif dataset_params["sampling_method"] == "half":
+        sample = np.zeros((dataset_params["num_examples"], dataset_params["num_input_params"])) + 0.5
     else:
         sys.exit("dataset_params['sampling_method'] not recognised or see source code for type 'linear'")
 
@@ -316,18 +318,19 @@ def copy_python_files(sys_params):
     st = os.stat(path_bash_file)
     os.chmod(path_bash_file, st.st_mode | stat.S_IEXEC)
 
-    shutil.copytree(sys_params["root_dir"]+"/"+sys_params["ifriit_run_files_dir"],
+    file_exists = os.path.exists(sys_params["data_dir"]+"/"+sys_params["ifriit_run_files_dir"])
+    if not file_exists:
+        shutil.copytree(sys_params["root_dir"]+"/"+sys_params["ifriit_run_files_dir"],
                     sys_params["data_dir"]+"/"+sys_params["ifriit_run_files_dir"], dirs_exist_ok=True)
-
-    files = glob.iglob(os.path.join(sys_params["root_dir"]+"/"+sys_params["python_dir"], "*.py"))
+    file_exists = os.path.exists(sys_params["data_dir"]+"/"+sys_params["facility_config_files_dir"])
+    if not file_exists:
+        shutil.copytree(sys_params["root_dir"]+"/"+sys_params["facility_config_files_dir"],
+                    sys_params["data_dir"]+"/"+sys_params["facility_config_files_dir"], dirs_exist_ok=True)
 
     file_exists = os.path.exists(sys_params["data_dir"]+"/"+sys_params["python_dir"])
     if not file_exists:
-        os.makedirs( sys_params["data_dir"]+"/"+sys_params["python_dir"])
-
-    for file in files:
-        if os.path.isfile(file):
-            shutil.copy2(file, sys_params["data_dir"]+"/"+sys_params["python_dir"])
+        shutil.copytree(sys_params["root_dir"]+"/"+sys_params["python_dir"],
+                    sys_params["data_dir"]+"/"+sys_params["python_dir"], dirs_exist_ok=True)
 
 
 
